@@ -21,5 +21,13 @@
   },
   "devDependencies": {
     "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd",
+      "@cloudflare/workerd-linux-64",
+      "@cloudflare/workerd-windows-64"
+    ]
   }
 }

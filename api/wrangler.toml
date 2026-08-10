@@ -1,0 +1,30 @@
+name = "securevote-api"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Deploy as a Worker + static assets? No — API only. (_routes.json not needed here.)
+
+[vars]
+API_VERSION = "1.0.0"
+ENV = "development"
+
+# D1 database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "securevote"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# R2 file storage (KYC docs, candidate images)
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "securevote-files"
+
+# KV for sessions / rate limiting / cache
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Cron: chain listener (Phase 6) — every 60s
+[triggers]
+crons = ["* * * * *"]
