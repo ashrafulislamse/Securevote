@@ -1,113 +1,148 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-// static settings screen.
-// TODO: Wire notifications to a backend endpoint once one exists. For now the
-// inbox is populated with placeholder data and a "no notifications" empty state.
+import '../../../../core/models/notification.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
-class AlertsInboxScreen extends StatefulWidget {
+/// Inbox of all in-app notifications for the current user.
+///
+/// Backed by `GET /api/notifications`. Pulls to refresh, marks individual
+/// items as read on tap, and exposes a "Mark all read" affordance.
+class AlertsInboxScreen extends ConsumerStatefulWidget {
   const AlertsInboxScreen({super.key});
 
   @override
-  State<AlertsInboxScreen> createState() => _AlertsInboxScreenState();
+  ConsumerState<AlertsInboxScreen> createState() => _AlertsInboxScreenState();
 }
 
-class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
+class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
   String _selectedFilter = 'All';
-  final List<String> _filters = <String>[
+  final List<String> _filters = const <String>[
     'All',
     'Elections',
     'KYC',
-    'Security',
     'Results',
+    'Other',
   ];
 
-  // Sample notifications data
-  final List<Map<String, dynamic>> _allNotifications = <Map<String, dynamic>>[
-    <String, dynamic>{
-      'icon': Icons.how_to_vote,
-      'iconColor': const Color(0xFFB9C3FF),
-      'title': 'Election Now Open',
-      'message':
-          'The 2024 Global Governance Vote is now active. Cast your secure ballot before Friday.',
-      'time': '2m ago',
-      'unread': true,
-      'category': 'Elections',
-      'actionLabel': 'Vote Now',
-      'section': 'TODAY',
-    },
-    <String, dynamic>{
-      'icon': Icons.verified_user,
-      'iconColor': const Color(0xFF2ADEC0),
-      'title': 'KYC Verified',
-      'message':
-          'Your identity verification has been processed successfully. Your account is now fully secure.',
-      'time': '4h ago',
-      'unread': true,
-      'category': 'KYC',
-      'section': 'TODAY',
-    },
-    <String, dynamic>{
-      'icon': Icons.warning_amber_rounded,
-      'iconColor': const Color(0xFFFF6B6B),
-      'title': 'New Login Detected',
-      'message':
-          'A new login was detected from a Chrome browser in San Francisco, CA. Was this you?',
-      'time': 'Yesterday',
-      'unread': true,
-      'category': 'Security',
-      'actionLabel': 'Review',
-      'isDanger': true,
-      'section': 'YESTERDAY',
-    },
-    <String, dynamic>{
-      'icon': Icons.bar_chart,
-      'iconColor': const Color(0xFF8E90A0),
-      'title': 'Community Results Live',
-      'message':
-          'The final tally for the Tech Hub Initiative is now available for public review.',
-      'time': 'Yesterday',
-      'unread': false,
-      'category': 'Results',
-      'section': 'YESTERDAY',
-    },
-    <String, dynamic>{
-      'icon': Icons.campaign,
-      'iconColor': const Color(0xFFD2BBFF),
-      'title': 'Reminder: Vote Closes Soon',
-      'message':
-          'The Student Council Election closes in 6 hours. Make sure your voice is heard.',
-      'time': 'Yesterday',
-      'unread': false,
-      'category': 'Elections',
-      'section': 'YESTERDAY',
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredNotifications {
-    if (_selectedFilter == 'All') {
-      return _allNotifications;
+  /// Maps a notification `type` to a UI filter bucket.
+  String _categoryFor(Notification n) {
+    switch (n.type) {
+      case 'kyc_approved':
+      case 'kyc_rejected':
+        return 'KYC';
+      case 'election_opened':
+      case 'election_closed':
+        return 'Elections';
+      case 'election_published':
+      case 'vote_recorded':
+        return 'Results';
+      default:
+        return 'Other';
     }
-    return _allNotifications
-        .where((n) => n['category'] == _selectedFilter)
-        .toList();
   }
 
-  int get _unreadCount =>
-      _allNotifications.where((n) => n['unread'] == true).length;
+  IconData _iconFor(Notification n) {
+    switch (n.type) {
+      case 'kyc_approved':
+      case 'kyc_rejected':
+        return Icons.verified_user;
+      case 'vote_recorded':
+        return Icons.how_to_vote;
+      case 'election_opened':
+        return Icons.how_to_vote;
+      case 'election_closed':
+        return Icons.lock_clock;
+      case 'election_published':
+        return Icons.bar_chart;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _colorFor(Notification n) {
+    switch (n.type) {
+      case 'kyc_approved':
+        return const Color(0xFF2ADEC0);
+      case 'kyc_rejected':
+        return const Color(0xFFFF6B6B);
+      case 'vote_recorded':
+        return const Color(0xFFB9C3FF);
+      case 'election_published':
+        return const Color(0xFF8E90A0);
+      case 'election_opened':
+        return const Color(0xFFD2BBFF);
+      case 'election_closed':
+        return const Color(0xFFFFB454);
+      default:
+        return const Color(0xFFB9C3FF);
+    }
+  }
+
+  String _relativeTime(DateTime when) {
+    final diff = DateTime.now().difference(when);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 2) return 'Yesterday';
+    return '${diff.inDays}d ago';
+  }
+
+  String _sectionFor(DateTime when) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(when.year, when.month, when.day);
+    if (that == today) return 'TODAY';
+    if (that == today.subtract(const Duration(days: 1))) return 'YESTERDAY';
+    if (now.difference(when).inDays < 7) return 'THIS WEEK';
+    return 'EARLIER';
+  }
+
+  Future<void> _handleRefresh() async {
+    await ref.read(notificationsProvider.future);
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadNotificationCountProvider);
+  }
+
+  Future<void> _handleMarkAllRead(List<Notification> items) async {
+    final unread = items.where((n) => !n.read).toList();
+    if (unread.isEmpty) return;
+    try {
+      await ProfileRepository().markAllRead();
+      ref.invalidate(notificationsProvider);
+      ref.invalidate(unreadNotificationCountProvider);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to mark all read: $e')),
+      );
+    }
+  }
+
+  Future<void> _handleOpen(Notification n) async {
+    if (!n.read) {
+      try {
+        await ProfileRepository().markRead(n.id);
+      } catch (_) {
+        // Best-effort: even if the server update fails we still let the
+        // user open the notification locally.
+      }
+      ref.invalidate(notificationsProvider);
+      ref.invalidate(unreadNotificationCountProvider);
+    }
+    if (!mounted) return;
+    await Navigator.pushNamed(
+      context,
+      AppRouter.notificationDetail,
+      arguments: n,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> notifications = _filteredNotifications;
-    final Map<String, List<Map<String, dynamic>>> groupedNotifications =
-        <String, List<Map<String, dynamic>>>{};
-
-    for (final notification in notifications) {
-      final String section = notification['section'] as String;
-      groupedNotifications.putIfAbsent(section, () => <Map<String, dynamic>>[]);
-      groupedNotifications[section]!.add(notification);
-    }
+    final asyncNotifications = ref.watch(notificationsProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0D12),
@@ -130,32 +165,30 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (_unreadCount > 0)
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          for (final notification in _allNotifications) {
-                            notification['unread'] = false;
-                          }
-                        });
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Mark all read',
-                        style: TextStyle(
-                          color: Color(0xFFB9C3FF),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
+                  asyncNotifications.maybeWhen(
+                    data: (items) => items.any((n) => !n.read)
+                        ? TextButton(
+                            onPressed: () => _handleMarkAllRead(items),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Mark all read',
+                              style: TextStyle(
+                                color: Color(0xFFB9C3FF),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
@@ -163,118 +196,188 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
             Container(
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _filters.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final String filter = _filters[index];
-                  final bool isActive = _selectedFilter == filter;
-                  final int count = filter == 'All'
-                      ? _allNotifications.length
-                      : _allNotifications
-                            .where((n) => n['category'] == filter)
-                            .length;
-
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedFilter = filter;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: isActive
-                            ? const LinearGradient(
-                                colors: <Color>[
-                                  Color(0xFFB9C3FF),
-                                  Color(0xFFD2BBFF),
-                                ],
-                              )
-                            : null,
-                        color: isActive ? null : const Color(0xFF1A1D28),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            filter,
-                            style: TextStyle(
-                              color: isActive
-                                  ? Colors.black
-                                  : Colors.white.withValues(alpha: 0.7),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
+              child: asyncNotifications.maybeWhen(
+                data: (items) {
+                  final counts = <String, int>{};
+                  for (final filter in _filters) {
+                    counts[filter] = filter == 'All'
+                        ? items.length
+                        : items.where((n) => _categoryFor(n) == filter).length;
+                  }
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _filters.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final String filter = _filters[index];
+                      final bool isActive = _selectedFilter == filter;
+                      final int count = counts[filter] ?? 0;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedFilter = filter;
+                          });
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            gradient: isActive
+                                ? const LinearGradient(
+                                    colors: <Color>[
+                                      Color(0xFFB9C3FF),
+                                      Color(0xFFD2BBFF),
+                                    ],
+                                  )
+                                : null,
+                            color: isActive ? null : const Color(0xFF1A1D28),
                           ),
-                          if (count > 0) ...<Widget>[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                color: isActive
-                                    ? Colors.black.withValues(alpha: 0.2)
-                                    : Colors.white.withValues(alpha: 0.1),
-                              ),
-                              child: Text(
-                                count.toString(),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Text(
+                                filter,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
                                   color: isActive
                                       ? Colors.black
-                                      : Colors.white.withValues(alpha: 0.6),
+                                      : Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                              if (count > 0) ...<Widget>[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: isActive
+                                        ? Colors.black.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.1),
+                                  ),
+                                  child: Text(
+                                    count.toString(),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: isActive
+                                          ? Colors.black
+                                          : Colors.white.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
+                orElse: () => const SizedBox.shrink(),
               ),
             ),
 
             // Notifications List
             Expanded(
-              child: notifications.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+              child: asyncNotifications.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+                ),
+                error: (err, _) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(
+                        Icons.cloud_off_outlined,
+                        size: 64,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Could not load notifications',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: _handleRefresh,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+                data: (items) {
+                  final filtered = _selectedFilter == 'All'
+                      ? items
+                      : items
+                          .where((n) => _categoryFor(n) == _selectedFilter)
+                          .toList();
+                  if (filtered.isEmpty) {
+                    return RefreshIndicator(
+                      color: const Color(0xFFB9C3FF),
+                      backgroundColor: const Color(0xFF131722),
+                      onRefresh: _handleRefresh,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: <Widget>[
-                          Icon(
-                            Icons.notifications_off_outlined,
-                            size: 64,
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No notifications',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.white.withValues(alpha: 0.4),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.notifications_off_outlined,
+                                    size: 64,
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    items.isEmpty
+                                        ? 'No notifications yet'
+                                        : 'Nothing in this filter',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: groupedNotifications.keys.length,
-                      itemBuilder: (context, sectionIndex) {
-                        final String section = groupedNotifications.keys
-                            .elementAt(sectionIndex);
-                        final List<Map<String, dynamic>> sectionNotifications =
-                            groupedNotifications[section]!;
+                    );
+                  }
 
+                  // Group by section label.
+                  final groups = <String, List<Notification>>{};
+                  for (final n in filtered) {
+                    final section = _sectionFor(n.createdAt);
+                    groups.putIfAbsent(section, () => <Notification>[]);
+                    groups[section]!.add(n);
+                  }
+
+                  return RefreshIndicator(
+                    color: const Color(0xFFB9C3FF),
+                    backgroundColor: const Color(0xFF131722),
+                    onRefresh: _handleRefresh,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: groups.keys.length,
+                      itemBuilder: (context, sectionIndex) {
+                        final String section =
+                            groups.keys.elementAt(sectionIndex);
+                        final List<Notification> sectionItems =
+                            groups[section]!;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -294,17 +397,12 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                                 ),
                               ),
                             ),
-                            ...sectionNotifications.asMap().entries.map((
-                              entry,
-                            ) {
+                            ...sectionItems.asMap().entries.map((entry) {
                               final int idx = entry.key;
-                              final Map<String, dynamic> notification =
-                                  entry.value;
+                              final Notification notification = entry.value;
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: idx < sectionNotifications.length - 1
-                                      ? 12
-                                      : 0,
+                                  bottom: idx < sectionItems.length - 1 ? 12 : 0,
                                 ),
                                 child: _buildPremiumNotificationCard(
                                   notification: notification,
@@ -315,19 +413,30 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                         );
                       },
                     ),
+                  );
+                },
+              ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: const PremiumBottomNav(currentIndex: 3),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
+                data: (c) => c,
+                orElse: () => 0,
+              );
+          return PremiumBottomNav(currentIndex: 3, alertsUnreadCount: count);
+        },
+      ),
     );
   }
 
   Widget _buildPremiumNotificationCard({
-    required Map<String, dynamic> notification,
+    required Notification notification,
   }) {
-    final bool unread = notification['unread'] as bool;
-    final bool isDanger = notification['isDanger'] as bool? ?? false;
+    final bool unread = !notification.read;
+    final Color iconColor = _colorFor(notification);
 
     return Container(
       decoration: BoxDecoration(
@@ -336,8 +445,8 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: unread
-              ? <Color>[const Color(0xFF1E2332), const Color(0xFF181C28)]
-              : <Color>[const Color(0xFF1A1D28), const Color(0xFF16191F)],
+              ? const <Color>[Color(0xFF1E2332), Color(0xFF181C28)]
+              : const <Color>[Color(0xFF1A1D28), Color(0xFF16191F)],
         ),
         border: Border.all(
           color: unread
@@ -358,12 +467,7 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            setState(() {
-              notification['unread'] = false;
-            });
-            Navigator.pushNamed(context, AppRouter.notificationDetail);
-          },
+          onTap: () => _handleOpen(notification),
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -380,23 +484,17 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: <Color>[
-                        (notification['iconColor'] as Color).withValues(
-                          alpha: 0.2,
-                        ),
-                        (notification['iconColor'] as Color).withValues(
-                          alpha: 0.1,
-                        ),
+                        iconColor.withValues(alpha: 0.2),
+                        iconColor.withValues(alpha: 0.1),
                       ],
                     ),
                     border: Border.all(
-                      color: (notification['iconColor'] as Color).withValues(
-                        alpha: 0.3,
-                      ),
+                      color: iconColor.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Icon(
-                    notification['icon'] as IconData,
-                    color: notification['iconColor'] as Color,
+                    _iconFor(notification),
+                    color: iconColor,
                     size: 24,
                   ),
                 ),
@@ -410,7 +508,7 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                         children: <Widget>[
                           Expanded(
                             child: Text(
-                              notification['title'] as String,
+                              notification.title,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
@@ -423,34 +521,27 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                             Container(
                               width: 8,
                               height: 8,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: const Color(0xFFB9C3FF),
-                                boxShadow: <BoxShadow>[
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFB9C3FF,
-                                    ).withValues(alpha: 0.5),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ],
+                                color: Color(0xFFB9C3FF),
                               ),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        notification['message'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.7),
-                          height: 1.5,
-                          letterSpacing: -0.2,
+                      if (notification.body.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 6),
+                        Text(
+                          notification.body,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            height: 1.5,
+                            letterSpacing: -0.2,
+                          ),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: <Widget>[
@@ -461,54 +552,13 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            notification['time'] as String,
+                            _relativeTime(notification.createdAt),
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.white.withValues(alpha: 0.4),
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          if (notification['actionLabel'] != null) ...<Widget>[
-                            const Spacer(),
-                            Container(
-                              height: 32,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                gradient: isDanger
-                                    ? LinearGradient(
-                                        colors: <Color>[
-                                          const Color(
-                                            0xFFFF6B6B,
-                                          ).withValues(alpha: 0.2),
-                                          const Color(
-                                            0xFFFF6B6B,
-                                          ).withValues(alpha: 0.1),
-                                        ],
-                                      )
-                                    : const LinearGradient(
-                                        colors: <Color>[
-                                          Color(0xFFB9C3FF),
-                                          Color(0xFFD2BBFF),
-                                        ],
-                                      ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  notification['actionLabel'] as String,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: isDanger
-                                        ? const Color(0xFFFF6B6B)
-                                        : Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ],

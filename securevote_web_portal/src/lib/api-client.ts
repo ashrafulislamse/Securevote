@@ -247,6 +247,17 @@ export type AuditLogEntry = {
   metadata?: string | null;
   ip_address?: string | null;
   created_at: number;
+  prev_hash?: string | null;
+  entry_hash?: string | null;
+};
+
+export type ChainStatus = {
+  ok: boolean;
+  totalEntries: number;
+  firstEntryAt: number | null;
+  lastEntryAt: number | null;
+  brokenAt: string | null;
+  reason?: string | null;
 };
 
 export type Alert = {
@@ -512,13 +523,33 @@ export async function getVoter(id: string): Promise<{
 export async function getAuditLog(params?: {
   limit?: number;
   action?: string;
+  verify?: boolean;
 }): Promise<AuditLogEntry[]> {
   const qs = new URLSearchParams();
   if (params?.limit) qs.set("limit", String(params.limit));
   if (params?.action) qs.set("action", params.action);
+  if (params?.verify) qs.set("verify", "true");
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const data = await apiRequest<{ logs: AuditLogEntry[] }>(`/api/admin/audit-log${suffix}`);
   return data.logs;
+}
+
+export async function getAuditLogWithChain(params?: {
+  limit?: number;
+  action?: string;
+}): Promise<{ logs: AuditLogEntry[]; chain: ChainStatus }> {
+  const qs = new URLSearchParams();
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.action) qs.set("action", params.action);
+  qs.set("verify", "true");
+  const suffix = `?${qs.toString()}`;
+  return apiRequest<{ logs: AuditLogEntry[]; chain: ChainStatus }>(
+    `/api/admin/audit-log${suffix}`,
+  );
+}
+
+export async function verifyAuditChain(): Promise<ChainStatus> {
+  return apiRequest<ChainStatus>("/api/admin/audit-log/verify");
 }
 
 export async function getAlerts(): Promise<Alert[]> {
@@ -529,4 +560,61 @@ export async function getAlerts(): Promise<Alert[]> {
 export async function getRecentElections(): Promise<Election[]> {
   const data = await apiRequest<{ elections: Election[] }>("/api/admin/recent-elections");
   return data.elections;
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+export type NotificationType =
+  | "kyc_approved"
+  | "kyc_rejected"
+  | "vote_recorded"
+  | "election_opened"
+  | "election_closed"
+  | "election_published"
+  | "info";
+
+export type Notification = {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  type: NotificationType | string;
+  read: boolean;
+  createdAt: number;
+};
+
+export async function getNotifications(): Promise<Notification[]> {
+  const data = await apiRequest<{ notifications: Notification[] }>(
+    "/api/notifications",
+  );
+  return data.notifications;
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const data = await apiRequest<{ count: number }>(
+    "/api/notifications/unread-count",
+  );
+  return data.count;
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await apiRequest<{ ok: boolean }>(`/api/notifications/${id}/read`, {
+    method: "POST",
+  });
+}
+
+export async function markAllNotificationsRead(): Promise<number> {
+  const data = await apiRequest<{ ok: boolean; updated: number }>(
+    "/api/notifications/read-all",
+    { method: "POST" },
+  );
+  return data.updated;
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  await apiRequest<{ ok: boolean }>(`/api/notifications/${id}`, {
+    method: "DELETE",
+  });
 }

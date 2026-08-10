@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/auth_provider.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../features/elections/data/elections_repository.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
@@ -137,7 +138,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final Election? activeElection = _firstActive(allElections);
 
     return ObsidianScaffold(
-      bottomNavigationBar: const PremiumBottomNav(currentIndex: 0),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
+                data: (c) => c,
+                orElse: () => 0,
+              );
+          return PremiumBottomNav(currentIndex: 0, alertsUnreadCount: count);
+        },
+      ),
       child: CustomScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),

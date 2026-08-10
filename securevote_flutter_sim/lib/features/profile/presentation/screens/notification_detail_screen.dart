@@ -1,12 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-// static settings screen.
+import '../../../../core/models/notification.dart';
+import '../../../../core/providers/notifications_provider.dart';
 
-class NotificationDetailScreen extends StatelessWidget {
-  const NotificationDetailScreen({super.key});
+/// Detailed view of a single in-app notification.
+///
+/// Receives the [Notification] via `ModalRoute.settings.arguments`. If no
+/// argument is provided (e.g. a deep link), a friendly placeholder is shown.
+class NotificationDetailScreen extends ConsumerStatefulWidget {
+  const NotificationDetailScreen({super.key, this.notification});
+
+  /// Convenience constructor for pre-loaded data.
+  const NotificationDetailScreen.withNotification(Notification notification)
+      : notification = notification;
+
+  final Notification? notification;
+
+  @override
+  ConsumerState<NotificationDetailScreen> createState() =>
+      _NotificationDetailScreenState();
+}
+
+class _NotificationDetailScreenState
+    extends ConsumerState<NotificationDetailScreen> {
+  bool _marked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mark as read on first view.
+    final n = widget.notification;
+    if (n != null && !n.read) {
+      _marked = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          await ProfileRepository().markRead(n.id);
+        } catch (_) {
+          // Best-effort.
+        }
+        if (!mounted) return;
+        ref.invalidate(notificationsProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+      });
+    }
+  }
+
+  String _badgeFor(String type) {
+    switch (type) {
+      case 'kyc_approved':
+      case 'kyc_rejected':
+        return 'KYC UPDATE';
+      case 'vote_recorded':
+        return 'VOTE CONFIRMATION';
+      case 'election_opened':
+        return 'ELECTION UPDATE';
+      case 'election_closed':
+        return 'ELECTION CLOSED';
+      case 'election_published':
+        return 'RESULTS LIVE';
+      default:
+        return 'NOTIFICATION';
+    }
+  }
+
+  String _fullTimestamp(DateTime ts) {
+    final now = DateTime.now();
+    final diff = now.difference(ts);
+    String rel;
+    if (diff.inMinutes < 1) {
+      rel = 'Just now';
+    } else if (diff.inMinutes < 60) {
+      rel = '${diff.inMinutes} minutes ago';
+    } else if (diff.inHours < 24) {
+      rel = '${diff.inHours} hours ago';
+    } else {
+      rel = '${diff.inDays} days ago';
+    }
+    final formatted = ts.toLocal().toString().split('.').first;
+    return '$rel • $formatted';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final notification = widget.notification;
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
       appBar: AppBar(
@@ -20,182 +97,215 @@ class NotificationDetailScreen extends StatelessWidget {
           'Notification',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
-        actions: [
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+        actions: <Widget>[
+          if (notification != null && !notification.read && !_marked)
+            IconButton(
+              tooltip: 'Mark as read',
+              icon: const Icon(Icons.mark_email_read_outlined),
+              onPressed: () async {
+                try {
+                  await ProfileRepository().markRead(notification.id);
+                } catch (_) {
+                  // Best-effort.
+                }
+                if (!mounted) return;
+                ref.invalidate(notificationsProvider);
+                ref.invalidate(unreadNotificationCountProvider);
+                Navigator.pop(context);
+              },
+            ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Color(0xFFB9C3FF),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'ELECTION UPDATE',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFB9C3FF),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Title
-            const Text(
-              'Student Council Election Now Open',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: -0.5,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Timestamp
-            Row(
-              children: [
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '2 hours ago • Oct 12, 2025',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Content
-            Container(
+      body: notification == null
+          ? const _MissingNotification()
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: const Color(0xFF1A1B21),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'The voting period for the Student Council Election 2025 has officially begun. You can now cast your vote for your preferred candidates.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      height: 1.6,
+                children: <Widget>[
+                  // Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Color(0xFFB9C3FF),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _badgeFor(notification.type),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFB9C3FF),
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
+                  // Title
                   Text(
-                    'Key Information:',
+                    notification.title,
                     style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      letterSpacing: -0.5,
+                      height: 1.2,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildInfoItem('Voting Period', 'Oct 12-18, 2025'),
-                  const SizedBox(height: 8),
-                  _buildInfoItem('Candidates', '4 running for President'),
-                  const SizedBox(height: 8),
-                  _buildInfoItem('Your Status', 'Eligible to vote'),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Please review all candidates carefully before casting your ballot. Your vote is anonymous and secured via cryptographic proofs.',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.white.withValues(alpha: 0.7),
-                      height: 1.6,
+                  // Timestamp
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.access_time,
+                        size: 16,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _fullTimestamp(notification.createdAt),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  // Content
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: const Color(0xFF1A1B21),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          notification.body.isEmpty
+                              ? 'You have a new SecureVote notification.'
+                              : notification.body,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            height: 1.6,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Key Information:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInfoItem('Type', _badgeFor(notification.type)),
+                        const SizedBox(height: 8),
+                        _buildInfoItem('Received', _relative(notification.createdAt)),
+                        const SizedBox(height: 8),
+                        _buildInfoItem(
+                          'Status',
+                          notification.read ? 'Read' : 'Unread',
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Your account activity is protected by cryptographic proofs. '
+                          'Open the SecureVote portal for the full context.',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.white.withValues(alpha: 0.7),
+                            height: 1.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Action Buttons
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                      icon: const Icon(Icons.arrow_back, size: 20),
+                      label: const Text(
+                        'Back to Inbox',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB9C3FF),
+                        foregroundColor: const Color(0xFF001257),
+                        elevation: 8,
+                        shadowColor: const Color(0xFFB9C3FF).withValues(
+                          alpha: 0.3,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: const Text(
+                        'Dismiss',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            // Action Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Navigate to election
-                },
-                icon: const Icon(Icons.how_to_vote, size: 20),
-                label: const Text(
-                  'Vote Now',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB9C3FF),
-                  foregroundColor: const Color(0xFF001257),
-                  elevation: 8,
-                  shadowColor: const Color(0xFFB9C3FF).withValues(alpha: 0.3),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text(
-                  'Dismiss',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildInfoItem(String label, String value) {
     return Row(
-      children: [
+      children: <Widget>[
         Container(
           width: 6,
           height: 6,
@@ -212,15 +322,61 @@ class NotificationDetailScreen extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.6),
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  String _relative(DateTime ts) {
+    final diff = DateTime.now().difference(ts);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+}
+
+class _MissingNotification extends StatelessWidget {
+  const _MissingNotification();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(
+              Icons.notifications_off_outlined,
+              size: 64,
+              color: Colors.white24,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Notification not available',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Back'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

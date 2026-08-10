@@ -47,6 +47,7 @@ import '../../shared/screens/maintenance_screen.dart';
 import '../../features/elections/presentation/screens/ineligible_screen.dart';
 import '../../features/elections/presentation/screens/election_closed_screen.dart';
 import '../../features/elections/presentation/screens/election_participation_screen.dart';
+import '../models/notification.dart';
 
 class AppRouter {
   static const String splash = '/';
@@ -164,7 +165,16 @@ class AppRouter {
       case helpSupport:
         return _page(const HelpSupportScreen(), settings);
       case notificationDetail:
-        return _page(const NotificationDetailScreen(), settings);
+        final Notification? notification =
+            settings.arguments is Notification
+                ? settings.arguments as Notification
+                : null;
+        return _page(
+          notification == null
+              ? const NotificationDetailScreen()
+              : NotificationDetailScreen.withNotification(notification),
+          settings,
+        );
       case helpArticle:
         return _page(const HelpArticleScreen(), settings);
       case securitySettings:

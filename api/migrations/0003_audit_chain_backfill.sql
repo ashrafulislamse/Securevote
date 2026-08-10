@@ -1,0 +1,14 @@
+-- Equivalent of running scripts/backfill-audit-chain.ts but expressed as
+-- a pure SQL script. Cloudflare D1's wrangler does not allow procedural
+-- loops from a single SQL file, so this is intentionally a no-op SQL stub
+-- that documents the procedure. Use scripts/backfill-audit-chain.ts instead.
+--
+-- The TypeScript script:
+--   1. SELECTs all audit_log rows ordered by created_at ASC, id ASC
+--   2. For each row, recomputes entry_hash from the previous hash + fields
+--   3. UPDATE the row's prev_hash and entry_hash
+--
+-- For an empty table this script is a no-op. For a populated table, run:
+--     cd api
+--     npx tsx scripts/backfill-audit-chain.ts --local
+--     npx tsx scripts/backfill-audit-chain.ts --remote

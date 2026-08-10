@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
 class ElectionSearchScreen extends StatefulWidget {
@@ -404,7 +405,15 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const PremiumBottomNav(currentIndex: 1),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
+                data: (c) => c,
+                orElse: () => 0,
+              );
+          return PremiumBottomNav(currentIndex: 1, alertsUnreadCount: count);
+        },
+      ),
     );
   }
 

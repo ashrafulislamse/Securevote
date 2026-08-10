@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
@@ -446,7 +447,15 @@ class ProfileHubScreen extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const PremiumBottomNav(currentIndex: 4),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
+                data: (c) => c,
+                orElse: () => 0,
+              );
+          return PremiumBottomNav(currentIndex: 4, alertsUnreadCount: count);
+        },
+      ),
     );
   }
 

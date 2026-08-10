@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../../../core/models/vote.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/notifications_provider.dart';
 import '../../../../features/voting/data/voting_repository.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 import '../widgets/vote_detail_modal.dart';
@@ -90,7 +91,15 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: const PremiumBottomNav(currentIndex: 2),
+      bottomNavigationBar: Consumer(
+        builder: (context, ref, _) {
+          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
+                data: (c) => c,
+                orElse: () => 0,
+              );
+          return PremiumBottomNav(currentIndex: 2, alertsUnreadCount: count);
+        },
+      ),
     );
   }
 

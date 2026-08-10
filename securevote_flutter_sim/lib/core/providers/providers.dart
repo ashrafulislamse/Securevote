@@ -7,4 +7,5 @@ library;
 
 export 'auth_provider.dart';
 export 'elections_provider.dart';
+export 'notifications_provider.dart';
 export 'voting_provider.dart';

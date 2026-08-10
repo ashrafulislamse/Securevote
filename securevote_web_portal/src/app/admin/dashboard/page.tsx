@@ -6,9 +6,12 @@ import {
   getAdminStats,
   getAlerts,
   getRecentElections,
+  getUnreadNotificationCount,
   listElections,
+  verifyAuditChain,
   type AdminStats,
   type Alert,
+  type ChainStatus,
   type Election,
 } from "@/lib/api-client";
 
@@ -65,6 +68,9 @@ export default function AdminDashboardPage() {
     closed: 0,
     draft: 0,
   });
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [chain, setChain] = useState<ChainStatus | null>(null);
+  const [chainError, setChainError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -73,17 +79,19 @@ export default function AdminDashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const [statsData, recentData, alertsData, electionsData] = await Promise.all([
+        const [statsData, recentData, alertsData, electionsData, unread] = await Promise.all([
           getAdminStats(),
           getRecentElections(),
           getAlerts(),
           listElections(),
+          getUnreadNotificationCount().catch(() => 0),
         ]);
         if (!active) return;
         setStats(statsData);
         setRecentElections(recentData);
         setAlerts(alertsData);
         setStatusCounts(countByBucket(electionsData));
+        setUnreadNotifications(unread);
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Failed to load dashboard data");
@@ -91,6 +99,19 @@ export default function AdminDashboardPage() {
         if (active) setLoading(false);
       }
     }
+
+    // The chain check is best-effort — if it fails the rest of the dashboard
+    // should still load. The badge just stays in an "unknown" state.
+    (async () => {
+      try {
+        const status = await verifyAuditChain();
+        if (active) setChain(status);
+      } catch (err) {
+        if (active) {
+          setChainError(err instanceof Error ? err.message : "Chain check unavailable");
+        }
+      }
+    })();
 
     load();
     return () => {
@@ -103,6 +124,7 @@ export default function AdminDashboardPage() {
     { title: "Total Voters", value: stats ? stats.totalVoters.toLocaleString() : "–", note: "Registered", noteClass: "text-emerald-400 bg-emerald-500/10" },
     { title: "Approved Voters", value: stats ? stats.approvedVoters.toLocaleString() : "–", note: "Verified", noteClass: "text-[var(--text-muted)] bg-white/5" },
     { title: "Total Votes", value: stats ? stats.totalVotes.toLocaleString() : "–", note: "Cast", noteClass: "text-[var(--text-muted)] bg-white/5" },
+    { title: "Unread Notifications", value: unreadNotifications.toLocaleString(), note: unreadNotifications > 0 ? "Inbox" : "All clear", noteClass: unreadNotifications > 0 ? "text-rose-300 bg-rose-500/10" : "text-emerald-400 bg-emerald-500/10" },
   ];
 
   const totalByStatus =
@@ -130,6 +152,7 @@ export default function AdminDashboardPage() {
             <p className="mt-1 text-sm text-[var(--text-muted)]">System overview for City University Malaysia</p>
           </div>
           <div className="flex items-center gap-3">
+            <ChainBadge chain={chain} error={chainError} />
             <button className="rounded-md bg-[var(--surface-container)] px-4 py-2 text-sm">Last 7 days</button>
             <button className="brand-gradient rounded-md px-5 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,110,247,0.3)]">New Election</button>
           </div>
@@ -145,7 +168,7 @@ export default function AdminDashboardPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
               {kpis.map((kpi) => (
                 <article key={kpi.title} className="top-accent rounded-xl bg-[var(--surface-container)] p-5">
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">{kpi.title}</p>
@@ -338,5 +361,47 @@ function AlertCard({
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-1 text-xs text-[var(--text-muted)]">{sub}</p>
     </div>
+  );
+}
+
+function ChainBadge({ chain, error }: { chain: ChainStatus | null; error: string | null }) {
+  if (error) {
+    return (
+      <span
+        title={error}
+        className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-[var(--text-muted)]"
+      >
+        <i className="h-2 w-2 rounded-full bg-white/30" />
+        Audit chain: unknown
+      </span>
+    );
+  }
+  if (!chain) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-[var(--text-muted)]">
+        <i className="h-2 w-2 animate-pulse rounded-full bg-white/40" />
+        Audit chain: checking...
+      </span>
+    );
+  }
+  if (chain.ok) {
+    return (
+      <span
+        title={`${chain.totalEntries} entries verified`}
+        className="inline-flex items-center gap-2 rounded-full bg-emerald-500/12 px-3 py-1.5 text-xs font-semibold text-emerald-300 ring-1 ring-emerald-500/30"
+      >
+        <i className="h-2 w-2 rounded-full bg-emerald-400" />
+        Audit chain healthy ({chain.totalEntries})
+      </span>
+    );
+  }
+  return (
+    <span
+      title={`Broken at entry ${chain.brokenAt}`}
+      className="inline-flex items-center gap-2 rounded-full bg-rose-500/15 px-3 py-1.5 text-xs font-semibold text-rose-300 ring-1 ring-rose-500/35"
+    >
+      <i className="h-2 w-2 rounded-full bg-rose-400" />
+      Audit chain BROKEN
+    </span>
   );
 }
