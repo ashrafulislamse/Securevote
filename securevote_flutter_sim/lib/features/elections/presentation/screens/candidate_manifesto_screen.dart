@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
+
 class CandidateManifestoScreen extends StatelessWidget {
   const CandidateManifestoScreen({super.key});
 
+  Candidate? _candidate(BuildContext context) {
+    final Object? args = ModalRoute.of(context)?.settings.arguments;
+    return args is Candidate ? args : null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final Candidate? candidate = _candidate(context);
+    final String name = candidate?.name ?? 'Candidate';
+    final String party = candidate?.party ?? 'Independent';
+    final String manifesto = candidate?.manifesto?.isNotEmpty == true
+        ? candidate!.manifesto!
+        : candidate?.bio?.isNotEmpty == true
+        ? candidate!.bio!
+        : 'This candidate has not published a manifesto yet. Review their profile for more details.';
+
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
       body: CustomScrollView(
@@ -25,9 +41,9 @@ class CandidateManifestoScreen extends StatelessWidget {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-            title: const Text(
-              'Dr. Aris Thorne',
-              style: TextStyle(
+            title: Text(
+              name,
+              style: const TextStyle(
                 color: Color(0xFFE3E1E9),
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -104,29 +120,31 @@ class CandidateManifestoScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Dr. Aris Thorne',
-                                style: TextStyle(
+                              Text(
+                                name,
+                                style: const TextStyle(
                                   color: Color(0xFFE3E1E9),
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Row(
-                                children: const [
-                                  Icon(
+                                children: [
+                                  const Icon(
                                     Icons.verified,
                                     color: Color(0xFF2ADEC0),
                                     size: 14,
                                   ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'GLOBAL PROGRESS PARTY',
-                                    style: TextStyle(
-                                      color: Color(0xFF2ADEC0),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 1.0,
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      party.toUpperCase(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF2ADEC0),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 1.0,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -173,9 +191,9 @@ class CandidateManifestoScreen extends StatelessWidget {
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [Color(0xFFE3E1E9), Color(0xFFC4C5D7)],
                     ).createShader(bounds),
-                    child: const Text(
-                      'A Sovereignty Protocol for the Digital Age',
-                      style: TextStyle(
+                    child: Text(
+                      '$name — Manifesto',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 36,
                         fontWeight: FontWeight.w800,
@@ -235,21 +253,21 @@ class CandidateManifestoScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       const Text(
-                        'Foundational Integrity',
-                        style: TextStyle(
-                          color: Color(0xFFE3E1E9),
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                    'Manifesto',
+                    style: TextStyle(
+                      color: Color(0xFFE3E1E9),
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                ],
+              ),
 
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'Our current voting systems are relics of a pre-cryptographic era. To ensure the survival of our digital democracy, we must transition to a zero-knowledge proof architecture. This ensures that while every vote is verified, no vote is exposed.',
-                    style: TextStyle(
+                  Text(
+                    manifesto,
+                    style: const TextStyle(
                       color: Color(0xFFC4C5D7),
                       fontSize: 18,
                       height: 1.6,

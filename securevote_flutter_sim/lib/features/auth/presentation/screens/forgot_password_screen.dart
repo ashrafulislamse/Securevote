@@ -25,7 +25,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() {
       _sending = false;
     });
-    Navigator.pushNamed(context, AppRouter.resetPassword);
+    // TODO: forgot-password endpoint
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Password reset is not yet available — contact admin'),
+      ),
+    );
   }
 
   @override

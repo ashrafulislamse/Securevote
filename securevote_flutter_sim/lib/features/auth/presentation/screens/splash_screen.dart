@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -19,6 +22,7 @@ class _SplashScreenState extends State<SplashScreen>
   late final Animation<double> _scale;
   late final Animation<double> _fade;
   Timer? _navTimer;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -38,34 +42,47 @@ class _SplashScreenState extends State<SplashScreen>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
+    _scheduleNavigation();
+  }
+
+  void _scheduleNavigation() {
+    _navTimer?.cancel();
     _navTimer = Timer(const Duration(milliseconds: 1600), () {
-      if (!mounted) return;
+      if (!mounted || _hasNavigated) return;
       _navigateToNextScreen();
     });
   }
 
   void _navigateToNextScreen() {
-    // Check if onboarding has been completed
-    if (!StorageService.isOnboardingCompleted()) {
-      // First time user - show onboarding
-      Navigator.pushReplacementNamed(context, AppRouter.onboarding);
+    final auth = context.read<AuthProvider>();
+
+    // If the session is still being restored, wait for it to finish.
+    if (auth.isLoading) {
+      _scheduleNavigation();
       return;
     }
 
-    // Check if user is logged in
-    if (StorageService.isLoggedIn()) {
-      // Check if KYC is completed
-      if (StorageService.isKycCompleted()) {
-        // Go to home screen
-        Navigator.pushReplacementNamed(context, AppRouter.homeScreen);
-      } else {
-        // Go to KYC flow
-        Navigator.pushReplacementNamed(context, AppRouter.kycStep1);
-      }
-    } else {
-      // Go to welcome screen
-      Navigator.pushReplacementNamed(context, AppRouter.welcome);
+    // Onboarding is a non-auth preference, keep it in StorageService.
+    if (!StorageService.isOnboardingCompleted()) {
+      _go(AppRouter.onboarding);
+      return;
     }
+
+    if (!auth.isAuthenticated) {
+      _go(AppRouter.welcome);
+      return;
+    }
+
+    if (auth.user?.kycStatus != KycStatus.approved) {
+      _go(AppRouter.kycStep1);
+    } else {
+      _go(AppRouter.homeScreen);
+    }
+  }
+
+  void _go(String route) {
+    _hasNavigated = true;
+    Navigator.pushReplacementNamed(context, route);
   }
 
   @override

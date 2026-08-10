@@ -1,7 +1,28 @@
 import 'package:flutter/material.dart';
 
-class VoteReceiptScreen extends StatelessWidget {
+import '../../../../core/models/vote.dart';
+
+class VoteReceiptScreen extends StatefulWidget {
   const VoteReceiptScreen({super.key});
+
+  @override
+  State<VoteReceiptScreen> createState() => _VoteReceiptScreenState();
+}
+
+class _VoteReceiptScreenState extends State<VoteReceiptScreen> {
+  Vote? _vote;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      final vote = args['vote'];
+      if (vote is Vote) {
+        _vote = vote;
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,262 +64,304 @@ class VoteReceiptScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      body: _vote == null ? _buildEmptyState() : _buildReceipt(_vote!),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Verified Hero Banner
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: const Color(0xFF161A24),
-                border: Border.all(color: Colors.white.withOpacity(0.07)),
-                borderRadius: BorderRadius.circular(24),
+            const Icon(Icons.receipt_long, color: Color(0xFF8B93B0), size: 56),
+            const SizedBox(height: 16),
+            const Text(
+              'No receipt data available.',
+              style: TextStyle(color: Color(0xFF8B93B0), fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('Go Back'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withOpacity(0.2)),
               ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00D2B4).withOpacity(0.1),
-                      shape: BoxShape.circle,
-                      border: Border.all(
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReceipt(Vote vote) {
+    final String electionTitle = vote.electionTitle ?? 'Election';
+    final String voteHash =
+        vote.voteHash ?? 'Pending on-chain confirmation';
+    final String txHash = vote.txHash ?? 'Pending';
+    final String blockNumber =
+        vote.blockNumber != null ? '#${vote.blockNumber}' : 'Pending';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Verified Hero Banner
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161A24),
+              border: Border.all(color: Colors.white.withOpacity(0.07)),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00D2B4).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF00D2B4).withOpacity(0.2),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
                         color: const Color(0xFF00D2B4).withOpacity(0.2),
+                        blurRadius: 25,
+                        spreadRadius: 5,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF00D2B4).withOpacity(0.2),
-                          blurRadius: 25,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.check_circle,
-                      color: Color(0xFF00D2B4),
-                      size: 40,
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF00D2B4),
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Vote Authenticated',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Your digital signature is verified and secured on the distributed ledger.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF8B93B0),
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Election Card
+          _buildDetailCard(
+            context,
+            'Election Identity',
+            Icons.ballot,
+            const Color(0xFF4F6EF7),
+            [
+              _buildDetailRow('Title', electionTitle),
+              _buildDetailRow(
+                'Reference',
+                vote.electionId,
+                isMonospace: true,
+                color: const Color(0xFF4F6EF7),
+              ),
+              _buildDetailRowWithBadge('Status', 'Finalized'),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Receipt Card
+          _buildDetailCard(
+            context,
+            'Receipt Artifact',
+            Icons.token,
+            const Color(0xFF4F6EF7),
+            [
+              _buildReceiptField('Receipt ID', vote.receiptId),
+              const SizedBox(height: 16),
+              _buildReceiptField(
+                'Transaction Hash',
+                txHash,
+                isLong: true,
+              ),
+              const SizedBox(height: 16),
+              _buildReceiptField('Block Number', blockNumber, isLong: true),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   const Text(
-                    'Vote Authenticated',
-                    style: TextStyle(
+                    'Recorded At',
+                    style: TextStyle(color: Color(0xFF8B93B0), fontSize: 11),
+                  ),
+                  Text(
+                    _formatTimestamp(vote.createdAt),
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Your digital signature is verified and secured on the distributed ledger.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF8B93B0),
-                      fontSize: 14,
-                      height: 1.5,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Merkle Proof Card
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF161A24),
+              border: Border.all(color: Colors.white.withOpacity(0.07)),
+              borderRadius: BorderRadius.circular(32),
             ),
-
-            const SizedBox(height: 16),
-
-            // Election Card
-            _buildDetailCard(
-              context,
-              'Election Identity',
-              Icons.ballot,
-              const Color(0xFF4F6EF7),
-              [
-                _buildDetailRow('Title', '2024 General Council Vote'),
-                _buildDetailRow(
-                  'Reference',
-                  'EV-2024-QX-99',
-                  isMonospace: true,
-                  color: const Color(0xFF4F6EF7),
-                ),
-                _buildDetailRowWithBadge('Status', 'Finalized'),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Receipt Card
-            _buildDetailCard(
-              context,
-              'Receipt Artifact',
-              Icons.token,
-              const Color(0xFF4F6EF7),
-              [
-                _buildReceiptField('Receipt ID', 'RC-8821-X99-L0'),
-                const SizedBox(height: 16),
-                _buildReceiptField(
-                  'Transaction Hash',
-                  '0x71C7656EC7ab88b098defB751B7401B5f6d8976F...5d8976F',
-                  isLong: true,
-                ),
-                const SizedBox(height: 16),
+            child: Column(
+              children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    Text(
-                      'Recorded At',
-                      style: TextStyle(color: Color(0xFF8B93B0), fontSize: 11),
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(
+                          Icons.verified_user,
+                          color: Color(0xFF00D2B4),
+                          size: 20,
+                        ),
+                        SizedBox(width: 12),
+                        Text(
+                          'INTEGRITY PATH',
+                          style: TextStyle(
+                            color: Color(0xFF8B93B0),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Oct 24, 2024 • 14:32:01 UTC',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'LAYER-2 PROOF',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                        ),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 40),
+                _buildMerkleNode(
+                  'Merkle Root',
+                  voteHash,
+                  const Color(0xFF00D2B4),
+                  true,
+                ),
+                _buildConnector(),
+                _buildMerkleNode(
+                  'Internal Node',
+                  voteHash,
+                  const Color(0xFF4F6EF7),
+                  false,
+                ),
+                _buildConnector(),
+                _buildMerkleNode(
+                  'Your Hash',
+                  voteHash,
+                  const Color(0xFF4F6EF7),
+                  true,
+                  isUser: true,
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  '"SecureVote uses zero-knowledge proofs to ensure your choice remains private while mathematically proving its inclusion."',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF8B93B0),
+                    fontSize: 10,
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                  ),
+                ),
               ],
             ),
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 48),
 
-            // Merkle Proof Card
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: const Color(0xFF161A24),
-                border: Border.all(color: Colors.white.withOpacity(0.07)),
-                borderRadius: BorderRadius.circular(32),
+          // Action Buttons
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: () {},
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4F6EF7),
+                foregroundColor: Colors.white,
+                elevation: 10,
+                shadowColor: const Color(0xFF4F6EF7).withOpacity(0.4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(
-                            Icons.verified_user,
-                            color: Color(0xFF00D2B4),
-                            size: 20,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'INTEGRITY PATH',
-                            style: TextStyle(
-                              color: Color(0xFF8B93B0),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'LAYER-2 PROOF',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 40),
-                  _buildMerkleNode(
-                    'Merkle Root',
-                    '0x9f2...3e1',
-                    const Color(0xFF00D2B4),
-                    true,
-                  ),
-                  _buildConnector(),
-                  _buildMerkleNode(
-                    'Internal Node',
-                    '0x4a1...d82',
-                    const Color(0xFF4F6EF7),
-                    false,
-                  ),
-                  _buildConnector(),
-                  _buildMerkleNode(
-                    'Your Hash',
-                    '0x882...L0X',
-                    const Color(0xFF4F6EF7),
-                    true,
-                    isUser: true,
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    '"SecureVote uses zero-knowledge proofs to ensure your choice remains private while mathematically proving its inclusion."',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF8B93B0),
-                      fontSize: 10,
-                      fontStyle: FontStyle.italic,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
+              child: const Text(
+                'Download Official Receipt',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
-
-            const SizedBox(height: 48),
-
-            // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F6EF7),
-                  foregroundColor: Colors.white,
-                  elevation: 10,
-                  shadowColor: const Color(0xFF4F6EF7).withOpacity(0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'Download Official Receipt',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.share, size: 18),
+              label: const Text('Share Proof Link'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.share, size: 18),
-                label: const Text('Share Proof Link'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: BorderSide(color: Colors.white.withOpacity(0.1)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
+          ),
 
-            const SizedBox(height: 40),
-          ],
-        ),
+          const SizedBox(height: 40),
+        ],
       ),
     );
   }
@@ -357,13 +420,17 @@ class VoteReceiptScreen extends StatelessWidget {
             label,
             style: const TextStyle(color: Color(0xFF8B93B0), fontSize: 12),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color ?? Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              fontFamily: isMonospace ? 'monospace' : null,
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color ?? Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                fontFamily: isMonospace ? 'monospace' : null,
+              ),
             ),
           ),
         ],
@@ -527,14 +594,20 @@ class VoteReceiptScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          hash,
-          style: TextStyle(
-            color: isUser
-                ? Colors.white
-                : const Color(0xFF8B93B0).withOpacity(0.5),
-            fontSize: 10,
-            fontFamily: 'monospace',
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            hash,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isUser
+                  ? Colors.white
+                  : const Color(0xFF8B93B0).withOpacity(0.5),
+              fontSize: 10,
+              fontFamily: 'monospace',
+            ),
           ),
         ),
       ],
@@ -558,5 +631,16 @@ class VoteReceiptScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    const List<String> months = <String>[
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final DateTime local = dt.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${months[local.month - 1]} ${two(local.day)}, ${local.year} '
+        '• ${two(local.hour)}:${two(local.minute)}:${two(local.second)} UTC';
   }
 }

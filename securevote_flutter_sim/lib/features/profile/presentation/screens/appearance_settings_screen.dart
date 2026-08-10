@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
+
 class AppearanceSettingsScreen extends StatefulWidget {
   const AppearanceSettingsScreen({super.key});
 

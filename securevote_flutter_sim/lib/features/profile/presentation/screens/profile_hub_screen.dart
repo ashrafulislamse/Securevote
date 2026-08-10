@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
 class ProfileHubScreen extends StatelessWidget {
@@ -17,15 +19,33 @@ class ProfileHubScreen extends StatelessWidget {
     return 'U';
   }
 
+  ({String label, Color color}) _kycBadge(bool isVerified, KycStatus status) {
+    if (isVerified) {
+      return (label: 'IDENTITY VERIFIED', color: const Color(0xFF2ADEC0));
+    }
+    switch (status) {
+      case KycStatus.rejected:
+        return (label: 'VERIFICATION REJECTED', color: const Color(0xFFFF6B6B));
+      case KycStatus.notSubmitted:
+        return (label: 'NOT VERIFIED', color: const Color(0xFFFFB4AB));
+      case KycStatus.pending:
+      case KycStatus.approved:
+        return (label: 'VERIFICATION PENDING', color: const Color(0xFFFFB4AB));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Get user data from storage
-    final user = StorageService.getUser();
-    final userName = user?['fullName'] ?? 'User';
+    // Load the real user from the auth provider.
+    final user = context.watch<AuthProvider>().user;
+    final userName = user?.fullName ?? 'User';
     final userInitials = _getInitials(userName);
-    final isKycCompleted = StorageService.isKycCompleted();
-    final votes = StorageService.getVotes();
-    final voteCount = votes.length;
+    final kycStatus = user?.kycStatus ?? KycStatus.notSubmitted;
+    final isVerified = kycStatus == KycStatus.approved;
+    // There is no per-user vote count field on the backend yet, so show 0.
+    final voteCount = 0;
+
+    final badge = _kycBadge(isVerified, kycStatus);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0D12),
@@ -134,13 +154,7 @@ class ProfileHubScreen extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            color: isKycCompleted
-                                ? const Color(
-                                    0xFF2ADEC0,
-                                  ).withValues(alpha: 0.15)
-                                : const Color(
-                                    0xFFFFB4AB,
-                                  ).withValues(alpha: 0.15),
+                            color: badge.color.withValues(alpha: 0.15),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -148,19 +162,13 @@ class ProfileHubScreen extends StatelessWidget {
                               Icon(
                                 Icons.circle,
                                 size: 8,
-                                color: isKycCompleted
-                                    ? const Color(0xFF2ADEC0)
-                                    : const Color(0xFFFFB4AB),
+                                color: badge.color,
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                isKycCompleted
-                                    ? 'IDENTITY VERIFIED'
-                                    : 'VERIFICATION PENDING',
+                                badge.label,
                                 style: TextStyle(
-                                  color: isKycCompleted
-                                      ? const Color(0xFF2ADEC0)
-                                      : const Color(0xFFFFB4AB),
+                                  color: badge.color,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -186,7 +194,7 @@ class ProfileHubScreen extends StatelessWidget {
                               color: const Color(0xFF2A2E3A),
                             ),
                             _buildStat(
-                              isKycCompleted ? '100%' : '0%',
+                              isVerified ? '100%' : '0%',
                               'Verified',
                             ),
                           ],
@@ -391,7 +399,7 @@ class ProfileHubScreen extends StatelessWidget {
                   InkWell(
                     onTap: () async {
                       // Logout
-                      await StorageService.logout();
+                      await context.read<AuthProvider>().logout();
                       if (!context.mounted) return;
                       Navigator.pushNamedAndRemoveUntil(
                         context,

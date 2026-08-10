@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
@@ -20,90 +22,49 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
   final List<String> _sortOptions = <String>['Newest', 'Oldest', 'Popular'];
 
-  final List<Map<String, dynamic>> _allElections = <Map<String, dynamic>>[
-    <String, dynamic>{
-      'title': 'Student Council Election 2025',
-      'organization': 'City University Malaysia',
-      'status': 'Active',
-      'meta': 'Ends in 2 days',
-      'icon': Icons.school,
-      'participants': 2847,
-      'voted': false,
-      'date': DateTime(2024, 10, 24),
-    },
-    <String, dynamic>{
-      'title': 'Global Tech Consortium Board',
-      'organization': 'General Board Members',
-      'status': 'Active',
-      'meta': 'Ends in 5 days',
-      'icon': Icons.business,
-      'participants': 12400,
-      'voted': false,
-      'date': DateTime(2024, 10, 20),
-    },
-    <String, dynamic>{
-      'title': 'Community Garden Proposal',
-      'organization': 'Oakwood HOA',
-      'status': 'Upcoming',
-      'meta': 'Starts Nov 15',
-      'icon': Icons.park,
-      'participants': 450,
-      'voted': false,
-      'date': DateTime(2024, 11, 15),
-    },
-    <String, dynamic>{
-      'title': 'Board of Directors 2024',
-      'organization': 'Tech Corp',
-      'status': 'Past',
-      'meta': 'Ended Oct 12',
-      'icon': Icons.gavel,
-      'participants': 8200,
-      'voted': true,
-      'date': DateTime(2024, 10, 12),
-    },
-    <String, dynamic>{
-      'title': 'Faculty Representative Vote',
-      'organization': 'School of Engineering',
-      'status': 'Upcoming',
-      'meta': 'Starts Nov 5',
-      'icon': Icons.engineering,
-      'participants': 1200,
-      'voted': false,
-      'date': DateTime(2024, 11, 5),
-    },
-  ];
+  static bool _isActive(Election e) => e.status == 'active';
+  static bool _isUpcoming(Election e) =>
+      e.status == 'upcoming' || e.status == 'scheduled' || e.status == 'draft';
+  static bool _isPast(Election e) =>
+      e.status == 'closed' || e.status == 'published';
 
-  List<Map<String, dynamic>> get _filteredElections {
-    List<Map<String, dynamic>> filtered = _allElections;
-
-    // Filter by status
-    if (_selectedFilter != 'All') {
-      filtered = filtered.where((e) => e['status'] == _selectedFilter).toList();
+  static bool _matchesFilter(Election e, String filter) {
+    switch (filter) {
+      case 'Active':
+        return _isActive(e);
+      case 'Upcoming':
+        return _isUpcoming(e);
+      case 'Past':
+        return _isPast(e);
+      default:
+        return true;
     }
+  }
+
+  List<Election> get _filteredElections {
+    final List<Election> all = context.read<List<Election>>();
+    List<Election> filtered = all
+        .where((Election e) => _matchesFilter(e, _selectedFilter))
+        .toList();
 
     // Filter by search query
     if (_searchController.text.isNotEmpty) {
       final String query = _searchController.text.toLowerCase();
-      filtered = filtered.where((e) {
-        final String title = (e['title'] as String).toLowerCase();
-        final String org = (e['organization'] as String).toLowerCase();
+      filtered = filtered.where((Election e) {
+        final String title = e.title.toLowerCase();
+        final String org = (e.organization ?? '').toLowerCase();
         return title.contains(query) || org.contains(query);
       }).toList();
     }
 
     // Sort
     if (_sortBy == 'Newest') {
-      filtered.sort(
-        (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime),
-      );
+      filtered.sort((a, b) => b.startsAt.compareTo(a.startsAt));
     } else if (_sortBy == 'Oldest') {
-      filtered.sort(
-        (a, b) => (a['date'] as DateTime).compareTo(b['date'] as DateTime),
-      );
+      filtered.sort((a, b) => a.startsAt.compareTo(b.startsAt));
     } else if (_sortBy == 'Popular') {
       filtered.sort(
-        (a, b) =>
-            (b['participants'] as int).compareTo(a['participants'] as int),
+        (a, b) => (b.candidateCount ?? 0).compareTo(a.candidateCount ?? 0),
       );
     }
 
@@ -119,7 +80,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> elections = _filteredElections;
+    final List<Election> elections = _filteredElections;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0E13),
@@ -508,17 +469,30 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
     );
   }
 
-  Widget _buildElectionCard(Map<String, dynamic> election) {
-    final Color statusColor = election['status'] == 'Active'
+  Widget _buildElectionCard(Election election) {
+    final bool isActive = _isActive(election);
+    final bool isUpcoming = _isUpcoming(election);
+    final Color statusColor = isActive
         ? const Color(0xFF2ADEC0)
-        : election['status'] == 'Upcoming'
+        : isUpcoming
         ? const Color(0xFFB9C3FF)
         : const Color(0xFF8E90A0);
+    final String statusLabel = isActive ? 'Active' : isUpcoming ? 'Upcoming' : 'Past';
+    final IconData statusIcon = isActive
+        ? Icons.how_to_vote_rounded
+        : isUpcoming
+        ? Icons.schedule_rounded
+        : Icons.verified_rounded;
 
-    final int participants = election['participants'] as int;
-    final String participantsText = participants >= 1000
-        ? '${(participants / 1000).toStringAsFixed(1)}k'
-        : participants.toString();
+    final int participants = election.candidateCount ?? 0;
+    final String participantsText =
+        participants <= 0 ? '0' : participants.toString();
+
+    final String meta = isActive
+        ? 'Ends ${_formatDate(election.endsAt)}'
+        : isUpcoming
+        ? 'Starts ${_formatDate(election.startsAt)}'
+        : 'Ended ${_formatDate(election.endsAt)}';
 
     return Container(
       decoration: BoxDecoration(
@@ -530,7 +504,11 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.pushNamed(context, AppRouter.electionDetails);
+            Navigator.pushNamed(
+              context,
+              AppRouter.electionDetails,
+              arguments: election,
+            );
           },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
@@ -560,7 +538,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                                   color: statusColor.withValues(alpha: 0.1),
                                 ),
                                 child: Text(
-                                  election['status'] as String,
+                                  statusLabel,
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w800,
@@ -570,7 +548,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              if (election['status'] == 'Active') ...<Widget>[
+                              if (isActive) ...<Widget>[
                                 Container(
                                   width: 6,
                                   height: 6,
@@ -590,12 +568,16 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                                 ),
                                 const SizedBox(width: 6),
                               ],
-                              Text(
-                                election['meta'] as String,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withValues(alpha: 0.5),
-                                  fontWeight: FontWeight.w500,
+                              Expanded(
+                                child: Text(
+                                  meta,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
@@ -604,7 +586,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
                           // Title
                           Text(
-                            election['title'] as String,
+                            election.title,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -619,7 +601,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
                           // Organization
                           Text(
-                            election['organization'] as String,
+                            election.organization ?? 'SecureVote Election',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.6),
@@ -639,7 +621,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                         color: const Color(0xFF292A2F),
                       ),
                       child: Icon(
-                        election['icon'] as IconData,
+                        statusIcon,
                         color: statusColor,
                         size: 24,
                       ),
@@ -695,7 +677,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                               ),
                               child: Center(
                                 child: Text(
-                                  '+${participantsText}',
+                                  '+$participantsText',
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
@@ -745,5 +727,13 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
         ),
       ),
     );
+  }
+
+  static String _formatDate(DateTime d) {
+    const List<String> months = <String>[
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 }

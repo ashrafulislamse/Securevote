@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/election.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 
 class ElectionRulesScreen extends StatefulWidget {
@@ -11,6 +12,20 @@ class ElectionRulesScreen extends StatefulWidget {
 
 class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
   final List<bool> _expanded = <bool>[true, false, false, false];
+
+  String? get _electionTitle {
+    final Object? args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Election) {
+      return args.title;
+    }
+    if (args is Map) {
+      final Object? e = args['election'];
+      if (e is Election) {
+        return e.title;
+      }
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -181,6 +196,17 @@ class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                if (_electionTitle != null) ...<Widget>[
+                  Text(
+                    _electionTitle!,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB9C3FF),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 const Text(
                   'Election Integrity Protocol',
                   style: TextStyle(

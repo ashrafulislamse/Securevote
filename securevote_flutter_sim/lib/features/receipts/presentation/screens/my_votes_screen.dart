@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/models/vote.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../features/voting/data/voting_repository.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 import '../widgets/vote_detail_modal.dart';
 
@@ -17,79 +18,33 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
   String _selectedFilter = 'All';
   final List<String> _filters = <String>['All', 'Completed', 'Pending'];
 
-  List<Map<String, dynamic>> get _allVotes {
-    final storedVotes = StorageService.getVotes();
-
-    // If no votes in storage, return demo votes
-    if (storedVotes.isEmpty) {
-      return <Map<String, dynamic>>[
-        <String, dynamic>{
-          'title': 'Student Council Election 2025',
-          'organization': 'City University Malaysia',
-          'date': 'Oct 24, 2024',
-          'status': 'Completed',
-          'statusColor': const Color(0xFF2ADEC0),
-          'receipt': 'REC_8829...4X11',
-          'icon': Icons.how_to_vote,
-          'verified': true,
-        },
-        <String, dynamic>{
-          'title': 'Board of Directors Election',
-          'organization': 'Global Tech Corp',
-          'date': 'Oct 12, 2024',
-          'status': 'Completed',
-          'statusColor': const Color(0xFF2ADEC0),
-          'receipt': 'REC_3310...9L00',
-          'icon': Icons.business,
-          'verified': true,
-        },
-        <String, dynamic>{
-          'title': 'Community Garden Proposal',
-          'organization': 'Oakwood HOA',
-          'date': 'Nov 02, 2024',
-          'status': 'Pending',
-          'statusColor': const Color(0xFFD2BBFF),
-          'receipt': 'REC_0125...7Z88',
-          'icon': Icons.park,
-          'verified': false,
-        },
-      ];
-    }
-
-    // Convert stored votes to display format
-    return storedVotes.map((vote) {
-      return <String, dynamic>{
-        'title': vote['title'] ?? vote['electionTitle'] ?? 'Unknown Election',
-        'organization': vote['organization'] ?? 'Unknown Organization',
-        'date':
-            vote['date'] ??
-            DateTime.parse(
-              vote['votedAt'] ?? DateTime.now().toIso8601String(),
-            ).toString().split(' ')[0],
-        'status': vote['status'] ?? 'Completed',
-        'statusColor': const Color(0xFF2ADEC0),
-        'receipt': vote['receipt'] ?? vote['receiptId'] ?? 'REC_UNKNOWN',
-        'icon': Icons.how_to_vote,
-        'verified': vote['verified'] ?? true,
-      };
-    }).toList();
+  Map<String, dynamic> _voteToMap(Vote vote) {
+    return <String, dynamic>{
+      'title': vote.electionTitle ?? 'Unknown Election',
+      'organization': 'SecureVote',
+      'date': _formatDate(vote.createdAt),
+      'status': 'Completed',
+      'statusColor': const Color(0xFF2ADEC0),
+      'receipt': vote.receiptId,
+      'icon': Icons.how_to_vote,
+      'verified': true,
+    };
   }
 
-  List<Map<String, dynamic>> get _filteredVotes {
-    if (_selectedFilter == 'All') return _allVotes;
-    return _allVotes.where((v) => v['status'] == _selectedFilter).toList();
+  List<Vote> _filteredVotes(List<Vote> votes) {
+    if (_selectedFilter == 'All') return votes;
+    return votes
+        .where((v) => _statusFor(v) == _selectedFilter)
+        .toList();
+  }
+
+  String _statusFor(Vote vote) {
+    if (vote.txHash != null && vote.blockNumber != null) return 'Completed';
+    return 'Completed';
   }
 
   @override
   Widget build(BuildContext context) {
-    final int totalVotes = _allVotes.length;
-    final int completedVotes = _allVotes
-        .where((v) => v['status'] == 'Completed')
-        .length;
-    final int pendingVotes = _allVotes
-        .where((v) => v['status'] == 'Pending')
-        .length;
-
     return Scaffold(
       backgroundColor: const Color(0xFF0B0D12),
       body: SafeArea(
@@ -116,132 +71,157 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
 
             // Content
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: <Widget>[
-                  // Stats Cards
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: _buildStatCard(
-                          icon: Icons.how_to_vote,
-                          label: 'Total',
-                          value: totalVotes.toString(),
-                          color: const Color(0xFFB9C3FF),
-                        ),
+              child: FutureBuilder<List<Vote>>(
+                future: VotingRepository().getMyVotes(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFB9C3FF),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          icon: Icons.check_circle,
-                          label: 'Verified',
-                          value: completedVotes.toString(),
-                          color: const Color(0xFF2ADEC0),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          icon: Icons.pending,
-                          label: 'Pending',
-                          value: pendingVotes.toString(),
-                          color: const Color(0xFFD2BBFF),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Filter Tabs
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: const Color(0xFF1A1D28),
-                    ),
-                    child: Row(
-                      children: _filters.map((filter) {
-                        final bool isActive = _selectedFilter == filter;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedFilter = filter;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              height: 36,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(10),
-                                gradient: isActive
-                                    ? const LinearGradient(
-                                        colors: <Color>[
-                                          Color(0xFFB9C3FF),
-                                          Color(0xFFD2BBFF),
-                                        ],
-                                      )
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  filter,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: isActive
-                                        ? Colors.black
-                                        : Colors.white.withValues(alpha: 0.6),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Vote History Cards
-                  if (_filteredVotes.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Column(
-                          children: <Widget>[
-                            Icon(
-                              Icons.inbox_outlined,
-                              size: 64,
-                              color: Colors.white.withValues(alpha: 0.2),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No votes found',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.white.withValues(alpha: 0.4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    ..._filteredVotes.map((vote) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildVoteCard(vote),
-                      );
-                    }),
-                  const SizedBox(height: 100),
-                ],
+                    );
+                  }
+                  final List<Vote> votes =
+                      snapshot.data ?? const <Vote>[];
+                  return _buildVotesList(votes);
+                },
               ),
             ),
           ],
         ),
       ),
       bottomNavigationBar: const PremiumBottomNav(currentIndex: 2),
+    );
+  }
+
+  Widget _buildVotesList(List<Vote> votes) {
+    final List<Vote> filtered = _filteredVotes(votes);
+    final int totalVotes = votes.length;
+    final int completedVotes = votes.length;
+    final int pendingVotes = 0;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        // Stats Cards
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.how_to_vote,
+                label: 'Total',
+                value: totalVotes.toString(),
+                color: const Color(0xFFB9C3FF),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.check_circle,
+                label: 'Verified',
+                value: completedVotes.toString(),
+                color: const Color(0xFF2ADEC0),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                icon: Icons.pending,
+                label: 'Pending',
+                value: pendingVotes.toString(),
+                color: const Color(0xFFD2BBFF),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Filter Tabs
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF1A1D28),
+          ),
+          child: Row(
+            children: _filters.map((filter) {
+              final bool isActive = _selectedFilter == filter;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedFilter = filter;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: isActive
+                          ? const LinearGradient(
+                              colors: <Color>[
+                                Color(0xFFB9C3FF),
+                                Color(0xFFD2BBFF),
+                              ],
+                            )
+                          : null,
+                    ),
+                    child: Center(
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? Colors.black
+                              : Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Vote History Cards
+        if (filtered.isEmpty)
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: Column(
+                children: <Widget>[
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 64,
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _selectedFilter == 'Pending'
+                        ? 'No pending votes'
+                        : 'No votes found',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...filtered.map((Vote vote) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildVoteCard(_voteToMap(vote), vote),
+            );
+          }),
+        const SizedBox(height: 100),
+      ],
     );
   }
 
@@ -291,7 +271,7 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
     );
   }
 
-  Widget _buildVoteCard(Map<String, dynamic> vote) {
+  Widget _buildVoteCard(Map<String, dynamic> vote, Vote voteModel) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -482,7 +462,11 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          Navigator.pushNamed(context, AppRouter.voteReceipt);
+                          Navigator.pushNamed(
+                            context,
+                            AppRouter.voteReceipt,
+                            arguments: <String, dynamic>{'vote': voteModel},
+                          );
                         },
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
@@ -508,7 +492,13 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          Navigator.pushNamed(context, AppRouter.voteReceipt);
+                          Navigator.pushNamed(
+                            context,
+                            AppRouter.voteVerification,
+                            arguments: <String, dynamic>{
+                              'receiptId': voteModel.receiptId,
+                            },
+                          );
                         },
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
@@ -543,5 +533,14 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    const List<String> months = <String>[
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final DateTime local = dt.toLocal();
+    return '${months[local.month - 1]} ${local.day}, ${local.year}';
   }
 }

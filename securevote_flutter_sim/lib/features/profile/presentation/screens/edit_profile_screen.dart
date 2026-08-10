@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -17,10 +18,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final user = StorageService.getUser();
-    _nameController = TextEditingController(text: user?['fullName'] ?? '');
-    _emailController = TextEditingController(text: user?['email'] ?? '');
-    _phoneController = TextEditingController(text: user?['phone'] ?? '');
+    final user = context.read<AuthProvider>().user;
+    _nameController = TextEditingController(text: user?.fullName ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
   }
 
   @override
@@ -32,12 +33,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    final user = StorageService.getUser() ?? {};
-    user['fullName'] = _nameController.text;
-    user['email'] = _emailController.text;
-    user['phone'] = _phoneController.text;
-
-    await StorageService.updateUser(user);
+    await context.read<AuthProvider>().updateProfile(
+      fullName: _nameController.text.trim(),
+      phone: _phoneController.text.trim(),
+    );
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,8 +52,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = StorageService.getUser();
-    final fullName = user?['fullName'] ?? 'User';
+    final user = context.watch<AuthProvider>().user;
+    final fullName = user?.fullName ?? 'User';
     final nameParts = fullName.split(' ');
     final initials = nameParts.length >= 2
         ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()

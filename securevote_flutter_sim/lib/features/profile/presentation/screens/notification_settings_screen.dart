@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
+
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
 

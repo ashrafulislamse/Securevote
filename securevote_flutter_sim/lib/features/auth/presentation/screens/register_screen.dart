@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
@@ -181,10 +182,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return;
                 }
 
-                // Validate fields
+                // Validate fields (phone is optional)
                 if (_fullNameController.text.trim().isEmpty ||
                     _emailController.text.trim().isEmpty ||
-                    _phoneController.text.trim().isEmpty ||
                     _passwordController.text.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Please fill all fields')),
@@ -200,20 +200,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return;
                 }
 
-                // Save user data to local storage
-                final userData = {
-                  'fullName': _fullNameController.text.trim(),
-                  'email': _emailController.text.trim(),
-                  'phone': _phoneController.text.trim(),
-                  'password':
-                      _passwordController.text, // In real app, hash this!
-                  'registeredAt': DateTime.now().toIso8601String(),
-                };
+                final auth = context.read<AuthProvider>();
+                if (auth.isLoading) return;
 
-                await StorageService.saveUser(userData);
+                final email = _emailController.text.trim();
+                final phone = _phoneController.text.trim();
 
-                if (!mounted) return;
-                Navigator.pushNamed(context, AppRouter.verifyAccount);
+                try {
+                  await auth.register(
+                    email: email,
+                    password: _passwordController.text,
+                    fullName: _fullNameController.text.trim(),
+                    phone: phone.isEmpty ? null : phone,
+                  );
+                  if (!mounted) return;
+
+                  // In dev the code is returned by the API; show it to the user.
+                  final devOtp = auth.lastRegister?.devOtp;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        devOtp != null && devOtp.isNotEmpty
+                            ? 'Your verification code: $devOtp'
+                            : 'Verification code sent. Check your email.',
+                      ),
+                      backgroundColor: const Color(0xFF2ADEC0),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+
+                  Navigator.pushNamed(
+                    context,
+                    AppRouter.verifyAccount,
+                    arguments: email,
+                  );
+                } catch (_) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        auth.error ?? 'Registration failed. Please try again.',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
             ),
             const SizedBox(height: 12),

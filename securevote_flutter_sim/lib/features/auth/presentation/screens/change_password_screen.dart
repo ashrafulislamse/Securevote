@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../data/auth_repository.dart';
+
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -12,6 +14,65 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   double _passwordStrength = 0.75;
+  bool _submitting = false;
+
+  final TextEditingController _currentController = TextEditingController();
+  final TextEditingController _newController = TextEditingController();
+  final TextEditingController _confirmController = TextEditingController();
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updatePassword() async {
+    final current = _currentController.text;
+    final newPassword = _newController.text;
+    final confirm = _confirmController.text;
+
+    if (current.isEmpty || newPassword.isEmpty || confirm.isEmpty) {
+      _showSnack('Please fill in all password fields', isError: true);
+      return;
+    }
+    if (newPassword != confirm) {
+      _showSnack('New passwords do not match', isError: true);
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      await AuthRepository().changePassword(
+        currentPassword: current,
+        newPassword: newPassword,
+      );
+      if (!mounted) return;
+      _showSnack('Password updated successfully.');
+    } catch (_) {
+      if (!mounted) return;
+      _showSnack('Could not update password. Please try again.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
+  }
+
+  void _showSnack(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : const Color(0xFF2ADEC0),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +165,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               'Current Password',
               _obscureCurrent,
               () => setState(() => _obscureCurrent = !_obscureCurrent),
+              controller: _currentController,
             ),
 
             const SizedBox(height: 24),
@@ -116,6 +178,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   'New Password',
                   _obscureNew,
                   () => setState(() => _obscureNew = !_obscureNew),
+                  controller: _newController,
+                  onChanged: (_) => setState(() {
+                    final len = _newController.text.length;
+                    _passwordStrength = len >= 12
+                        ? 1.0
+                        : len >= 8
+                            ? 0.75
+                            : len >= 4
+                                ? 0.5
+                                : 0.25;
+                  }),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -222,6 +295,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               _obscureConfirm,
               () => setState(() => _obscureConfirm = !_obscureConfirm),
               hasCheck: true,
+              controller: _confirmController,
             ),
 
             const SizedBox(height: 24),
@@ -268,7 +342,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               width: double.infinity,
               height: 64,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _submitting ? null : _updatePassword,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFB9C3FF),
                   foregroundColor: const Color(0xFF001D79),
@@ -307,6 +381,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     bool obscure,
     VoidCallback onToggle, {
     bool hasCheck = false,
+    TextEditingController? controller,
+    ValueChanged<String>? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,6 +404,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
+            controller: controller,
+            onChanged: onChanged,
             obscureText: obscure,
             style: const TextStyle(color: Color(0xFFE3E1E9)),
             decoration: InputDecoration(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
+
 class NotificationDetailScreen extends StatelessWidget {
   const NotificationDetailScreen({super.key});
 

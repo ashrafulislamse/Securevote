@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
@@ -182,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Validate fields
                 if (email.isEmpty || password.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text('Please enter email and password'),
                       backgroundColor: Colors.red,
                     ),
@@ -190,67 +192,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   return;
                 }
 
-                // Check if user exists in storage
-                final storedUser = StorageService.getUser();
+                final auth = context.read<AuthProvider>();
+                if (auth.isLoading) return;
 
-                if (storedUser != null) {
-                  // User exists - validate credentials
-                  if (storedUser['email'] == email &&
-                      storedUser['password'] == password) {
-                    // Correct credentials - login
-                    await StorageService.saveUser(storedUser); // Re-login
-
-                    if (!mounted) return;
-
-                    // Check KYC status and navigate
-                    if (StorageService.isKycCompleted()) {
-                      Navigator.pushReplacementNamed(
-                        context,
-                        AppRouter.homeScreen,
-                      );
-                    } else {
-                      Navigator.pushReplacementNamed(
-                        context,
-                        AppRouter.kycStep1,
-                      );
-                    }
-                  } else {
-                    // Wrong credentials
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Invalid email or password'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                } else {
-                  // No user registered - Demo mode
-                  // Create a demo user and login
-                  final demoUser = {
-                    'fullName': 'Demo User',
-                    'email': email,
-                    'phone': '+1234567890',
-                    'password': password,
-                    'registeredAt': DateTime.now().toIso8601String(),
-                  };
-
-                  await StorageService.saveUser(demoUser);
-
+                try {
+                  await auth.login(email: email, password: password);
                   if (!mounted) return;
 
+                  // Route by KYC status
+                  if (auth.user?.kycStatus != KycStatus.approved) {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.kycStep1,
+                      (Route<dynamic> route) => false,
+                    );
+                  } else {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.homeScreen,
+                      (Route<dynamic> route) => false,
+                    );
+                  }
+                } catch (_) {
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
+                    SnackBar(
                       content: Text(
-                        'Demo login successful! Complete KYC to continue.',
+                        auth.error ?? 'Could not sign in. Please try again.',
                       ),
-                      backgroundColor: Color(0xFF2ADEC0),
-                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.red,
                     ),
                   );
-
-                  // Go to KYC
-                  Navigator.pushReplacementNamed(context, AppRouter.kycStep1);
                 }
               },
             ),
@@ -263,30 +235,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 backgroundColor: const Color(0xFF2ADEC0).withValues(alpha: 0.1),
               ),
-              onPressed: () async {
-                // Demo login with pre-filled credentials
-                final demoUser = {
-                  'fullName': 'Demo User',
-                  'email': 'demo@securevote.com',
-                  'phone': '+1234567890',
-                  'password': 'demo123',
-                  'registeredAt': DateTime.now().toIso8601String(),
-                };
-
-                await StorageService.saveUser(demoUser);
-                await StorageService.setKycCompleted(true); // Skip KYC for demo
-
-                if (!mounted) return;
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('🎮 Demo Mode: Logged in as Demo User'),
-                    backgroundColor: Color(0xFF2ADEC0),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-
-                Navigator.pushReplacementNamed(context, AppRouter.homeScreen);
+              onPressed: () {
+                // Pre-fill the admin demo credentials; the user then signs in
+                // through the normal backend flow above.
+                _emailController.text = 'admin@securevote.io';
+                _passwordController.text = 'SecureVote@2026';
+                setState(() {});
               },
               icon: const Icon(
                 Icons.play_circle_outline,

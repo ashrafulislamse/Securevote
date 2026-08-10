@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
@@ -25,16 +27,25 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
   void initState() {
     super.initState();
     _startCountdown();
-    // Show demo OTP message
+    // Show the dev OTP (from the API if available, else the dev hardcode).
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final devOtp =
+          context.read<AuthProvider>().lastRegister?.devOtp ?? '123456';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Demo OTP: ${StorageService.DEMO_OTP}'),
+          content: Text('Dev OTP: $devOtp'),
           duration: const Duration(seconds: 5),
           backgroundColor: const Color(0xFF2ADEC0),
         ),
       );
     });
+  }
+
+  /// The email being verified, passed from the register screen.
+  String? get _email {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    return args is String ? args : null;
   }
 
   void _startCountdown() {
@@ -134,8 +145,21 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
             GradientButton(
               label: 'Verify & Continue',
               icon: Icons.arrow_forward_rounded,
-              onPressed: () {
+              onPressed: () async {
                 final otp = _otpController.text.trim();
+                final email = _email;
+
+                if (email == null || email.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Registration email is missing. Please register again.',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
                 if (otp.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -144,15 +168,33 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
                   return;
                 }
 
-                if (StorageService.verifyOTP(otp)) {
-                  // OTP verified, user is now logged in (already saved during registration)
-                  // Proceed to KYC
-                  Navigator.pushReplacementNamed(context, AppRouter.kycStep1);
-                } else {
+                final auth = context.read<AuthProvider>();
+                if (auth.isLoading) return;
+
+                try {
+                  await auth.verifyOtp(email: email, otp: otp);
+                  if (!mounted) return;
+
+                  // Route by KYC status
+                  if (auth.user?.kycStatus != KycStatus.approved) {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.kycStep1,
+                      (Route<dynamic> route) => false,
+                    );
+                  } else {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.homeScreen,
+                      (Route<dynamic> route) => false,
+                    );
+                  }
+                } catch (_) {
+                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Invalid OTP. Use demo OTP: ${StorageService.DEMO_OTP}',
+                        auth.error ?? 'Verification failed. Please try again.',
                       ),
                       backgroundColor: Colors.red,
                     ),

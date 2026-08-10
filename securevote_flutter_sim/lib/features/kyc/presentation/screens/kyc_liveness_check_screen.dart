@@ -1,9 +1,11 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/kyc_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
 import '../../../../shared/widgets/step_meter.dart';
@@ -18,6 +20,7 @@ class KycLivenessCheckScreen extends StatefulWidget {
 class _KycLivenessCheckScreenState extends State<KycLivenessCheckScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  final KycRepository _repository = KycRepository();
 
   @override
   void initState() {
@@ -26,6 +29,16 @@ class _KycLivenessCheckScreenState extends State<KycLivenessCheckScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     )..repeat(reverse: true);
+  }
+
+  Future<void> _submitKyc() async {
+    // Placeholder document upload while the real capture is wired in Phase 4.
+    await _repository.submitDocument(
+      bytes: Uint8List(0),
+      fileName: 'id.jpg',
+    );
+    if (!mounted) return;
+    Navigator.pushNamed(context, AppRouter.kycStatusPending);
   }
 
   @override
@@ -149,8 +162,7 @@ class _KycLivenessCheckScreenState extends State<KycLivenessCheckScreen>
                 child: GradientButton(
                   label: 'Submit KYC',
                   icon: Icons.verified_rounded,
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRouter.kycStatusPending),
+                  onPressed: _submitKyc,
                 ),
               ),
             ],

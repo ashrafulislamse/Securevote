@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/kyc_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
 
@@ -15,6 +19,10 @@ class KycStatusPendingScreen extends StatefulWidget {
 class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
+  final KycRepository _repository = KycRepository();
+  Timer? _pollTimer;
+  KycStatus _status = KycStatus.pending;
+  bool _loading = false;
 
   @override
   void initState() {
@@ -23,10 +31,42 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+
+    // Poll the real KYC status every few seconds so the UI reflects when an
+    // admin approves the submission in the web portal.
+    _checkStatus();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _checkStatus(),
+    );
+  }
+
+  Future<void> _checkStatus() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    KycStatus status;
+    try {
+      status = await _repository.getStatus();
+    } catch (_) {
+      status = _status; // Keep the current view on transient failures.
+    }
+    if (!mounted) return;
+
+    if (status == KycStatus.approved) {
+      _pollTimer?.cancel();
+      setState(() => _loading = false);
+      Navigator.pushReplacementNamed(context, AppRouter.kycSuccess);
+      return;
+    }
+    setState(() {
+      _status = status;
+      _loading = false;
+    });
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _pulse.dispose();
     super.dispose();
   }
@@ -121,18 +161,55 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
             ),
             const SizedBox(height: 18),
             Text(
-              'Under Review',
+              _status == KycStatus.rejected
+                  ? 'Verification Rejected'
+                  : _status == KycStatus.notSubmitted
+                  ? 'Verification Required'
+                  : 'Under Review',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.displayLarge,
             ),
             const SizedBox(height: 6),
             Text(
-              'Our security team is validating your biometric credentials.',
+              _status == KycStatus.rejected
+                  ? 'Your identity documents could not be verified. Please review and resubmit.'
+                  : _status == KycStatus.notSubmitted
+                  ? 'Submit your identity documents to unlock voting access.'
+                  : 'Our security team is validating your biometric credentials.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
-            Container(
+            if (_status == KycStatus.rejected)
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'What went wrong?',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Your submission did not pass our security review. This can happen if the document was blurry, out of date, or did not match your account details.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'You can retry verification with a clearer document.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.04),
@@ -176,57 +253,60 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
               ),
             ),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                color: Colors.white.withValues(alpha: 0.05),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            if (_status != KycStatus.rejected)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  color: Colors.white.withValues(alpha: 0.05),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.primary.withValues(alpha: 0.13),
+                      ),
+                      child: const Icon(
+                        Icons.lightbulb_rounded,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'You can close this screen. We will notify you the moment your identity is approved.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: AppColors.primary.withValues(alpha: 0.13),
-                    ),
-                    child: const Icon(
-                      Icons.lightbulb_rounded,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'You can close this screen. We will notify you the moment your identity is approved.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 16),
-            GradientButton(
-              label: 'Simulate Approval (Demo)',
-              icon: Icons.verified_rounded,
-              onPressed: () {
-                // For simulation: Go directly to success screen
-                Navigator.pushReplacementNamed(context, AppRouter.kycSuccess);
-              },
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(54),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-                backgroundColor: Colors.white.withValues(alpha: 0.04),
+            if (_status == KycStatus.rejected)
+              GradientButton(
+                label: 'Retry Verification',
+                icon: Icons.refresh_rounded,
+                onPressed: () => Navigator.pushNamed(context, AppRouter.kycStep1),
+              )
+            else
+              GradientButton(
+                label: _loading ? 'Checking...' : 'Check Status',
+                icon: Icons.verified_rounded,
+                onPressed: _checkStatus,
               ),
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_active_rounded),
-              label: const Text('Notify Me When Approved'),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'An admin must approve your documents in the web portal. '
+                'This screen refreshes automatically every few seconds.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
             ),
             const SizedBox(height: 8),
             Align(

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/providers.dart';
 
 class KycSuccessScreen extends StatefulWidget {
   const KycSuccessScreen({super.key});
@@ -23,8 +24,13 @@ class _KycSuccessScreenState extends State<KycSuccessScreen>
       vsync: this,
     )..repeat();
 
-    // Mark KYC as completed
-    StorageService.setKycCompleted(true);
+    // Sync the user's KYC status with the backend now that verification is
+    // approved. KYC state lives on the server/User model, not in storage.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().refreshProfile().then<void>((_) {}).catchError(
+        (Object _) {},
+      );
+    });
   }
 
   @override

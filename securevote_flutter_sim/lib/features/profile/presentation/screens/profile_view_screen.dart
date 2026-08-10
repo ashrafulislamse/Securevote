@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/models/kyc_status.dart';
+import '../../../../core/providers/providers.dart';
 
 class ProfileViewScreen extends StatelessWidget {
   const ProfileViewScreen({super.key});
 
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else if (parts.isNotEmpty) {
+      return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
+    }
+    return 'U';
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Load user data from storage
-    final user = StorageService.getUser();
-    final fullName = user?['fullName'] ?? 'User';
-    final email = user?['email'] ?? 'user@securevote.com';
-    final phone = user?['phone'] ?? 'Not provided';
-    final isKycVerified = StorageService.isKycCompleted();
-    final voteCount = StorageService.getVotes().length;
-
-    // Get initials from name
-    final nameParts = fullName.split(' ');
-    final initials = nameParts.length >= 2
-        ? '${nameParts[0][0]}${nameParts[1][0]}'.toUpperCase()
-        : fullName.length >= 2
-        ? fullName.substring(0, 2).toUpperCase()
-        : fullName[0].toUpperCase();
+    // Load the real user from the auth provider.
+    final user = context.watch<AuthProvider>().user;
+    final fullName = user?.fullName ?? 'User';
+    final email = user?.email ?? 'user@securevote.com';
+    final phone = user?.phone ?? 'Not provided';
+    final role = user?.role ?? 'voter';
+    final kycStatus = user?.kycStatus ?? KycStatus.notSubmitted;
+    final isKycVerified = kycStatus == KycStatus.approved;
+    final initials = _getInitials(fullName);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0E13),
@@ -90,10 +96,10 @@ class ProfileViewScreen extends StatelessWidget {
                             color: Color(0xFF292A2F),
                             shape: BoxShape.circle,
                           ),
-                          child: const Center(
+                          child: Center(
                             child: Text(
-                              'JD',
-                              style: TextStyle(
+                              initials,
+                              style: const TextStyle(
                                 color: Color(0xFFB9C3FF),
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -250,7 +256,7 @@ class ProfileViewScreen extends StatelessWidget {
                           child: Column(
                             children: [
                               Text(
-                                '$voteCount',
+                                '0',
                                 style: TextStyle(
                                   color: Color(0xFFE3E1E9),
                                   fontSize: 20,
@@ -302,6 +308,29 @@ class ProfileViewScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Contact & Role Details
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1B21),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Column(
+                children: [
+                  _buildDetailRow(Icons.mail_outline, 'Email', email),
+                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
+                  _buildDetailRow(Icons.phone_outlined, 'Phone', phone),
+                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
+                  _buildDetailRow(Icons.verified_user, 'KYC Status', _kycLabel(kycStatus)),
+                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
+                  _buildDetailRow(Icons.person_outline, 'Role', role),
                 ],
               ),
             ),
@@ -396,6 +425,47 @@ class ProfileViewScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFFB9C3FF), size: 20),
+        const SizedBox(width: 12),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.white.withValues(alpha: 0.6),
+          ),
+        ),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _kycLabel(KycStatus status) {
+    switch (status) {
+      case KycStatus.approved:
+        return 'Verified';
+      case KycStatus.pending:
+        return 'Pending';
+      case KycStatus.rejected:
+        return 'Rejected';
+      case KycStatus.notSubmitted:
+        return 'Not Submitted';
+    }
   }
 
   Widget _buildSection(String title, List<Widget> children) {

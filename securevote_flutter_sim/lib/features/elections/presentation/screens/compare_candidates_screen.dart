@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
 import '../widgets/candidate_picker_modal.dart';
 
 class CompareCandidatesScreen extends StatefulWidget {
@@ -11,20 +12,66 @@ class CompareCandidatesScreen extends StatefulWidget {
 }
 
 class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
-  List<Map<String, dynamic>> _selectedCandidates = [
-    {
-      'name': 'Alice Johnson',
-      'party': 'Democrat',
-      'color': const Color(0xFFB9C3FF),
-      'position': 'Mayor District 4',
-    },
-    {
-      'name': 'Bob Smith',
-      'party': 'Republican',
-      'color': const Color(0xFFD2BBFF),
-      'position': 'Mayor District 4',
-    },
+  static const List<Color> _candidateColors = <Color>[
+    Color(0xFFB9C3FF),
+    Color(0xFFD2BBFF),
+    Color(0xFF2ADEC0),
+    Color(0xFFFF7B5A),
   ];
+
+  List<Map<String, dynamic>> _selectedCandidates = [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_selectedCandidates.isEmpty) {
+      final Object? args = ModalRoute.of(context)?.settings.arguments;
+      final List<Candidate>? candidates = _extractCandidates(args);
+      if (candidates != null && candidates.isNotEmpty) {
+        _selectedCandidates = candidates
+            .take(2)
+            .map((Candidate c) => _toMap(c))
+            .toList();
+      } else {
+        _selectedCandidates = _defaultCandidates();
+      }
+    }
+  }
+
+  List<Candidate>? _extractCandidates(Object? args) {
+    if (args is List<Candidate>) {
+      return args;
+    }
+    if (args is Map) {
+      final Object? v = args['candidates'];
+      if (v is List<Candidate>) {
+        return v;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _toMap(Candidate c) => <String, dynamic>{
+        'name': c.name,
+        'party': c.party ?? 'Independent',
+        'color': _candidateColors[(c.ballotOrder) % _candidateColors.length],
+        'position': 'Candidate',
+      };
+
+  List<Map<String, dynamic>> _defaultCandidates() => <Map<String, dynamic>>[
+        <String, dynamic>{
+          'name': 'Alice Johnson',
+          'party': 'Democrat',
+          'color': const Color(0xFFB9C3FF),
+          'position': 'Candidate',
+        },
+        <String, dynamic>{
+          'name': 'Bob Smith',
+          'party': 'Republican',
+          'color': const Color(0xFFD2BBFF),
+          'position': 'Candidate',
+        },
+      ];
 
   void _showCandidatePicker() {
     showModalBottomSheet(
@@ -52,20 +99,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
 
   void _resetComparison() {
     setState(() {
-      _selectedCandidates = [
-        {
-          'name': 'Alice Johnson',
-          'party': 'Democrat',
-          'color': const Color(0xFFB9C3FF),
-          'position': 'Mayor District 4',
-        },
-        {
-          'name': 'Bob Smith',
-          'party': 'Republican',
-          'color': const Color(0xFFD2BBFF),
-          'position': 'Mayor District 4',
-        },
-      ];
+      _selectedCandidates = _defaultCandidates();
     });
   }
 

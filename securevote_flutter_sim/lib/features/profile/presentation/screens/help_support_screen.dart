@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
 import '../../../../core/navigation/app_router.dart';
 
 class HelpSupportScreen extends StatelessWidget {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
+
 class PrivacySettingsScreen extends StatefulWidget {
   const PrivacySettingsScreen({super.key});
 

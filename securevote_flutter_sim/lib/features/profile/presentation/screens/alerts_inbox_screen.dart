@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// static settings screen.
+// TODO: Wire notifications to a backend endpoint once one exists. For now the
+// inbox is populated with placeholder data and a "no notifications" empty state.
 import '../../../../core/navigation/app_router.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 

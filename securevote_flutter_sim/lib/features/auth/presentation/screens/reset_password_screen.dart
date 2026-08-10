@@ -129,13 +129,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               label: 'Reset Password',
               icon: Icons.restart_alt_rounded,
               onPressed: () {
+                // TODO: forgot-password endpoint
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset successful.')),
-                );
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  AppRouter.login,
-                  (Route<dynamic> route) => route.isFirst,
+                  const SnackBar(
+                    content: Text(
+                      'Password reset is not yet available — contact admin',
+                    ),
+                  ),
                 );
               },
             ),

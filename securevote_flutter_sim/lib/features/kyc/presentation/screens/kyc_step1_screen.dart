@@ -1,13 +1,30 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/kyc_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
 import '../../../../shared/widgets/step_meter.dart';
 
 class KycStep1Screen extends StatelessWidget {
   const KycStep1Screen({super.key});
+
+  /// Records the document submission server-side (status -> pending) using a
+  /// placeholder byte array, then proceeds to the liveness check.
+  ///
+  /// NOTE: The real camera/document upload is wired in Phase 4. For now the
+  /// repository is instantiated directly since it is not exposed via Provider.
+  Future<void> _submitAndContinue(BuildContext context) async {
+    await KycRepository().submitDocument(
+      bytes: Uint8List(0),
+      fileName: 'id.jpg',
+    );
+    if (!context.mounted) return;
+    Navigator.pushNamed(context, AppRouter.kycLiveness);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,8 +113,7 @@ class KycStep1Screen extends StatelessWidget {
                     ),
                     backgroundColor: Colors.white.withValues(alpha: 0.04),
                   ),
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRouter.kycLiveness),
+                  onPressed: () => _submitAndContinue(context),
                   icon: const Icon(Icons.upload_file_rounded),
                   label: const Text('Upload ID'),
                 ),
@@ -107,8 +123,7 @@ class KycStep1Screen extends StatelessWidget {
                 child: GradientButton(
                   label: 'Take Photo',
                   icon: Icons.photo_camera_rounded,
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRouter.kycLiveness),
+                  onPressed: () => _submitAndContinue(context),
                 ),
               ),
             ],

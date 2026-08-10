@@ -1,10 +1,13 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../features/elections/data/elections_repository.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
 
@@ -20,79 +23,84 @@ class _HomeScreenState extends State<HomeScreen> {
   static const double _headerMinExtent = 74;
   static const double _headerMaxExtent = 112;
 
+  static const List<String> _months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
   int _selectedTabIndex = 0;
   late final ScrollController _scrollController;
   double _collapseT = 0;
 
-  static const List<_ElectionItemData> _allElections = <_ElectionItemData>[
-    _ElectionItemData(
-      title: 'Alumni Board Selection',
-      subtitle: 'Global Alumni Association',
-      status: 'Active',
-      dateLabel: 'Oct 12 - Oct 18, 2025',
-      actionLabel: 'View Details',
-      leadingIcon: Icons.calendar_today_rounded,
-      trailingActionIcon: Icons.chevron_right_rounded,
-      route: AppRouter.electionDetails,
-      turnoutRatio: 0.62,
-    ),
-    _ElectionItemData(
-      title: 'City Debate Referendum',
-      subtitle: 'Public Affairs Council',
-      status: 'Active',
-      dateLabel: 'Oct 15 - Oct 20, 2025',
-      actionLabel: 'View Details',
-      leadingIcon: Icons.calendar_today_rounded,
-      trailingActionIcon: Icons.chevron_right_rounded,
-      route: AppRouter.electionDetails,
-      turnoutRatio: 0.38,
-    ),
-    _ElectionItemData(
-      title: 'Faculty Representative Vote',
-      subtitle: 'School of Engineering',
-      status: 'Upcoming',
-      dateLabel: 'Nov 05 - Nov 07, 2025',
-      actionLabel: 'Remind Me',
-      leadingIcon: Icons.calendar_today_rounded,
-      trailingActionIcon: Icons.notifications_none_rounded,
-      route: AppRouter.electionSearch,
-    ),
-    _ElectionItemData(
-      title: 'National Youth Committee',
-      subtitle: 'Civic Alliance Board',
-      status: 'Upcoming',
-      dateLabel: 'Nov 12 - Nov 14, 2025',
-      actionLabel: 'Remind Me',
-      leadingIcon: Icons.calendar_today_rounded,
-      trailingActionIcon: Icons.notifications_none_rounded,
-      route: AppRouter.electionSearch,
-    ),
-    _ElectionItemData(
-      title: 'National Tech Council 2024',
-      subtitle: 'MDEC Malaysia',
-      status: 'Past',
-      dateLabel: 'Ended Dec 20, 2024',
-      actionLabel: 'Results',
-      leadingIcon: Icons.verified_rounded,
-      trailingActionIcon: Icons.bar_chart_rounded,
-      route: AppRouter.electionResults,
-    ),
-    _ElectionItemData(
-      title: 'Campus Innovation Ballot',
-      subtitle: 'Student Senate Office',
-      status: 'Past',
-      dateLabel: 'Ended Sep 02, 2024',
-      actionLabel: 'Results',
-      leadingIcon: Icons.verified_rounded,
-      trailingActionIcon: Icons.bar_chart_rounded,
-      route: AppRouter.electionResults,
-    ),
-  ];
+  List<Election> _elections = const <Election>[];
+  bool _loading = true;
+  String? _error;
+  bool _started = false;
 
-  int get _activeCount =>
-      _allElections.where((e) => e.status == 'Active').length;
-  int get _upcomingCount =>
-      _allElections.where((e) => e.status == 'Upcoming').length;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started) {
+      _started = true;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final List<Election> elections =
+          await context.read<ElectionsRepository>().getElections();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _elections = elections;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = 'Could not load elections.';
+      });
+    }
+  }
+
+  static bool _isActive(Election e) => e.status == 'active';
+  static bool _isUpcoming(Election e) =>
+      e.status == 'upcoming' || e.status == 'scheduled' || e.status == 'draft';
+  static bool _isPast(Election e) =>
+      e.status == 'closed' || e.status == 'published';
+
+  static String _formatDate(DateTime d) {
+    final List<String> months = _months;
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  static String _formatRange(DateTime startsAt, DateTime endsAt) {
+    final List<String> months = _months;
+    final String sm = months[startsAt.month - 1];
+    final String em = months[endsAt.month - 1];
+    if (startsAt.year == endsAt.year && startsAt.month == endsAt.month) {
+      return '$sm ${startsAt.day} - ${endsAt.day}, ${endsAt.year}';
+    }
+    return '$sm ${startsAt.day} - $em ${endsAt.day}, ${endsAt.year}';
+  }
+
+  static Election? _firstActive(List<Election> elections) {
+    for (final Election e in elections) {
+      if (_isActive(e)) {
+        return e;
+      }
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -121,9 +129,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final String activeTab = _tabs[_selectedTabIndex];
-    final List<_ElectionItemData> visibleElections = _allElections
-        .where((e) => e.status == activeTab)
-        .toList();
+    final List<Election> allElections = _elections;
+    final bool isLoading = _loading;
+    final bool hasError = _error != null;
+
+    final List<Election> visibleElections = _forTab(allElections, activeTab);
+    final Election? activeElection = _firstActive(allElections);
 
     return ObsidianScaffold(
       bottomNavigationBar: const PremiumBottomNav(currentIndex: 0),
@@ -170,11 +181,13 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverToBoxAdapter(
             child: SizedBox(height: lerpDouble(14, 2, _collapseT)),
           ),
-          SliverToBoxAdapter(child: _heroCard(context, _collapseT)),
+          SliverToBoxAdapter(
+            child: _heroCard(context, _collapseT, activeElection),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(child: _quickStatsRow(context)),
+          SliverToBoxAdapter(child: _quickStatsRow(context, allElections)),
           const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(child: _tabsRow(context)),
+          SliverToBoxAdapter(child: _tabsRow(context, allElections)),
           const SliverToBoxAdapter(child: SizedBox(height: 18)),
           SliverToBoxAdapter(
             child: Text(
@@ -185,18 +198,56 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          SliverToBoxAdapter(
-            child: Column(
-              children: <Widget>[
-                for (int i = 0; i < visibleElections.length; i++) ...<Widget>[
-                  _electionItem(context: context, data: visibleElections[i]),
-                  if (i != visibleElections.length - 1)
-                    const SizedBox(height: 14),
+          if (isLoading && allElections.isEmpty)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+                ),
+              ),
+            )
+          else if (hasError)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Column(
+                  children: <Widget>[
+                    Icon(
+                      Icons.cloud_off_rounded,
+                      size: 40,
+                      color: AppColors.textMuted.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Could not load elections.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _load,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverToBoxAdapter(
+              child: Column(
+                children: <Widget>[
+                  for (int i = 0; i < visibleElections.length; i++) ...<Widget>[
+                    _electionItem(
+                      context: context,
+                      election: visibleElections[i],
+                    ),
+                    if (i != visibleElections.length - 1)
+                      const SizedBox(height: 14),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          if (visibleElections.isEmpty)
+          if (!isLoading && !hasError && visibleElections.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -212,6 +263,19 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  List<Election> _forTab(List<Election> elections, String tab) {
+    switch (tab) {
+      case 'Active':
+        return elections.where(_isActive).toList();
+      case 'Upcoming':
+        return elections.where(_isUpcoming).toList();
+      case 'Past':
+        return elections.where(_isPast).toList();
+      default:
+        return <Election>[];
+    }
+  }
+
   // ─── TOP HEADER ────────────────────────────────────────────────────────────
 
   Widget _topHeader(BuildContext context, double t) {
@@ -220,6 +284,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final double iconSize = lerpDouble(22, 18, t)!;
     final double nameSize = lerpDouble(26, 19, t)!;
     final double subtitleOpacity = (1 - (t * 1.8)).clamp(0, 1);
+
+    final AuthProvider auth = context.watch<AuthProvider>();
+    final String fullName = auth.user?.fullName ?? '';
+    final String firstName =
+        fullName.trim().isEmpty ? 'User' : fullName.trim().split(' ').first;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -312,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Row(
                   children: <Widget>[
                     Text(
-                      StorageService.getUser()?['fullName']?.split(' ').first ?? 'User',
+                      firstName,
                       style: Theme.of(
                         context,
                       ).textTheme.headlineSmall?.copyWith(fontSize: nameSize),
@@ -352,18 +421,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ─── HERO CARD ─────────────────────────────────────────────────────────────
 
-  Widget _heroCard(BuildContext context, double t) {
+  Widget _heroCard(
+    BuildContext context,
+    double t,
+    Election? activeElection,
+  ) {
+    if (activeElection == null) {
+      return _noActiveCard(context);
+    }
+
+    final String statusLabel = 'Live Now';
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
-        color: const Color(0x0DFFFFFF), // rgba(255,255,255,0.05) - glass effect
-        border: Border.all(
-          color: const Color(0x14FFFFFF), // rgba(255,255,255,0.08)
-        ),
+        color: const Color(0x0DFFFFFF), // glass effect
+        border: Border.all(color: const Color(0x14FFFFFF)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x4D000000), // rgba(0,0,0,0.3)
+            color: Color(0x4D000000),
             blurRadius: 32,
             offset: Offset(0, 8),
           ),
@@ -372,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // LIVE pill + timer
+          // LIVE pill
           Transform.translate(
             offset: Offset(0, lerpDouble(0, -9, t)!),
             child: Row(
@@ -404,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'LIVE NOW',
+                        statusLabel.toUpperCase(),
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(
                               color: const Color(0xFF46F1E8),
@@ -427,23 +504,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.10),
                     ),
-                    boxShadow: const <BoxShadow>[
-                      BoxShadow(
-                        color: Color(0x22000000),
-                        blurRadius: 10,
-                        offset: Offset(0, 3),
-                      ),
-                    ],
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: <Widget>[
                       Text(
-                        'Closes in',
+                        'Ends',
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
                       Text(
-                        '2h 14m',
+                        _formatDate(activeElection.endsAt),
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -457,7 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // Title + org
           Text(
-            'Student Council\nElection 2025',
+            activeElection.title,
             style: Theme.of(
               context,
             ).textTheme.displayLarge?.copyWith(fontSize: 27, height: 1.06),
@@ -471,68 +541,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppColors.textMuted,
               ),
               const SizedBox(width: 6),
-              Text(
-                'City University Malaysia',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontSize: 14),
+              Expanded(
+                child: Text(
+                  activeElection.organization ?? 'SecureVote Election',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontSize: 14),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Candidate stack + vote stats
-          _candidateStatsRow(context),
+          // Candidate count + dates
+          _heroFactsRow(context, activeElection),
           const SizedBox(height: 18),
 
-          // Turnout progress
-          Row(
-            children: <Widget>[
-              Text(
-                'Turnout Progress',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontSize: 15),
-              ),
-              const Spacer(),
-              Text(
-                '47%',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: SizedBox(
-              height: 10,
-              child: LinearProgressIndicator(
-                value: 0.47,
-                backgroundColor: Colors.white.withValues(alpha: 0.08),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFFB8AFFF),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '3,203 votes remaining to reach quorum',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontSize: 11,
-              color: const Color(0xFF97A1D6),
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // Vote Now CTA with clean gradient
+          // Vote Now CTA
           InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () =>
-                Navigator.pushNamed(context, AppRouter.electionDetails),
+            onTap: () => Navigator.pushNamed(
+              context,
+              AppRouter.electionDetails,
+              arguments: activeElection,
+            ),
             child: Container(
               height: 56,
               decoration: BoxDecoration(
@@ -540,8 +572,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                   colors: <Color>[
-                    Color(0xFFB9C3FF), // primary
-                    Color(0xFFD2BBFF), // secondary
+                    Color(0xFFB9C3FF),
+                    Color(0xFFD2BBFF),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
@@ -587,26 +619,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Candidate avatars + vote/eligible counts inside hero card
-  Widget _candidateStatsRow(BuildContext context) {
-    const List<Map<String, dynamic>> candidates = <Map<String, dynamic>>[
-      <String, dynamic>{
-        'initials': 'AM',
-        'colors': <Color>[Color(0xFF5A6BFF), Color(0xFF3B4DCF)],
-        'textColor': Color(0xFFC0C8FF),
-      },
-      <String, dynamic>{
-        'initials': 'SR',
-        'colors': <Color>[Color(0xFFFF7B5A), Color(0xFFCF4B3B)],
-        'textColor': Color(0xFFFFD0C8),
-      },
-      <String, dynamic>{
-        'initials': 'NL',
-        'colors': <Color>[Color(0xFF46F1A0), Color(0xFF1DB86A)],
-        'textColor': Color(0xFFB0FAD6),
-      },
-    ];
-
+  Widget _heroFactsRow(BuildContext context, Election election) {
+    final int candidateCount = election.candidateCount ?? 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -616,7 +630,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Row(
         children: <Widget>[
-          // Avatar stack
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -627,74 +640,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: AppColors.textMuted,
                 ),
               ),
-              const SizedBox(height: 6),
-              SizedBox(
-                height: 30,
-                width: candidates.length * 22.0 + 30,
-                child: Stack(
-                  children: <Widget>[
-                    for (int i = 0; i < candidates.length; i++)
-                      Positioned(
-                        left: i * 22.0,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: candidates[i]['colors'] as List<Color>,
-                            ),
-                            border: Border.all(
-                              color: const Color(0xFF090C14),
-                              width: 2,
-                            ),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            candidates[i]['initials'] as String,
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: candidates[i]['textColor'] as Color,
-                            ),
-                          ),
-                        ),
-                      ),
-                    Positioned(
-                      left: candidates.length * 22.0,
-                      child: Container(
-                        width: 30,
-                        height: 30,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.10),
-                          border: Border.all(
-                            color: const Color(0xFF090C14),
-                            width: 2,
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '+2',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 4),
+              Text(
+                '$candidateCount',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
           const Spacer(),
-          _heroStatItem(context, '2,847', 'Votes Cast'),
-          const SizedBox(width: 18),
-          _heroStatItem(context, '6,050', 'Eligible'),
+          _heroStatItem(
+            context,
+            _formatRange(election.startsAt, election.endsAt),
+            'Voting Period',
+          ),
         ],
       ),
     );
@@ -707,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Text(
           value,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -722,30 +683,110 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _noActiveCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        color: const Color(0x0DFFFFFF),
+        border: Border.all(color: const Color(0x14FFFFFF)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x4D000000),
+            blurRadius: 32,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            Icons.event_busy_rounded,
+            size: 40,
+            color: AppColors.textMuted.withValues(alpha: 0.8),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'No Active Elections',
+            style: Theme.of(
+              context,
+            ).textTheme.displayLarge?.copyWith(fontSize: 27, height: 1.06),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'There are no elections open for voting right now. Check back soon or browse all elections.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontSize: 14,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 18),
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () =>
+                Navigator.pushNamed(context, AppRouter.electionSearch),
+            child: Container(
+              height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Text(
+                    'Browse Elections',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF090C14),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Color(0xFF090C14),
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── QUICK STATS ROW ───────────────────────────────────────────────────────
 
-  Widget _quickStatsRow(BuildContext context) {
+  Widget _quickStatsRow(BuildContext context, List<Election> elections) {
+    final int activeCount = elections.where(_isActive).length;
     return Row(
       children: <Widget>[
         _statCard(
           context,
           icon: Icons.how_to_vote_rounded,
-          value: '${_allElections.length}',
+          value: '${elections.length}',
           label: 'Elections',
         ),
         const SizedBox(width: 10),
         _statCard(
           context,
           icon: Icons.check_circle_rounded,
-          value: '3',
-          label: 'Voted',
+          value: '$activeCount',
+          label: 'Active',
         ),
         const SizedBox(width: 10),
         _statCard(
           context,
           icon: Icons.notifications_active_rounded,
-          value: '2',
-          label: 'Reminders',
+          value: '${elections.where(_isUpcoming).length}',
+          label: 'Upcoming',
         ),
       ],
     );
@@ -762,10 +803,8 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: const Color(0xFF1A1B21), // surface-container-low
-          border: Border.all(
-            color: const Color(0x0DFFFFFF), // rgba(255,255,255,0.05)
-          ),
+          color: const Color(0xFF1A1B21),
+          border: Border.all(color: const Color(0x0DFFFFFF)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -798,8 +837,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ─── TABS ROW ──────────────────────────────────────────────────────────────
 
-  Widget _tabsRow(BuildContext context) {
-    final List<int> counts = <int>[_activeCount, _upcomingCount, 0];
+  Widget _tabsRow(BuildContext context, List<Election> elections) {
+    final int activeCount = elections.where(_isActive).length;
+    final int upcomingCount = elections.where(_isUpcoming).length;
+    final int pastCount = elections.where(_isPast).length;
+    final List<int> counts = <int>[activeCount, upcomingCount, pastCount];
 
     return Container(
       padding: const EdgeInsets.all(6),
@@ -832,14 +874,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _electionItem({
     required BuildContext context,
-    required _ElectionItemData data,
+    required Election election,
   }) {
-    final Color statusColor = data.status == 'Active'
-        ? AppColors.tertiary
-        : data.status == 'Upcoming'
+    final bool isPast = _isPast(election);
+    final Color statusColor = isPast
+        ? const Color(0xFF8E90A0)
+        : _isUpcoming(election)
         ? AppColors.primary
-        : const Color(0xFF8E90A0);
-    final bool isPast = data.status == 'Past';
+        : AppColors.tertiary;
+    final String statusLabel = isPast
+        ? 'Past'
+        : _isUpcoming(election)
+        ? 'Upcoming'
+        : 'Active';
+    final String actionLabel = isPast ? 'Results' : 'View Details';
+    final IconData leadingIcon = isPast
+        ? Icons.verified_rounded
+        : Icons.calendar_today_rounded;
+    final IconData trailingActionIcon = isPast
+        ? Icons.bar_chart_rounded
+        : Icons.chevron_right_rounded;
+    final String dateLabel = isPast
+        ? 'Ended ${_formatDate(election.endsAt)}'
+        : _formatRange(election.startsAt, election.endsAt);
+    final String route = isPast
+        ? AppRouter.electionResults
+        : AppRouter.electionDetails;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -865,7 +925,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      data.title,
+                      election.title,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontSize: 17,
@@ -876,7 +936,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      data.subtitle,
+                      election.organization ?? 'SecureVote Election',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontSize: 12.5,
                         color: isPast
@@ -900,7 +960,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 child: Text(
-                  data.status,
+                  statusLabel,
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.w700,
@@ -911,33 +971,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          // Mini turnout bar for Active only
-          if (data.status == 'Active' && data.turnoutRatio > 0) ...<Widget>[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: SizedBox(
-                height: 3,
-                child: LinearProgressIndicator(
-                  value: data.turnoutRatio,
-                  backgroundColor: Colors.white.withValues(alpha: 0.06),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    statusColor.withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${(data.turnoutRatio * 100).toInt()}% turnout',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: statusColor.withValues(alpha: 0.92),
-              ),
-            ),
-          ],
-
           const SizedBox(height: 12),
           Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
           const SizedBox(height: 12),
@@ -945,11 +978,11 @@ class _HomeScreenState extends State<HomeScreen> {
           // Date + action row
           Row(
             children: <Widget>[
-              Icon(data.leadingIcon, size: 17, color: AppColors.textMuted),
+              Icon(leadingIcon, size: 17, color: AppColors.textMuted),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  data.dateLabel,
+                  dateLabel,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontSize: 14,
                     color: isPast
@@ -959,12 +992,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               InkWell(
-                onTap: () => Navigator.pushNamed(context, data.route),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  route,
+                  arguments: election,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Text(
-                      data.actionLabel,
+                      actionLabel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontSize: 14,
                         color: isPast
@@ -975,7 +1012,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 6),
                     Icon(
-                      data.trailingActionIcon,
+                      trailingActionIcon,
                       size: 17,
                       color: isPast
                           ? AppColors.textMuted.withValues(alpha: 0.90)
@@ -1037,32 +1074,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-// ─── DATA MODEL ────────────────────────────────────────────────────────────────
-
-class _ElectionItemData {
-  const _ElectionItemData({
-    required this.title,
-    required this.subtitle,
-    required this.status,
-    required this.dateLabel,
-    required this.actionLabel,
-    required this.leadingIcon,
-    required this.trailingActionIcon,
-    required this.route,
-    this.turnoutRatio = 0.0,
-  });
-
-  final String title;
-  final String subtitle;
-  final String status;
-  final String dateLabel;
-  final String actionLabel;
-  final IconData leadingIcon;
-  final IconData trailingActionIcon;
-  final String route;
-  final double turnoutRatio;
 }
 
 // ─── TAB CHIP ──────────────────────────────────────────────────────────────────

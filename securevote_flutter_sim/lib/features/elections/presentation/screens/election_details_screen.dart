@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../core/models/candidate.dart';
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../features/elections/data/elections_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 
 class ElectionDetailsScreen extends StatefulWidget {
@@ -11,15 +15,136 @@ class ElectionDetailsScreen extends StatefulWidget {
 }
 
 class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
-  int _selectedTab = 0;
-  final List<String> _tabs = <String>[
-    'Overview',
-    'Candidates (4)',
-    'Rules & Info',
+  static const List<Color> _candidateColors = <Color>[
+    Color(0xFF6E88FF),
+    Color(0xFFD2BBFF),
+    Color(0xFF2ADEC0),
+    Color(0xFFFF7B5A),
+    Color(0xFF46F1A0),
+    Color(0xFFFFB547),
   ];
+
+  static const List<String> _months = <String>[
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  int _selectedTab = 0;
+  Election? _election;
+  List<Candidate> _candidates = const <Candidate>[];
+  bool _loading = true;
+  String? _error;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started) {
+      _started = true;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final Object? args = ModalRoute.of(context)?.settings.arguments;
+    final String? id = _extractId(args);
+    if (id == null) {
+      setState(() {
+        _loading = false;
+        _error = 'No election specified.';
+      });
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final repo = context.read<ElectionsRepository>();
+      final (Election election, List<Candidate> candidates) =
+          await repo.getElectionWithCandidates(id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _election = election;
+        _candidates = candidates;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error =
+            'Could not load election details. Please check your connection and try again.';
+      });
+    }
+  }
+
+  String? _extractId(Object? args) {
+    if (args == null) {
+      return null;
+    }
+    if (args is String) {
+      return args;
+    }
+    if (args is Election) {
+      return args.id;
+    }
+    if (args is Map) {
+      final Object? v = args['electionId'] ?? args['id'];
+      if (v is String) {
+        return v;
+      }
+      if (v is Election) {
+        return v.id;
+      }
+    }
+    return null;
+  }
+
+  static String _formatDate(DateTime d) {
+    final List<String> months = _months;
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  static String _formatShort(DateTime d) {
+    final List<String> months = _months;
+    final String hour = d.hour.toString().padLeft(2, '0');
+    final String min = d.minute.toString().padLeft(2, '0');
+    return '${months[d.month - 1]} ${d.day}, $hour:$min';
+  }
+
+  static String _formatTimeRange(DateTime startsAt, DateTime endsAt) {
+    return '${_formatShort(startsAt)} — ${_formatShort(endsAt)}';
+  }
+
+  static String _statusLabel(Election e) {
+    switch (e.status) {
+      case 'active':
+        return 'Active — Voting Open';
+      case 'scheduled':
+      case 'upcoming':
+      case 'draft':
+        return 'Upcoming — Not Open';
+      case 'closed':
+      case 'published':
+        return 'Closed — Results';
+      default:
+        return e.status;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final List<String> tabs = <String>[
+      'Overview',
+      'Candidates (${_candidates.length})',
+      'Rules & Info',
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
       body: SafeArea(
@@ -80,7 +205,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 ),
               ),
               child: Row(
-                children: List.generate(_tabs.length, (index) {
+                children: List.generate(tabs.length, (index) {
                   final bool isSelected = _selectedTab == index;
                   return GestureDetector(
                     onTap: () {
@@ -102,7 +227,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                         ),
                       ),
                       child: Text(
-                        _tabs[index],
+                        tabs[index],
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -118,81 +243,134 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
             ),
 
             // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    if (_selectedTab == 0) ...[
-                      // Overview Tab
-                      _headerBlock(context),
-                      const SizedBox(height: 16),
-                      _statsRow(),
-                      const SizedBox(height: 16),
-                      _progressBlock(context),
-                      const SizedBox(height: 16),
-                      _timeCard(context),
-                      const SizedBox(height: 16),
-                      _eligibilityCard(context),
-                      const SizedBox(height: 24),
-                      Text(
-                        'About this Election',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'The Student Council Election determines the representatives for the upcoming academic year. Your vote shapes campus policies, events, and student welfare initiatives. Please review the candidates carefully before casting your ballot. Voting is anonymous and secured via cryptographic proofs.',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Colors.white.withValues(alpha: 0.7),
-                          height: 1.6,
-                        ),
-                      ),
-                    ] else if (_selectedTab == 1) ...[
-                      // Candidates Tab
-                      _buildCandidatesList(),
-                    ] else ...[
-                      // Rules & Info Tab
-                      _buildRulesInfo(),
-                    ],
-                    const SizedBox(height: 80),
-                  ],
-                ),
-              ),
-            ),
+            Expanded(child: _buildBody()),
           ],
         ),
       ),
       // Fixed Bottom Button
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF08090E).withValues(alpha: 0.8),
-          border: Border(
-            top: BorderSide(
-              color: const Color(0xFF444654).withValues(alpha: 0.15),
+      bottomNavigationBar: _election == null
+          ? const SizedBox.shrink()
+          : Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF08090E).withValues(alpha: 0.8),
+                border: Border(
+                  top: BorderSide(
+                    color: const Color(0xFF444654).withValues(alpha: 0.15),
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                child: GradientButton(
+                  label: 'Vote Now',
+                  icon: Icons.how_to_vote_rounded,
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AppRouter.ballotCasting,
+                    arguments: <String, dynamic>{
+                      'electionId': _election!.id,
+                      'election': _election,
+                      'candidates': _candidates,
+                    },
+                  ),
+                ),
+              ),
             ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 48,
+                color: Color(0xFF8E90A0),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFC4C5D7)),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: _load,
+                child: const Text('Retry'),
+              ),
+            ],
           ),
         ),
-        child: SafeArea(
-          child: GradientButton(
-            label: 'Vote Now',
-            icon: Icons.how_to_vote_rounded,
-            onPressed: () =>
-                Navigator.pushNamed(context, AppRouter.ballotCasting),
-          ),
-        ),
+      );
+    }
+
+    final Election election = _election!;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          if (_selectedTab == 0) ...[
+            // Overview Tab
+            _headerBlock(context, election),
+            const SizedBox(height: 16),
+            _statsRow(election),
+            const SizedBox(height: 16),
+            _progressBlock(context, election),
+            const SizedBox(height: 16),
+            _timeCard(context, election),
+            const SizedBox(height: 16),
+            _eligibilityCard(context),
+            const SizedBox(height: 24),
+            const Text(
+              'About this Election',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              election.description ??
+                  'This election is managed securely through the SecureVote platform. Review the candidates carefully before casting your ballot. Voting is anonymous and secured via cryptographic proofs.',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.white.withValues(alpha: 0.7),
+                height: 1.6,
+              ),
+            ),
+          ] else if (_selectedTab == 1) ...[
+            // Candidates Tab
+            _buildCandidatesList(context),
+          ] else ...[
+            // Rules & Info Tab
+            _buildRulesInfo(context, election),
+          ],
+          const SizedBox(height: 80),
+        ],
       ),
     );
   }
 
-  Widget _headerBlock(BuildContext context) {
+  Widget _headerBlock(BuildContext context, Election election) {
+    final bool isActive = election.status == 'active';
+    final Color statusColor = isActive
+        ? const Color(0xFF2ADEC0)
+        : const Color(0xFFB9C3FF);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -212,10 +390,10 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.school_rounded,
+          child: Icon(
+            isActive ? Icons.how_to_vote_rounded : Icons.school_rounded,
             size: 48,
-            color: Color(0xFFB9C3FF),
+            color: statusColor,
           ),
         ),
         const SizedBox(width: 16),
@@ -223,9 +401,9 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text(
-                'Student Council Election 2025',
-                style: TextStyle(
+              Text(
+                election.title,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
@@ -235,7 +413,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'City University Malaysia',
+                election.organization ?? 'SecureVote Election',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white.withValues(alpha: 0.6),
@@ -249,7 +427,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
+                  color: statusColor.withValues(alpha: 0.2),
                   border: Border.all(
                     color: const Color(0xFF444654).withValues(alpha: 0.15),
                   ),
@@ -262,12 +440,10 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF2ADEC0),
+                        color: statusColor,
                         boxShadow: <BoxShadow>[
                           BoxShadow(
-                            color: const Color(
-                              0xFF2ADEC0,
-                            ).withValues(alpha: 0.5),
+                            color: statusColor.withValues(alpha: 0.5),
                             blurRadius: 4,
                             spreadRadius: 1,
                           ),
@@ -275,10 +451,10 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Active — Voting Open',
+                    Text(
+                      _statusLabel(election),
                       style: TextStyle(
-                        color: Color(0xFF2ADEC0),
+                        color: statusColor,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
                         letterSpacing: 0.3,
@@ -294,25 +470,45 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
     );
   }
 
-  Widget _statsRow() {
-    return const Row(
+  Widget _statsRow(Election election) {
+    return Row(
       children: <Widget>[
         Expanded(
-          child: _StatCard(label: 'Registered', value: '200'),
+          child: _StatCard(
+            label: 'Candidates',
+            value: '${_candidates.length}',
+          ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         Expanded(
-          child: _StatCard(label: 'Voted', value: '94'),
+          child: _StatCard(
+            label: 'Starts',
+            value: _formatDate(election.startsAt),
+          ),
         ),
-        SizedBox(width: 16),
+        const SizedBox(width: 16),
         Expanded(
-          child: _StatCard(label: 'Turnout', value: '47%'),
+          child: _StatCard(
+            label: 'Ends',
+            value: _formatDate(election.endsAt),
+          ),
         ),
       ],
     );
   }
 
-  Widget _progressBlock(BuildContext context) {
+  Widget _progressBlock(BuildContext context, Election election) {
+    final DateTime now = DateTime.now();
+    final double total = election.endsAt
+        .difference(election.startsAt)
+        .inMilliseconds
+        .toDouble();
+    final double elapsed = now.difference(election.startsAt).inMilliseconds
+        .toDouble();
+    final double progress =
+        total <= 0 ? 0.0 : (elapsed / total).clamp(0.0, 1.0);
+    final int percent = (progress * 100).round();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -333,7 +529,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           Row(
             children: <Widget>[
               Text(
-                'Voter Turnout',
+                'Voting Window',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white.withValues(alpha: 0.6),
@@ -341,9 +537,9 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 ),
               ),
               const Spacer(),
-              const Text(
-                '47%',
-                style: TextStyle(
+              Text(
+                '$percent%',
+                style: const TextStyle(
                   fontSize: 14,
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -362,7 +558,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
               ),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
-                widthFactor: 0.47,
+                widthFactor: progress,
                 child: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -379,7 +575,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
     );
   }
 
-  Widget _timeCard(BuildContext context) {
+  Widget _timeCard(BuildContext context, Election election) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -423,18 +619,18 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'Oct 24, 09:00 AM — Oct 26, 05:00 PM',
-                  style: TextStyle(
+                Text(
+                  _formatTimeRange(election.startsAt, election.endsAt),
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  '2 days remaining',
-                  style: TextStyle(
+                Text(
+                  _statusLabel(election),
+                  style: const TextStyle(
                     color: Color(0xFFB9C3FF),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -486,7 +682,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Verified as active student for Fall 2025.',
+                  'Ensure your KYC profile is verified before casting your ballot.',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.6),
@@ -500,33 +696,10 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
     );
   }
 
-  Widget _buildCandidatesList() {
-    final List<Map<String, dynamic>> candidates = [
-      {
-        'name': 'Julian Vance',
-        'party': 'Progressive Unity Party',
-        'color': const Color(0xFF6E88FF),
-      },
-      {
-        'name': 'Dr. Elena Rodriguez',
-        'party': 'Federal Sovereignty Bloc',
-        'color': const Color(0xFF6001D1),
-      },
-      {
-        'name': 'Marcus Sterling',
-        'party': 'Independent Coalition',
-        'color': const Color(0xFF8E90A0),
-      },
-      {
-        'name': 'Sarah Chen',
-        'party': 'Student Welfare Alliance',
-        'color': const Color(0xFF2ADEC0),
-      },
-    ];
-
+  Widget _buildCandidatesList(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         const Text(
           'Running Candidates',
           style: TextStyle(
@@ -537,97 +710,112 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        ...candidates.map(
-          (candidate) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: InkWell(
-              onTap: () {
-                Navigator.pushNamed(context, AppRouter.candidateDetails);
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: const Color(0xFF1A1B21),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        color: (candidate['color'] as Color).withValues(
-                          alpha: 0.2,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.person,
-                        color: candidate['color'] as Color,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            candidate['name'] as String,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: candidate['color'] as Color,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  candidate['party'] as String,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.white.withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.white.withValues(alpha: 0.3),
-                    ),
-                  ],
-                ),
-              ),
+        if (_candidates.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              'No candidates have been registered for this election yet.',
+              style: TextStyle(color: Color(0xFFC4C5D7)),
             ),
           ),
-        ),
+        for (int i = 0; i < _candidates.length; i++) ...<Widget>[
+          _buildCandidateCard(context, _candidates[i], i),
+          if (i != _candidates.length - 1) const SizedBox(height: 12),
+        ],
       ],
     );
   }
 
-  Widget _buildRulesInfo() {
+  Widget _buildCandidateCard(
+    BuildContext context,
+    Candidate candidate,
+    int index,
+  ) {
+    final Color color = _candidateColors[index % _candidateColors.length];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRouter.candidateDetails,
+            arguments: candidate,
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: const Color(0xFF1A1B21),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          ),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: color.withValues(alpha: 0.2),
+                ),
+                child: Icon(Icons.person, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      candidate.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: <Widget>[
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: color,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            candidate.party ?? 'Independent',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xFF8E90A0),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRulesInfo(BuildContext context, Election election) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         const Text(
           'Election Rules & Information',
           style: TextStyle(
@@ -647,29 +835,29 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               _buildRuleItem(
                 Icons.how_to_vote,
                 'Voting Method',
-                'One vote per registered student. Anonymous ballot with cryptographic verification.',
+                'One vote per registered participant. Anonymous ballot with cryptographic verification.',
               ),
               const SizedBox(height: 16),
               _buildRuleItem(
                 Icons.schedule,
                 'Voting Period',
-                'October 12-18, 2025. Polls close at 11:59 PM UTC on the final day.',
+                '${_formatTimeRange(election.startsAt, election.endsAt)}.',
               ),
               const SizedBox(height: 16),
               _buildRuleItem(
                 Icons.verified_user,
                 'Eligibility',
-                'All enrolled students with verified KYC status are eligible to vote.',
+                'Participants with verified KYC status are eligible to vote.',
               ),
               const SizedBox(height: 16),
               _buildRuleItem(
                 Icons.security,
                 'Security',
-                'Votes are encrypted end-to-end and stored on immutable blockchain ledger.',
+                'Votes are encrypted end-to-end and stored on an immutable blockchain ledger.',
               ),
             ],
           ),
@@ -680,7 +868,11 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           height: 56,
           child: OutlinedButton.icon(
             onPressed: () {
-              Navigator.pushNamed(context, AppRouter.electionRules);
+              Navigator.pushNamed(
+                context,
+                AppRouter.electionRules,
+                arguments: election,
+              );
             },
             icon: const Icon(Icons.article_outlined, size: 20),
             label: const Text('View Complete Rules'),
@@ -702,7 +894,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
   Widget _buildRuleItem(IconData icon, String title, String description) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         Container(
           width: 40,
           height: 40,
@@ -716,7 +908,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               Text(
                 title,
                 style: const TextStyle(
@@ -771,7 +963,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
               color: Colors.white,
               letterSpacing: -0.5,

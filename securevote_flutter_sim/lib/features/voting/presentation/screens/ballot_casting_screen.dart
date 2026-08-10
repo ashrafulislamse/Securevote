@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../core/services/storage_service.dart';
+import '../../../../features/elections/data/elections_repository.dart';
+import '../../../../features/voting/data/voting_repository.dart';
 
 class BallotCastingScreen extends StatefulWidget {
   const BallotCastingScreen({super.key});
@@ -11,38 +14,79 @@ class BallotCastingScreen extends StatefulWidget {
 }
 
 class _BallotCastingScreenState extends State<BallotCastingScreen> {
-  int? _selectedCandidate = 0;
-
-  final List<Map<String, dynamic>> _candidates = <Map<String, dynamic>>[
-    <String, dynamic>{
-      'name': 'Julian Vance',
-      'party': 'Progressive Unity Party',
-      'image': '',
-      'partyColor': const Color(0xFF6E88FF),
-    },
-    <String, dynamic>{
-      'name': 'Dr. Elena Rodriguez',
-      'party': 'Federal Sovereignty Bloc',
-      'image': '',
-      'partyColor': const Color(0xFF6001D1),
-    },
-    <String, dynamic>{
-      'name': 'Marcus Sterling',
-      'party': 'Independent Coalition',
-      'image': '',
-      'partyColor': const Color(0xFF8E90A0),
-    },
+  static const List<Color> _partyColors = <Color>[
+    Color(0xFF6E88FF),
+    Color(0xFF6001D1),
+    Color(0xFF8E90A0),
+    Color(0xFF2ADEC0),
+    Color(0xFFFBBF24),
   ];
+
+  String? _electionId;
+  Election? _election;
+  List<Candidate> _candidates = <Candidate>[];
+  int? _selectedIndex = 0;
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Check if user has already voted in this election
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (StorageService.hasVotedInElection('election_123')) {
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _electionId = args['electionId'] as String?;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+  }
+
+  Future<void> _init() async {
+    await _loadElectionAndCandidates();
+    if (!mounted || _error != null) return;
+    await _checkAlreadyVoted();
+    if (mounted) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadElectionAndCandidates() async {
+    final electionsRepo = ElectionsRepository();
+    try {
+      String id = _electionId ?? '';
+      if (id.isEmpty) {
+        final elections = await electionsRepo.getElections();
+        if (elections.isEmpty) {
+          setState(() {
+            _error = 'No elections are currently available.';
+            _loading = false;
+          });
+          return;
+        }
+        id = elections.first.id;
+      }
+      _electionId = id;
+      final (election, candidates) =
+          await electionsRepo.getElectionWithCandidates(id);
+      setState(() {
+        _election = election;
+        _candidates = candidates;
+      });
+    } on Exception catch (e) {
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _checkAlreadyVoted() async {
+    try {
+      final voted = await VotingRepository().hasVoted(_electionId!);
+      if (voted && mounted) {
         _showAlreadyVotedDialog();
       }
-    });
+    } on Exception {
+      // Ignore failures here; the ballot screen still renders.
+    }
   }
 
   void _showAlreadyVotedDialog() {
@@ -74,7 +118,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              Navigator.of(context).pop();
+              Navigator.pushNamed(context, AppRouter.alreadyVoted);
             },
             child: const Text(
               'OK',
@@ -87,6 +131,22 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _continueToReview() {
+    final selected = _candidates[_selectedIndex!];
+    final selections = <Map<String, String>>[
+      <String, String>{'blockId': _electionId!, 'candidateId': selected.id},
+    ];
+    Navigator.pushNamed(
+      context,
+      AppRouter.reviewVote,
+      arguments: <String, dynamic>{
+        'election': _election,
+        'candidates': <Candidate>[selected],
+        'selections': selections,
+      },
     );
   }
 
@@ -190,116 +250,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
 
             // Content
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: <Widget>[
-                    // Context Badge
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
-                        border: Border.all(
-                          color: const Color(0xFFB9C3FF).withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Color(0xFFB9C3FF),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'PRESIDENT',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFFB9C3FF),
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Title
-                    const Text(
-                      'Executive Office',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Select one candidate to represent the executive branch.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Candidates
-                    ...List.generate(_candidates.length, (index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: _buildCandidateCard(index),
-                      );
-                    }),
-
-                    const SizedBox(height: 32),
-
-                    // Security Note
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        color: const Color(0xFF1A1B21).withValues(alpha: 0.5),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.05),
-                        ),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          const Icon(
-                            Icons.lock,
-                            color: Color(0xFF2ADEC0),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'End-to-end encrypted ballot. Your choice is private and anonymous.',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
+              child: _buildContent(),
             ),
           ],
         ),
@@ -340,9 +291,9 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () {
-                      Navigator.pushNamed(context, '${AppRouter.reviewVote}');
-                    },
+                    onTap: (_loading || _error != null)
+                        ? null
+                        : _continueToReview,
                     borderRadius: BorderRadius.circular(16),
                     child: const Center(
                       child: Row(
@@ -386,14 +337,165 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
     );
   }
 
+  Widget _buildContent() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(Icons.error_outline, color: Color(0xFFFF8A80), size: 48),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: <Widget>[
+          // Context Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
+              border: Border.all(
+                color: const Color(0xFFB9C3FF).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFFB9C3FF),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  (_election?.type ?? 'ELECTION').toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFB9C3FF),
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Title
+          Text(
+            _election?.title ?? 'Election',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _election?.description ?? 'Select one candidate to represent your choice.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 40),
+
+          // Candidates
+          ...List.generate(_candidates.length, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildCandidateCard(index),
+            );
+          }),
+          if (_candidates.isEmpty) ...[
+            const SizedBox(height: 24),
+            Text(
+              'No candidates are available for this election.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontSize: 15,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 32),
+
+          // Security Note
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFF1A1B21).withValues(alpha: 0.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.05),
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                const Icon(
+                  Icons.lock,
+                  color: Color(0xFF2ADEC0),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'End-to-end encrypted ballot. Your choice is private and anonymous.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCandidateCard(int index) {
-    final Map<String, dynamic> candidate = _candidates[index];
-    final bool isSelected = _selectedCandidate == index;
+    final Candidate candidate = _candidates[index];
+    final bool isSelected = _selectedIndex == index;
+    final Color partyColor =
+        _partyColors[index % _partyColors.length];
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          _selectedCandidate = index;
+          _selectedIndex = index;
         });
       },
       child: AnimatedContainer(
@@ -440,17 +542,28 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   color: isSelected
-                      ? (candidate['partyColor'] as Color).withValues(
-                          alpha: 0.2,
-                        )
+                      ? partyColor.withValues(alpha: 0.2)
                       : Colors.white.withValues(alpha: 0.05),
-                  child: Icon(
-                    Icons.person,
-                    size: 32,
-                    color: isSelected
-                        ? (candidate['partyColor'] as Color)
-                        : Colors.white.withValues(alpha: 0.3),
-                  ),
+                  child: candidate.photoUrl != null &&
+                          candidate.photoUrl!.isNotEmpty
+                      ? Image.network(
+                          candidate.photoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.person,
+                            size: 32,
+                            color: isSelected
+                                ? partyColor
+                                : Colors.white.withValues(alpha: 0.3),
+                          ),
+                        )
+                      : Icon(
+                          Icons.person,
+                          size: 32,
+                          color: isSelected
+                              ? partyColor
+                              : Colors.white.withValues(alpha: 0.3),
+                        ),
                 ),
               ),
             ),
@@ -468,7 +581,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                       children: <Widget>[
                         Flexible(
                           child: Text(
-                            candidate['name'] as String,
+                            candidate.name,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
@@ -516,13 +629,13 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                           height: 8,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: candidate['partyColor'] as Color,
+                            color: partyColor,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            candidate['party'] as String,
+                            candidate.party ?? 'Independent',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.white.withValues(alpha: 0.7),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../widgets/vote_confirmation_dialog.dart';
 
@@ -12,6 +14,46 @@ class ReviewVoteScreen extends StatefulWidget {
 
 class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
   bool _isConfirmed = false;
+  Election? _election;
+  List<Candidate> _candidates = <Candidate>[];
+  List<Map<String, String>> _selections = <Map<String, String>>[];
+
+  @override
+  void initState() {
+    super.initState();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _election = args['election'] as Election?;
+      final candidates = args['candidates'];
+      if (candidates is List<Candidate>) {
+        _candidates = candidates;
+      }
+      final selections = args['selections'];
+      if (selections is List<Map<String, String>>) {
+        _selections = selections;
+      }
+    }
+  }
+
+  void _submitVote() async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const VoteConfirmationDialog(),
+    );
+
+    if (confirmed == true && context.mounted) {
+      Navigator.pushNamed(
+        context,
+        AppRouter.voteSuccess,
+        arguments: <String, dynamic>{
+          'election': _election,
+          'selections': _selections,
+          'candidateNames': _candidates.map((c) => c.name).toList(),
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,21 +183,31 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
             const SizedBox(height: 16),
 
             // Selection Cards
-            _buildSelectionCard(
-              'Executive Council',
-              'Prime Minister',
-              'Marcus Thorne',
-              'Technocratic Alliance Party',
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuCbCl2ImI_9N3o8QluHBGxCjexTPG47rQp8EtAMSOJEoe_V4PUJxj9oHxueCrO09r_4rJJxuc5NpMzn3kRK3ZRKFyW2e8QPV3sKYgnsZKgi9X5gUaaBDEIGFxDwAqgG9npxhjjep2mr6lYVKCu0lrSgfch_7dxWUIIrbclA2hj3mdx5iGB_Z-NGMmX5URQXFjQSkFznoPgf7BEQsekHSQjd9gQkm0NT6T6wMsF8aYgWz4aY2ECqjLk97N85tXj1rOhfnXvniByeuZQ',
-            ),
-            const SizedBox(height: 16),
-            _buildSelectionCard(
-              'Legislative Branch',
-              'District Representative',
-              'Dr. Elena Vance',
-              'Global Sustainability Initiative',
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuCDZLt8n5Ym6PXsI_pB5UEVLsVgND0NDC9Qg2PLnZQVespGeH0pwGHduNcBHS3fagS40qAWCw8xAWjv5hKH6hiKLpN7U3q9hskdwoQScF3zJIf8J8P92QrDXbXr5kY9nnlz3lg0d6v8zG7TmXK4m-GHvHAZB4Grg0UKpoDp2EqNfY1CKT_buAtHmuxyKN3WfESDfdrvhSY6ETq9b537kQygtBulDGY6geea40fQzSYVwTHziF3ak8zCRq-YkCVR2NqMsl2RZHllLow',
-            ),
+            ..._candidates.asMap().entries.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildSelectionCard(
+                  _election ??
+                      Election(
+                        id: '',
+                        title: 'Election',
+                        startsAt: DateTime.fromMillisecondsSinceEpoch(0),
+                        endsAt: DateTime.fromMillisecondsSinceEpoch(0),
+                      ),
+                  entry.value,
+                ),
+              );
+            }),
+            if (_candidates.isEmpty)
+              const Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No selections to review.',
+                    style: TextStyle(color: Color(0xFFC4C5D7), fontSize: 15),
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 24),
 
@@ -258,18 +310,8 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _isConfirmed
-                    ? () async {
-                        final bool? confirmed = await showDialog<bool>(
-                          context: context,
-                          barrierDismissible: false,
-                          builder: (context) => const VoteConfirmationDialog(),
-                        );
-
-                        if (confirmed == true && context.mounted) {
-                          Navigator.pushNamed(context, AppRouter.voteSuccess);
-                        }
-                      }
+                onPressed: (_isConfirmed && _candidates.isNotEmpty)
+                    ? _submitVote
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isConfirmed
@@ -333,13 +375,12 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
     );
   }
 
-  Widget _buildSelectionCard(
-    String category,
-    String position,
-    String candidateName,
-    String party,
-    String imageUrl,
-  ) {
+  Widget _buildSelectionCard(Election election, Candidate candidate) {
+    final String category = election.type.toUpperCase();
+    final String position = election.title;
+    final String imageUrl = candidate.photoUrl ?? '';
+    final String party = candidate.party ?? 'Independent';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -360,7 +401,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    category.toUpperCase(),
+                    category,
                     style: const TextStyle(
                       color: Color(0xFFC4C5D7),
                       fontSize: 10,
@@ -418,16 +459,21 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.person,
-                          color: Color(0xFF8E90A0),
-                        );
-                      },
-                    ),
+                    child: imageUrl.isNotEmpty
+                        ? Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.person,
+                                color: Color(0xFF8E90A0),
+                              );
+                            },
+                          )
+                        : const Icon(
+                            Icons.person,
+                            color: Color(0xFF8E90A0),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -436,7 +482,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        candidateName,
+                        candidate.name,
                         style: const TextStyle(
                           color: Color(0xFFE3E1E9),
                           fontSize: 18,

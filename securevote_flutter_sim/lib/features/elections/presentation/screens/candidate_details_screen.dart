@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
 import '../../../../core/navigation/app_router.dart';
 
 class CandidateDetailsScreen extends StatefulWidget {
@@ -12,6 +13,17 @@ class CandidateDetailsScreen extends StatefulWidget {
 class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
   int _selectedTab = 0;
   final List<String> _tabs = <String>['Manifesto', 'Profile', 'Media'];
+
+  Candidate? _candidate;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final Object? args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Candidate) {
+      _candidate = args;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -209,9 +221,9 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
               borderRadius: BorderRadius.circular(20),
               color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
             ),
-            child: const Text(
-              'RUNNING FOR PRESIDENT',
-              style: TextStyle(
+            child: Text(
+              'CANDIDATE',
+              style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFFB9C3FF),
@@ -222,9 +234,9 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
           const SizedBox(height: 12),
 
           // Name
-          const Text(
-            'Ahmad Fariz',
-            style: TextStyle(
+          Text(
+            _candidate?.name ?? 'Candidate',
+            style: const TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w800,
               color: Colors.white,
@@ -235,7 +247,7 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
 
           // Party
           Text(
-            'United Students Alliance',
+            _candidate?.party ?? 'Independent',
             style: TextStyle(
               fontSize: 16,
               color: Colors.white.withValues(alpha: 0.7),
@@ -252,9 +264,9 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
               color: const Color(0xFF34343A),
               border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
-            child: const Text(
-              'BALLOT #3',
-              style: TextStyle(
+            child: Text(
+              'BALLOT #${_candidate?.ballotOrder ?? 0}',
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFFD2BBFF),
@@ -382,7 +394,11 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '"Leadership is not about the title, but about the impact we create together. Our university deserves a future built on transparency and digital sovereignty."',
+                    _candidate?.bio?.isNotEmpty == true
+                        ? '"${_candidate!.bio}"'
+                        : _candidate?.manifesto?.isNotEmpty == true
+                        ? '"${_candidate!.manifesto}"'
+                        : '"This candidate has not added a statement yet."',
                     style: TextStyle(
                       fontSize: 16,
                       fontStyle: FontStyle.italic,
