@@ -45,7 +45,15 @@
 		<true/>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
-		<key>UIStatusBarHidden</key>
-		<false/>
-	</dict>
+	<key>UIStatusBarHidden</key>
+	<false/>
+	<!-- Required by image_picker for camera-based ID/selfie capture. -->
+	<key>NSCameraUsageDescription</key>
+	<string>SecureVote uses the camera to capture your identity document and selfie for KYC verification.</string>
+	<!-- Required by image_picker to read images from the photo library. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SecureVote needs access to your photo library so you can upload an existing photo of your ID for KYC verification.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>SecureVote may save captured KYC images to your photo library.</string>
+</dict>
 </plist>

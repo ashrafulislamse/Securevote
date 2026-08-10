@@ -7,8 +7,11 @@ export interface Env {
   JWT_SECRET: string;
   API_VERSION: string;
   ENV: string;
-  // Phase 6 blockchain
-  PRIVATE_KEY?: string;
+  // Phase 6 blockchain (Polygon Amoy)
+  PRIVATE_KEY?: string;             // deployer EVM private key (hex, 0x-prefixed)
+  AMOY_RPC_URL?: string;            // default "https://rpc-amoy.polygon.technology"
+  VOTING_CONTRACT_ADDRESS?: string; // set after deploy
+  // Legacy aliases (kept for backward compat with any existing code)
   RPC_URL?: string;
   CONTRACT_ADDRESS?: string;
 }
