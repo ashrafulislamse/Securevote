@@ -1,14 +1,8 @@
-import '../../../core/errors/api_exception.dart';
 import '../../../core/models/candidate.dart';
 import '../../../core/models/election.dart';
 import '../../../core/network/api_client.dart';
 
 /// Data access for election listing and detail endpoints.
-///
-/// NOTE: The backend does not expose these endpoints yet. The methods below
-/// are stubs that issue the intended HTTP calls and return empty placeholders
-/// so the app compiles and the wiring is in place. They will be fully
-/// implemented once the `/api/elections` endpoints ship.
 class ElectionsRepository {
   ElectionsRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
@@ -16,49 +10,28 @@ class ElectionsRepository {
 
   /// Fetches the list of elections.
   ///
-  /// TODO(backend): implement once `GET /api/elections` is available.
+  /// Backend: `GET /api/elections` returns `{ elections: [...] }`.
   Future<List<Election>> getElections() async {
-    try {
-      final data = await _api.getApi('/api/elections');
-      if (data is List) {
-        return data
-            .map((e) => Election.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } on ApiException {
-      // Return an empty list until the endpoint exists.
-      return const [];
-    }
+    final data = await _api.getApi('/api/elections') as Map<String, dynamic>;
+    final list = data['elections'] as List<dynamic>? ?? const [];
+    return list
+        .map((e) => Election.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
-  /// Fetches a single election by id.
+  /// Fetches a single election (with its candidates) by id.
   ///
-  /// TODO(backend): implement once `GET /api/elections/:id` is available.
-  Future<Election?> getElection(String id) async {
-    try {
-      final data = await _api.getApi('/api/elections/$id');
-      return Election.fromJson(data as Map<String, dynamic>);
-    } on ApiException {
-      return null;
-    }
-  }
-
-  /// Fetches the candidates for a given election.
-  ///
-  /// TODO(backend): implement once
-  /// `GET /api/elections/:id/candidates` is available.
-  Future<List<Candidate>> getCandidates(String electionId) async {
-    try {
-      final data = await _api.getApi('/api/elections/$electionId/candidates');
-      if (data is List) {
-        return data
-            .map((c) => Candidate.fromJson(c as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } on ApiException {
-      return const [];
-    }
+  /// Backend: `GET /api/elections/:id` returns
+  /// `{ election: {...}, candidates: [...] }`.
+  Future<(Election, List<Candidate>)> getElectionWithCandidates(
+    String id,
+  ) async {
+    final data =
+        await _api.getApi('/api/elections/$id') as Map<String, dynamic>;
+    final election = Election.fromJson(data['election'] as Map<String, dynamic>);
+    final candidates = (data['candidates'] as List<dynamic>? ?? const [])
+        .map((c) => Candidate.fromJson(c as Map<String, dynamic>))
+        .toList();
+    return (election, candidates);
   }
 }

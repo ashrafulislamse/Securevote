@@ -1,5 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+// ignore_for_file: invalid_annotation_target
+
+import '../utils/json_utils.dart';
+
 part 'receipt.freezed.dart';
 part 'receipt.g.dart';
 
@@ -14,6 +18,7 @@ abstract class Receipt with _$Receipt {
     required List<Map<String, String>> selections,
     @Default('confirmed') String status,
     String? txHash,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required DateTime createdAt,
   }) = _Receipt;
 

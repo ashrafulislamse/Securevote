@@ -1,36 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-type Receipt = {
-  id: string;
-  election: string;
-  block: string;
-  timestamp: string;
-  hash: string;
-  region: string;
-};
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8787";
 
-const receipts: Receipt[] = [
-  {
-    id: "SV-9921-XF82-K012-P811",
-    election: "2026 Student Council General",
-    block: "#4,102,992",
-    timestamp: "2026-03-18 14:22 UTC",
-    hash: "8f1e2c9a4d77f5d6e7a8b9c0d1e2f3a4b5c6d7e8f9a0",
-    region: "District 9",
-  },
-  {
-    id: "SV-1102-MN44-ZA08-T733",
-    election: "2026 Academic Senate Ballot",
-    block: "#4,102,118",
-    timestamp: "2026-03-11 09:41 UTC",
-    hash: "03a42bd9c88f9dd3be721ca3579f00ab22c11f3adad902bd119a00d8e7139a00",
-    region: "District 7",
-  },
-];
+type VerifyResult = {
+  valid: boolean;
+  electionTitle?: string;
+  electionOrganization?: string;
+  voteHash?: string;
+  txHash?: string;
+  blockNumber?: number | null;
+  verifiedAt?: string;
+};
 
 const publicLinks = [
   { label: "Home", href: "/" },
@@ -40,9 +24,38 @@ const publicLinks = [
 
 export default function PublicVerifierPage() {
   const [receiptId, setReceiptId] = useState("SV-9921-XF82-K012-P811");
-  const [searched, setSearched] = useState(false);
+  const [result, setResult] = useState<VerifyResult | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const result = useMemo(() => receipts.find((receipt) => receipt.id.toLowerCase() === receiptId.trim().toLowerCase()), [receiptId]);
+  const verify = async () => {
+    const id = receiptId.trim().toUpperCase();
+    if (!id) return;
+
+    setLoading(true);
+    setError(null);
+    setNotFound(false);
+    setResult(null);
+
+    try {
+      // Public endpoint — plain fetch, no auth header.
+      const response = await fetch(`${API_BASE}/api/public/verify/${id}`);
+      if (response.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Verification failed (${response.status})`);
+      }
+      const data = (await response.json()) as VerifyResult;
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -99,46 +112,56 @@ export default function PublicVerifierPage() {
             <input
               value={receiptId}
               onChange={(event) => setReceiptId(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") verify();
+              }}
               className="h-12 flex-1 rounded-xl border border-white/10 bg-[var(--surface-container)] px-4 font-mono text-sm text-[var(--primary)]"
               placeholder="SV-XXXX-XXXX-XXXX-XXXX"
             />
-            <button type="button" onClick={() => setSearched(true)} className="brand-gradient h-12 rounded-xl px-6 text-sm font-bold uppercase tracking-[0.1em] text-white">
-              Verify
+            <button type="button" onClick={verify} disabled={loading} className="brand-gradient h-12 rounded-xl px-6 text-sm font-bold uppercase tracking-[0.1em] text-white disabled:opacity-60">
+              {loading ? "Verifying..." : "Verify"}
             </button>
           </div>
-          <p className="mt-3 text-xs text-[var(--text-muted)]">Sample receipt: SV-9921-XF82-K012-P811</p>
+          <p className="mt-3 text-xs text-[var(--text-muted)]">Receipt IDs are case-insensitive. Sample: SV-9921-XF82-K012-P811</p>
         </article>
 
-        {searched ? (
-          result ? (
-            <section className="mx-auto mt-8 grid max-w-4xl gap-5">
-              <article className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-4">
-                <p className="text-sm font-semibold text-emerald-300">Vote verified successfully</p>
-                <p className="mt-1 text-xs text-emerald-200/85">This receipt is anchored in block {result.block} and the proof path is intact.</p>
-              </article>
+        {error ? (
+          <section className="mx-auto mt-8 max-w-4xl rounded-xl border border-rose-500/35 bg-rose-500/10 p-4">
+            <p className="text-sm font-semibold text-rose-300">Verification failed</p>
+            <p className="mt-1 text-xs text-rose-200/85">{error}</p>
+          </section>
+        ) : notFound ? (
+          <section className="mx-auto mt-8 max-w-4xl rounded-xl border border-rose-500/35 bg-rose-500/10 p-4">
+            <p className="text-sm font-semibold text-rose-300">Receipt not found</p>
+            <p className="mt-1 text-xs text-rose-200/85">Double-check the ID or contact your election authority for support.</p>
+          </section>
+        ) : result ? (
+          <section className="mx-auto mt-8 grid max-w-4xl gap-5">
+            <article className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-4">
+              <p className="text-sm font-semibold text-emerald-300">Vote verified successfully</p>
+              <p className="mt-1 text-xs text-emerald-200/85">
+                {result.valid ? "This receipt is anchored in the ledger and the proof path is intact." : "This receipt exists but could not be fully validated."}
+              </p>
+            </article>
 
-              <article className="glass-panel ghost-border rounded-[1.5rem] p-6">
-                <Row label="Election" value={result.election} />
-                <Row label="Region" value={result.region} />
-                <Row label="Timestamp" value={result.timestamp} />
-                <Row label="Blockchain Hash" value={result.hash} mono />
-              </article>
+            <article className="glass-panel ghost-border rounded-[1.5rem] p-6">
+              <Row label="Election" value={result.electionTitle ?? "—"} />
+              <Row label="Organization" value={result.electionOrganization ?? "—"} />
+              {result.blockNumber != null ? <Row label="Block Number" value={String(result.blockNumber)} /> : null}
+              {result.txHash ? <Row label="Transaction Hash" value={result.txHash} mono /> : null}
+              {result.voteHash ? <Row label="Vote Hash" value={result.voteHash} mono /> : null}
+              {result.verifiedAt ? <Row label="Verified At" value={result.verifiedAt} /> : null}
+            </article>
 
-              <article className="glass-panel ghost-border rounded-[1.5rem] p-6">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">Merkle Proof Snapshot</p>
-                <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-                  <ProofNode label="Root" value="0x72a...ff1" />
-                  <ProofNode label="Parent" value="0xa12...bc3" />
-                  <ProofNode label="Leaf" value="Your Vote" active />
-                </div>
-              </article>
-            </section>
-          ) : (
-            <section className="mx-auto mt-8 max-w-4xl rounded-xl border border-rose-500/35 bg-rose-500/10 p-4">
-              <p className="text-sm font-semibold text-rose-300">Receipt not found</p>
-              <p className="mt-1 text-xs text-rose-200/85">Double-check the ID or contact your election authority for support.</p>
-            </section>
-          )
+            <article className="glass-panel ghost-border rounded-[1.5rem] p-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)]">Ledger Anchor</p>
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                <ProofNode label="Block" value={result.blockNumber != null ? String(result.blockNumber) : "—"} />
+                <ProofNode label="Tx" value={result.txHash ? result.txHash.slice(0, 10) + "..." : "—"} />
+                <ProofNode label="Vote" value={result.voteHash ? result.voteHash.slice(0, 10) + "..." : "—"} active />
+              </div>
+            </article>
+          </section>
         ) : null}
 
         <section className="mx-auto mt-12 max-w-4xl rounded-[1.5rem] border border-white/10 bg-[var(--surface-container)]/75 p-5 md:p-6 reveal-up reveal-fast reveal-delay-3">

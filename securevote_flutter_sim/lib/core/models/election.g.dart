@@ -14,8 +14,8 @@ _$ElectionImpl _$$ElectionImplFromJson(Map<String, dynamic> json) =>
       organization: json['organization'] as String?,
       type: json['type'] as String? ?? 'general',
       status: json['status'] as String? ?? 'upcoming',
-      startsAt: DateTime.parse(json['startsAt'] as String),
-      endsAt: DateTime.parse(json['endsAt'] as String),
+      startsAt: epochMsToDateTime(json['startsAt']),
+      endsAt: epochMsToDateTime(json['endsAt']),
       candidateCount: (json['candidateCount'] as num?)?.toInt(),
     );
 
@@ -27,7 +27,7 @@ Map<String, dynamic> _$$ElectionImplToJson(_$ElectionImpl instance) =>
       'organization': instance.organization,
       'type': instance.type,
       'status': instance.status,
-      'startsAt': instance.startsAt.toIso8601String(),
-      'endsAt': instance.endsAt.toIso8601String(),
+      'startsAt': dateTimeToEpochMs(instance.startsAt),
+      'endsAt': dateTimeToEpochMs(instance.endsAt),
       'candidateCount': instance.candidateCount,
     };

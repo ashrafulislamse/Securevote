@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { AdminShell } from "@/components/admin-shell";
 
+// Eligibility rules are not persisted to the backend yet (no corresponding field
+// on the election create API). This step is captured locally within the wizard
+// and is intentionally left as-is pending a backend eligibility model.
 export default function CreateElectionEligibilityPage() {
   return (
     <AdminShell active="elections">

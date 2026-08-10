@@ -24,6 +24,7 @@ mixin _$AuthSession {
   User get user => throw _privateConstructorUsedError;
   String get accessToken => throw _privateConstructorUsedError;
   String get refreshToken => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get expiresAt => throw _privateConstructorUsedError;
 
   /// Serializes this AuthSession to a JSON map.
@@ -47,6 +48,7 @@ abstract class $AuthSessionCopyWith<$Res> {
     User user,
     String accessToken,
     String refreshToken,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime expiresAt,
   });
 
@@ -120,6 +122,7 @@ abstract class _$$AuthSessionImplCopyWith<$Res>
     User user,
     String accessToken,
     String refreshToken,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime expiresAt,
   });
 
@@ -176,6 +179,7 @@ class _$AuthSessionImpl implements _AuthSession {
     required this.user,
     required this.accessToken,
     required this.refreshToken,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required this.expiresAt,
   });
 
@@ -189,6 +193,7 @@ class _$AuthSessionImpl implements _AuthSession {
   @override
   final String refreshToken;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   final DateTime expiresAt;
 
   @override
@@ -234,6 +239,7 @@ abstract class _AuthSession implements AuthSession {
     required final User user,
     required final String accessToken,
     required final String refreshToken,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required final DateTime expiresAt,
   }) = _$AuthSessionImpl;
 
@@ -247,6 +253,7 @@ abstract class _AuthSession implements AuthSession {
   @override
   String get refreshToken;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get expiresAt;
 
   /// Create a copy of AuthSession

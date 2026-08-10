@@ -1,5 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+// ignore_for_file: invalid_annotation_target
+
+import '../utils/json_utils.dart';
 import 'kyc_status.dart';
 
 part 'user.freezed.dart';
@@ -21,6 +24,10 @@ abstract class User with _$User {
     @Default('voter') String role,
     @Default(KycStatus.notSubmitted) KycStatus kycStatus,
     String? profilePic,
+    @JsonKey(
+      fromJson: epochMsToDateTimeNullable,
+      toJson: dateTimeToEpochMsNullable,
+    )
     DateTime? createdAt,
   }) = _User;
 

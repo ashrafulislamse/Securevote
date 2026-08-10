@@ -1,72 +1,80 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { getAuditLog, type AuditLogEntry } from "@/lib/api-client";
 
 type FeedItem = {
   id: string;
-  election: string;
-  voters: number;
-  turnout: number;
-  anomalies: number;
-  updated: string;
+  action: string;
+  actor: string;
+  target: string;
+  ip: string;
+  timestamp: string;
 };
 
-const initialFeed: FeedItem[] = [
-  {
-    id: "EL-2026-SC",
-    election: "Student Council 2026",
-    voters: 2810,
-    turnout: 67,
-    anomalies: 2,
-    updated: "just now",
-  },
-  {
-    id: "EL-2026-UB",
-    election: "Union Board Referendum",
-    voters: 1950,
-    turnout: 58,
-    anomalies: 1,
-    updated: "8s ago",
-  },
-  {
-    id: "EL-2026-FS",
-    election: "Faculty Senate",
-    voters: 1220,
-    turnout: 42,
-    anomalies: 0,
-    updated: "13s ago",
-  },
-];
+const POLL_INTERVAL_MS = 5000;
+
+function formatTimestamp(value: number): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function mapLogToFeed(log: AuditLogEntry): FeedItem {
+  return {
+    id: log.id,
+    action: log.action || "event",
+    actor: log.actor_id ?? "unknown",
+    target: log.target_type ?? log.target_id ?? "—",
+    ip: log.ip_address ?? "—",
+    timestamp: formatTimestamp(log.created_at),
+  };
+}
 
 export default function LiveMonitoringPage() {
-  const [feed, setFeed] = useState<FeedItem[]>(initialFeed);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const mounted = useRef(true);
+
+  const load = useCallback(async () => {
+    try {
+      const logs = await getAuditLog({ limit: 50 });
+      if (!mounted.current) return;
+      setFeed(logs.map(mapLogToFeed));
+      setError(null);
+    } catch (err) {
+      if (!mounted.current) return;
+      setError(err instanceof Error ? err.message : "Failed to load audit log");
+    } finally {
+      if (mounted.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    void load();
+    return () => {
+      mounted.current = false;
+    };
+  }, [load]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const id = setInterval(() => {
+      void load();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [autoRefresh, load]);
 
   const totals = useMemo(() => {
-    const totalVoters = feed.reduce((sum, item) => sum + item.voters, 0);
-    const weightedTurnout = Math.round(feed.reduce((sum, item) => sum + item.turnout * item.voters, 0) / totalVoters);
-    const totalAnomalies = feed.reduce((sum, item) => sum + item.anomalies, 0);
-    return { totalVoters, weightedTurnout, totalAnomalies };
+    const totalEvents = feed.length;
+    const uniqueActors = new Set(feed.map((item) => item.actor)).size;
+    const distinctActions = new Set(feed.map((item) => item.action)).size;
+    return { totalEvents, uniqueActors, distinctActions };
   }, [feed]);
-
-  const pulse = () => {
-    setFeed((prev) =>
-      prev.map((item) => {
-        const voterShift = Math.floor(Math.random() * 18);
-        const anomalyShift = Math.random() > 0.7 ? 1 : 0;
-        const nextVoters = item.voters + voterShift;
-        const nextTurnout = Math.min(100, Math.round(item.turnout + voterShift / 65));
-        return {
-          ...item,
-          voters: nextVoters,
-          turnout: nextTurnout,
-          anomalies: item.anomalies + anomalyShift,
-          updated: "just now",
-        };
-      }),
-    );
-  };
 
   return (
     <AdminShell active="elections">
@@ -75,7 +83,7 @@ export default function LiveMonitoringPage() {
           <div>
             <p className="text-xs text-[var(--text-muted)]">Operations / Real-time</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">Live Monitoring</h1>
-            <p className="mt-1 text-sm text-[var(--text-muted)]">Track turnout, voting throughput, and anomaly pressure across active elections.</p>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Track audit activity, voting throughput, and anomaly pressure in real time.</p>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -85,59 +93,74 @@ export default function LiveMonitoringPage() {
             >
               Auto refresh: {autoRefresh ? "On" : "Off"}
             </button>
-            <button type="button" onClick={pulse} className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white">
+            <button type="button" onClick={() => void load()} className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white">
               Refresh Now
             </button>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <MetricCard title="Live Voters" value={totals.totalVoters.toLocaleString()} hint="Active verified sessions" />
-          <MetricCard title="Turnout" value={`${totals.weightedTurnout}%`} hint="Weighted by electorate size" />
-          <MetricCard title="Active Anomalies" value={`${totals.totalAnomalies}`} hint="Open + unresolved events" danger={totals.totalAnomalies > 2} />
+          <MetricCard title="Total Events" value={totals.totalEvents.toLocaleString()} hint="Audit log entries (last 50)" />
+          <MetricCard title="Unique Actors" value={`${totals.uniqueActors}`} hint="Distinct principals" />
+          <MetricCard title="Distinct Actions" value={`${totals.distinctActions}`} hint="Observed action types" />
         </div>
 
-        <section className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
-          <article className="rounded-xl bg-[var(--surface-container)] p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Election Activity Feed</p>
-              <p className="text-xs text-[var(--text-muted)]">Updated live</p>
-            </div>
-            <div className="space-y-3">
-              {feed.map((item) => (
-                <div key={item.id} className="rounded-lg bg-[var(--surface-container-low)] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold">{item.election}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{item.id}</p>
+        {loading ? (
+          <div className="rounded-xl bg-[var(--surface-container)] p-10 text-center text-sm text-[var(--text-muted)]">
+            Loading live audit feed...
+          </div>
+        ) : error ? (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/8 p-10 text-center text-sm text-rose-300">
+            {error}
+          </div>
+        ) : (
+          <section className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
+            <article className="rounded-xl bg-[var(--surface-container)] p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Audit Activity Feed</p>
+                <p className="text-xs text-[var(--text-muted)]">{autoRefresh ? "Updated live" : "Paused"}</p>
+              </div>
+              <div className="space-y-3">
+                {feed.map((item) => (
+                  <div key={item.id} className="rounded-lg bg-[var(--surface-container-low)] p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">{item.action}</p>
+                        <p className="text-xs text-[var(--text-muted)]">actor: {item.actor}</p>
+                      </div>
+                      <span className="text-xs text-[var(--text-muted)]">{item.timestamp}</span>
                     </div>
-                    <span className="text-xs text-[var(--text-muted)]">{item.updated}</span>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <MiniStat label="Target" value={item.target} />
+                      <MiniStat label="IP" value={item.ip} />
+                      <MiniStat label="ID" value={item.id} />
+                    </div>
                   </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <MiniStat label="Voters" value={item.voters.toLocaleString()} />
-                    <MiniStat label="Turnout" value={`${item.turnout}%`} />
-                    <MiniStat label="Anomalies" value={`${item.anomalies}`} tone={item.anomalies > 0 ? "warn" : "ok"} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </article>
+                ))}
+                {feed.length === 0 ? (
+                  <p className="rounded-lg bg-[var(--surface-container-low)] p-4 text-center text-sm text-[var(--text-muted)]">
+                    No audit events yet.
+                  </p>
+                ) : null}
+              </div>
+            </article>
 
-          <article className="rounded-xl bg-[var(--surface-container)] p-5">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Control Actions</p>
-            <div className="mt-4 space-y-3">
-              <ActionButton label="Open Incident Bridge" subtitle="Start coordinated response" />
-              <ActionButton label="Request Region Lock" subtitle="Throttle suspicious cluster" />
-              <ActionButton label="Run Integrity Snapshot" subtitle="Recompute vote hash chain" />
-              <ActionButton label="Notify Oversight Team" subtitle="Dispatch signed update" />
-            </div>
+            <article className="rounded-xl bg-[var(--surface-container)] p-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Control Actions</p>
+              <div className="mt-4 space-y-3">
+                <ActionButton label="Open Incident Bridge" subtitle="Start coordinated response" />
+                <ActionButton label="Request Region Lock" subtitle="Throttle suspicious cluster" />
+                <ActionButton label="Run Integrity Snapshot" subtitle="Recompute vote hash chain" />
+                <ActionButton label="Notify Oversight Team" subtitle="Dispatch signed update" />
+              </div>
 
-            <div className="mt-6 rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4">
-              <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">System Note</p>
-              <p className="mt-2 text-sm text-white/85">Monitoring is in simulation mode until Firebase listeners are connected for production telemetry.</p>
-            </div>
-          </article>
-        </section>
+              <div className="mt-6 rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4">
+                <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">System Note</p>
+                <p className="mt-2 text-sm text-white/85">Monitoring polls the backend audit log every 5 seconds. Auto-refresh can be paused.</p>
+              </div>
+            </article>
+          </section>
+        )}
       </section>
     </AdminShell>
   );
@@ -158,7 +181,7 @@ function MiniStat({ label, value, tone = "neutral" }: { label: string; value: st
   return (
     <div className="rounded-md bg-[var(--surface-container-high)] px-3 py-2">
       <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">{label}</p>
-      <p className={`mt-1 text-sm font-semibold ${toneClass}`}>{value}</p>
+      <p className={`mt-1 truncate text-sm font-semibold ${toneClass}`}>{value}</p>
     </div>
   );
 }

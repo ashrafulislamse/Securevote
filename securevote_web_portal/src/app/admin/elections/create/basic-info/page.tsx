@@ -1,7 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import type { ElectionType } from "@/lib/api-client";
+import { loadDraft, saveDraft } from "../draft";
+
+const TYPE_OPTIONS: { value: ElectionType; title: string; desc: string }[] = [
+  { value: "single", title: "Single Choice", desc: "One vote per position" },
+  { value: "multi", title: "Multi Choice", desc: "Select multiple" },
+  { value: "ranked", title: "Ranked Choice", desc: "Order by preference" },
+];
 
 export default function CreateElectionBasicInfoPage() {
+  const [draft, setDraftState] = useState(loadDraft);
+
+  const setField = (patch: Partial<typeof draft>) => {
+    setDraftState((prev) => {
+      const next = { ...prev, ...patch };
+      saveDraft(next);
+      return next;
+    });
+  };
+
   return (
     <AdminShell active="elections">
       <section className="mx-auto max-w-5xl space-y-7 pb-24">
@@ -17,28 +38,52 @@ export default function CreateElectionBasicInfoPage() {
             <div className="space-y-6">
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-[var(--text-muted)]">Election Title</span>
-                <input className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Student Council Election 2025" />
+                <input
+                  value={draft.title}
+                  onChange={(e) => setField({ title: e.target.value })}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Student Council Election 2025"
+                />
               </label>
 
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-[var(--text-muted)]">Description</span>
-                <textarea className="h-28 w-full resize-none rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]" placeholder="Provide election context and rules" />
+                <textarea
+                  value={draft.description}
+                  onChange={(e) => setField({ description: e.target.value })}
+                  className="h-28 w-full resize-none rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Provide election context and rules"
+                />
               </label>
 
               <label className="block">
                 <span className="mb-2 block text-xs font-semibold text-[var(--text-muted)]">Organization</span>
-                <select className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none">
-                  <option>Global Education Network</option>
-                  <option>City University Malaysia</option>
-                </select>
+                <input
+                  value={draft.organization}
+                  onChange={(e) => setField({ organization: e.target.value })}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+                  placeholder="Global Education Network"
+                />
               </label>
 
               <div>
                 <p className="mb-3 text-xs font-semibold text-[var(--text-muted)]">Election Type</p>
                 <div className="grid grid-cols-3 gap-2">
-                  <TypeCard title="Single Choice" desc="One vote per position" active />
-                  <TypeCard title="Multi Choice" desc="Select multiple" />
-                  <TypeCard title="Ranked Choice" desc="Order by preference" />
+                  {TYPE_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setField({ type: option.value })}
+                      className={`rounded-lg p-3 text-center ${
+                        draft.type === option.value
+                          ? "border border-[var(--primary)]/45 bg-[var(--primary)]/8"
+                          : "border border-white/8 bg-[var(--surface-container-low)]"
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{option.title}</p>
+                      <p className="mt-1 text-[10px] text-[var(--text-muted)]">{option.desc}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -65,11 +110,13 @@ export default function CreateElectionBasicInfoPage() {
                 <p className="mb-3 text-xs font-semibold text-[var(--text-muted)]">Voter Preview</p>
                 <article className="top-accent rounded-xl bg-[var(--surface-container-low)] p-5">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="rounded bg-[var(--primary)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--primary)]">SINGLE CHOICE</span>
+                    <span className="rounded bg-[var(--primary)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--primary)] uppercase">
+                      {draft.type.toUpperCase()} CHOICE
+                    </span>
                     <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/70">DRAFT</span>
                   </div>
-                  <h4 className="text-sm font-bold">Student Council Election 2025</h4>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">Global Education Network</p>
+                  <h4 className="text-sm font-bold">{draft.title || "Untitled Election"}</h4>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{draft.organization || "—"}</p>
                 </article>
               </div>
             </div>
@@ -110,15 +157,6 @@ function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function TypeCard({ title, desc, active = false }: { title: string; desc: string; active?: boolean }) {
-  return (
-    <div className={`rounded-lg p-3 text-center ${active ? "border border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border border-white/8 bg-[var(--surface-container-low)]"}`}>
-      <p className="text-xs font-bold">{title}</p>
-      <p className="mt-1 text-[10px] text-[var(--text-muted)]">{desc}</p>
     </div>
   );
 }

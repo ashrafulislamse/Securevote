@@ -2,6 +2,7 @@
 
 import { FormEvent, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { getAdminStats, getAuditLog, getRecentElections, type AuditLogEntry } from "@/lib/api-client";
 
 type Message = {
   id: string;
@@ -16,6 +17,16 @@ const suggestedPrompts = [
   "Predict final turnout by 8 PM",
 ];
 
+function summarizeStats(logs: AuditLogEntry[]): string {
+  const actionCounts = new Map<string, number>();
+  for (const log of logs) {
+    const action = log.action || "unknown";
+    actionCounts.set(action, (actionCounts.get(action) ?? 0) + 1);
+  }
+  const topAction = Array.from(actionCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+  return topAction ? `${topAction[0]} (${topAction[1]})` : "n/a";
+}
+
 export default function AiAssistantPage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([
@@ -26,10 +37,11 @@ export default function AiAssistantPage() {
     },
   ]);
   const [model, setModel] = useState("Groq LPU Fast");
+  const [sending, setSending] = useState(false);
   const idCounter = useRef(2);
 
-  const send = (text: string) => {
-    if (!text.trim()) return;
+  const send = async (text: string) => {
+    if (!text.trim() || sending) return;
 
     idCounter.current += 1;
     const userMessage: Message = {
@@ -38,20 +50,56 @@ export default function AiAssistantPage() {
       text,
     };
 
-    idCounter.current += 1;
-    const assistantMessage: Message = {
-      id: `a-${idCounter.current}`,
-      role: "assistant",
-      text: `Analysis ready: top signal is turnout divergence in District 7 (+14%). Recommended action: enforce step-up verification and publish a signed monitoring bulletin within 15 minutes.`,
-    };
-
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setSending(true);
+
+    try {
+      const [stats, recent, logs] = await Promise.all([
+        getAdminStats(),
+        getRecentElections(),
+        getAuditLog({ limit: 10 }),
+      ]);
+
+      const recentSummary =
+        recent.length > 0
+          ? recent
+              .slice(0, 5)
+              .map((e) => `- ${e.title} (${e.status})`)
+              .join("\n")
+          : "- none found";
+
+      idCounter.current += 1;
+      const assistantMessage: Message = {
+        id: `a-${idCounter.current}`,
+        role: "assistant",
+        text: `Analysis ready (live data):
+- Elections: ${stats.totalElections}
+- Voters: ${stats.totalVoters.toLocaleString()} (${stats.approvedVoters.toLocaleString()} approved)
+- Votes cast: ${stats.totalVotes.toLocaleString()}
+
+Recent elections:
+${recentSummary}
+
+Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length} logged events.`,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch {
+      idCounter.current += 1;
+      const assistantMessage: Message = {
+        id: `a-${idCounter.current}`,
+        role: "assistant",
+        text: "Could not reach the backend to generate a live analysis. Please try again in a moment.",
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    send(input);
+    void send(input);
   };
 
   return (
@@ -81,7 +129,7 @@ export default function AiAssistantPage() {
                 <button
                   type="button"
                   key={prompt}
-                  onClick={() => send(prompt)}
+                  onClick={() => void send(prompt)}
                   className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-left text-sm transition hover:bg-[var(--surface-container-high)]"
                 >
                   {prompt}
@@ -89,7 +137,7 @@ export default function AiAssistantPage() {
               ))}
             </div>
             <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
-              Responses are simulated in this demo, but the structure is ready for live API integration.
+              Responses are generated from live dashboard data. {/* TODO: real LLM endpoint (Workers AI) — Phase 5 */}
             </div>
           </aside>
 
@@ -103,9 +151,15 @@ export default function AiAssistantPage() {
               {messages.map((message) => (
                 <div key={message.id} className={`max-w-[88%] rounded-lg px-3 py-2 text-sm ${message.role === "assistant" ? "bg-[var(--surface-container-high)]" : "ml-auto bg-[var(--primary)]/20"}`}>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{message.role}</p>
-                  <p className="mt-1 leading-relaxed">{message.text}</p>
+                  <p className="mt-1 whitespace-pre-line leading-relaxed">{message.text}</p>
                 </div>
               ))}
+              {sending ? (
+                <div className="max-w-[88%] rounded-lg bg-[var(--surface-container-high)] px-3 py-2 text-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">assistant</p>
+                  <p className="mt-1 leading-relaxed text-[var(--text-muted)]">Fetching live data...</p>
+                </div>
+              ) : null}
             </div>
 
             <form onSubmit={onSubmit} className="mt-4 flex gap-2">

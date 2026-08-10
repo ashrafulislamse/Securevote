@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { getAuditLog } from "@/lib/api-client";
+import type { AuditLogEntry } from "@/lib/api-client";
 
 type LogLevel = "info" | "warning" | "critical";
 
@@ -15,49 +17,69 @@ type AuditItem = {
   timestamp: string;
 };
 
-const seedLogs: AuditItem[] = [
-  {
-    id: "AUD-12001",
-    actor: "admin@securevote.io",
-    action: "ELECTION_PUBLISHED",
-    entity: "Student Council 2026",
-    ip: "103.44.20.9",
-    level: "info",
-    timestamp: "2026-03-24 10:13:02 UTC",
-  },
-  {
-    id: "AUD-12002",
-    actor: "security.bot",
-    action: "ANOMALY_ESCALATED",
-    entity: "ALG-9942",
-    ip: "internal",
-    level: "critical",
-    timestamp: "2026-03-24 10:12:44 UTC",
-  },
-  {
-    id: "AUD-12003",
-    actor: "ops@securevote.io",
-    action: "VOTER_IMPORT_COMPLETED",
-    entity: "2,048 records",
-    ip: "103.10.61.20",
-    level: "info",
-    timestamp: "2026-03-24 09:59:18 UTC",
-  },
-  {
-    id: "AUD-12004",
-    actor: "admin@securevote.io",
-    action: "KYC_OVERRIDE_REJECTED",
-    entity: "VOTER-7712",
-    ip: "103.44.20.9",
-    level: "warning",
-    timestamp: "2026-03-24 09:44:57 UTC",
-  },
-];
+function toAuditItem(entry: AuditLogEntry): AuditItem {
+  return {
+    id: entry.id,
+    actor: entry.actor_id ?? "-",
+    action: entry.action,
+    entity: entry.target_id ?? entry.target_type ?? "-",
+    ip: entry.ip_address ?? "-",
+    level: deriveLevel(entry.action),
+    timestamp: entry.created_at ? formatTimestamp(entry.created_at) : "unknown",
+  };
+}
+
+// The backend audit log has no severity field, so derive a display level from the action name.
+function deriveLevel(action: string): LogLevel {
+  const upper = action.toUpperCase();
+  if (/(ANOMALY|ESCALAT|REJECT|FAIL|OVERRIDE|BLOCKED|BREACH)/.test(upper)) return "critical";
+  if (/(WARN|SUSPEND|REVIEW|FLAG)/.test(upper)) return "warning";
+  return "info";
+}
+
+function formatTimestamp(epochMs: number): string {
+  const date = new Date(epochMs);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toISOString().replace("T", " ").slice(0, 19) + " UTC";
+}
+
+function downloadJson(filename: string, rows: AuditItem[]) {
+  const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
 
 export default function AuditLogPage() {
-  const [logs, setLogs] = useState<AuditItem[]>(seedLogs);
+  const [logs, setLogs] = useState<AuditItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<"all" | LogLevel>("all");
+
+  // Load the audit log from the backend on mount.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const entries = await getAuditLog({ limit: 100 });
+        if (!active) return;
+        setLogs(entries.map(toAuditItem));
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load audit log");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return logs.filter((entry) => {
@@ -79,24 +101,17 @@ export default function AuditLogPage() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              const now = new Date();
-              const log: AuditItem = {
-                id: `AUD-${Math.floor(Math.random() * 90000 + 10000)}`,
-                actor: "admin@securevote.io",
-                action: "AUDIT_EXPORT_GENERATED",
-                entity: "CSV snapshot",
-                ip: "103.44.20.9",
-                level: "info",
-                timestamp: `${now.toISOString().slice(0, 19).replace("T", " ")} UTC`,
-              };
-              setLogs((prev) => [log, ...prev]);
-            }}
-            className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => downloadJson(`audit-log-${new Date().toISOString().slice(0, 10)}.json`, filtered)}
+            disabled={filtered.length === 0}
+            className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             Export Snapshot
           </button>
         </div>
+
+        {error ? (
+          <div className="rounded-xl border border-rose-500/35 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div>
+        ) : null}
 
         <section className="rounded-xl bg-[var(--surface-container)] p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -116,45 +131,51 @@ export default function AuditLogPage() {
               <option value="warning">Warning</option>
               <option value="info">Info</option>
             </select>
-            <p className="ml-auto text-xs text-[var(--text-muted)]">{filtered.length} entries</p>
+            <p className="ml-auto text-xs text-[var(--text-muted)]">{loading ? "Loading..." : `${filtered.length} entries`}</p>
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
-          <table className="w-full text-left">
-            <thead className="bg-[var(--surface-container-low)] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
-              <tr>
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Actor</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Entity</th>
-                <th className="px-4 py-3">IP</th>
-                <th className="px-4 py-3">Level</th>
-                <th className="px-4 py-3">Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <tr key={row.id} className="border-t border-white/6 text-sm">
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{row.id}</td>
-                  <td className="px-4 py-3">{row.actor}</td>
-                  <td className="px-4 py-3 font-semibold">{row.action}</td>
-                  <td className="px-4 py-3">{row.entity}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{row.ip}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${levelClass(row.level)}`}>
-                      {row.level}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{row.timestamp}</td>
+        {loading ? (
+          <div className="rounded-xl bg-[var(--surface-container)] p-8 text-center text-sm text-[var(--text-muted)]">
+            Loading audit log...
+          </div>
+        ) : (
+          <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
+            <table className="w-full text-left">
+              <thead className="bg-[var(--surface-container-low)] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
+                <tr>
+                  <th className="px-4 py-3">ID</th>
+                  <th className="px-4 py-3">Actor</th>
+                  <th className="px-4 py-3">Action</th>
+                  <th className="px-4 py-3">Entity</th>
+                  <th className="px-4 py-3">IP</th>
+                  <th className="px-4 py-3">Level</th>
+                  <th className="px-4 py-3">Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">No entries match current filter.</p>
-          ) : null}
-        </section>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr key={row.id} className="border-t border-white/6 text-sm">
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{row.id}</td>
+                    <td className="px-4 py-3">{row.actor}</td>
+                    <td className="px-4 py-3 font-semibold">{row.action}</td>
+                    <td className="px-4 py-3">{row.entity}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{row.ip}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${levelClass(row.level)}`}>
+                        {row.level}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{row.timestamp}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 ? (
+              <p className="px-4 py-8 text-center text-sm text-[var(--text-muted)]">No entries match current filter.</p>
+            ) : null}
+          </section>
+        )}
       </section>
     </AdminShell>
   );

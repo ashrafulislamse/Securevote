@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import * as api from "@/lib/api-client";
 
 type BlockType = "position" | "yesNo" | "info";
 
@@ -13,35 +14,93 @@ type BallotBlock = {
   selection: "Single" | "Multi" | "N/A";
 };
 
-const starterBlocks: BallotBlock[] = [
-  {
-    id: "position-president",
-    title: "President",
-    description: "Vote for one candidate for the position of President.",
-    type: "position",
-    selection: "Single",
-  },
-  {
-    id: "position-secretary",
-    title: "Secretary",
-    description: "Vote for one candidate for Secretary.",
-    type: "position",
-    selection: "Single",
-  },
-  {
-    id: "info-conduct",
-    title: "Election Conduct Notice",
-    description: "Campaigning near voting booths is prohibited during active voting period.",
-    type: "info",
-    selection: "N/A",
-  },
-];
-
 export default function BallotBuilderPage() {
-  const [blocks, setBlocks] = useState<BallotBlock[]>(starterBlocks);
-  const [selectedId, setSelectedId] = useState(starterBlocks[0].id);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [elections, setElections] = useState<api.Election[]>([]);
+  const [electionId, setElectionId] = useState<string>("");
+  const [election, setElection] = useState<api.Election | null>(null);
+  const [candidates, setCandidates] = useState<api.Candidate[]>([]);
+
+  const [blocks, setBlocks] = useState<BallotBlock[]>([]);
+  const [selectedId, setSelectedId] = useState("");
   const [showCandidatePhotos, setShowCandidatePhotos] = useState(true);
   const [randomizeOrder, setRandomizeOrder] = useState(false);
+
+  // TODO: ballot_blocks endpoint — Phase 5.
+  // The backend has no ballot-blocks endpoint yet, so the positional blocks below
+  // are built locally from the election's real candidates and edited in local state.
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const list = await api.listElections();
+        if (!active) return;
+        setElections(list);
+        const first = [...list].sort((a, b) => b.startsAt - a.startsAt)[0] ?? null;
+        setElectionId(first?.id ?? "");
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load elections");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!electionId) {
+      setElection(null);
+      setCandidates([]);
+      setBlocks([]);
+      return;
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const data = await api.getElection(electionId);
+        if (!active) return;
+        setElection(data.election);
+        setCandidates(data.candidates);
+        const position = data.election.type === "multi" ? "Multi" : data.election.type === "ranked" ? "Multi" : "Single";
+        setBlocks(
+          data.candidates.length > 0
+            ? [
+                {
+                  id: "position-1",
+                  title: data.election.title,
+                  description: `Vote for candidates in ${data.election.title}.`,
+                  type: "position",
+                  selection: position,
+                },
+                {
+                  id: "info-conduct",
+                  title: "Election Conduct Notice",
+                  description: "Campaigning near voting booths is prohibited during active voting period.",
+                  type: "info",
+                  selection: "N/A",
+                },
+              ]
+            : [],
+        );
+        setSelectedId("");
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load election");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [electionId]);
 
   const selected = useMemo(() => blocks.find((b) => b.id === selectedId) ?? null, [blocks, selectedId]);
 
@@ -94,11 +153,21 @@ export default function BallotBuilderPage() {
       <section className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs text-[var(--text-muted)]">Elections / Student Council 2025</p>
+            <p className="text-xs text-[var(--text-muted)]">Elections / {election?.title ?? "Ballot Builder"}</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight">Ballot Builder</h1>
             <p className="mt-1 text-sm text-[var(--text-muted)]">Compose voting positions and ballot sections with deterministic ordering.</p>
           </div>
           <div className="flex gap-3">
+            <select
+              value={electionId}
+              onChange={(e) => setElectionId(e.target.value)}
+              className="h-10 rounded-lg bg-[var(--surface-container)] px-3 text-sm"
+            >
+              {elections.length === 0 ? <option value="">No elections</option> : null}
+              {elections.map((e) => (
+                <option key={e.id} value={e.id}>{e.title}</option>
+              ))}
+            </select>
             <button className="rounded-lg bg-[var(--surface-container)] px-4 py-2 text-sm">Preview Ballot</button>
             <button className="brand-gradient rounded-lg px-5 py-2 text-sm font-semibold text-white">Publish Ballot</button>
           </div>
@@ -124,28 +193,47 @@ export default function BallotBuilderPage() {
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Canvas ({blocks.length})</p>
               <p className="text-xs text-[var(--text-muted)]">Drag simulation via up/down actions</p>
             </div>
-            {blocks.map((block, index) => (
-              <article
-                key={block.id}
-                onClick={() => setSelectedId(block.id)}
-                className={`rounded-lg border p-4 ${selectedId === block.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-lg font-semibold">{index + 1}. {block.title}</p>
-                    <p className="text-sm text-[var(--text-muted)]">{block.description}</p>
+
+            {loading ? (
+              <p className="py-10 text-center text-sm text-[var(--text-muted)]">Loading ballot...</p>
+            ) : error ? (
+              <div className="py-10 text-center">
+                <p className="text-sm text-rose-300">{error}</p>
+                <p className="mt-2 text-xs text-[var(--text-muted)]">Try selecting a different election.</p>
+              </div>
+            ) : blocks.length === 0 ? (
+              <p className="py-10 text-center text-sm text-[var(--text-muted)]">No candidates yet — add a block or add candidates to this election.</p>
+            ) : (
+              blocks.map((block, index) => (
+                <article
+                  key={block.id}
+                  onClick={() => setSelectedId(block.id)}
+                  className={`rounded-lg border p-4 ${selectedId === block.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold">{index + 1}. {block.title}</p>
+                      <p className="text-sm text-[var(--text-muted)]">{block.description}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={(e) => { e.stopPropagation(); moveBlock(block.id, -1); }} className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-xs">↑</button>
+                      <button onClick={(e) => { e.stopPropagation(); moveBlock(block.id, 1); }} className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-xs">↓</button>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); moveBlock(block.id, -1); }} className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-xs">↑</button>
-                    <button onClick={(e) => { e.stopPropagation(); moveBlock(block.id, 1); }} className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-xs">↓</button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{block.type}</span>
+                    <span className="rounded-full bg-[var(--primary)]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">{block.selection}</span>
                   </div>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{block.type}</span>
-                  <span className="rounded-full bg-[var(--primary)]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">{block.selection}</span>
-                </div>
-              </article>
-            ))}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {candidates.map((candidate) => (
+                      <span key={candidate.id} className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-[10px]">
+                        #{candidate.ballotOrder} {candidate.name}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              ))
+            )}
           </section>
 
           <aside className="rounded-xl bg-[var(--surface-container)] p-5">

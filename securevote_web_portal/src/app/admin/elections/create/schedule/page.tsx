@@ -1,7 +1,46 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { loadDraft, saveDraft } from "../draft";
+
+function toDateTimeLocal(ms: number): string {
+  if (!ms) return "";
+  const date = new Date(ms);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
 export default function CreateElectionSchedulePage() {
+  const [draft, setDraft] = useState(loadDraft);
+
+  const startValue = toDateTimeLocal(draft.startsAt);
+  const endValue = toDateTimeLocal(draft.endsAt);
+
+  const setStart = (value: string) => {
+    const ms = value ? new Date(value).getTime() : 0;
+    setDraft((prev) => {
+      const next = { ...prev, startsAt: ms };
+      saveDraft(next);
+      return next;
+    });
+  };
+
+  const setEnd = (value: string) => {
+    const ms = value ? new Date(value).getTime() : 0;
+    setDraft((prev) => {
+      const next = { ...prev, endsAt: ms };
+      saveDraft(next);
+      return next;
+    });
+  };
+
+  const durationHours =
+    draft.startsAt && draft.endsAt && draft.endsAt > draft.startsAt
+      ? Math.round((draft.endsAt - draft.startsAt) / 3_600_000)
+      : 0;
+
   return (
     <AdminShell active="elections">
       <section className="mx-auto max-w-5xl space-y-8 pb-24">
@@ -16,8 +55,24 @@ export default function CreateElectionSchedulePage() {
           <section className="top-accent rounded-xl bg-[var(--surface-container)] p-6">
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Voting Period</h2>
             <div className="mt-5 space-y-4">
-              <Field label="Start Date & Time" value="Nov 14, 2025 - 08:00 AM" icon="calendar_today" />
-              <Field label="End Date & Time" value="Nov 16, 2025 - 05:00 PM" icon="event_busy" />
+              <label className="block">
+                <span className="mb-2 block text-sm text-[var(--text-muted)]">Start Date & Time</span>
+                <input
+                  type="datetime-local"
+                  value={startValue}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm text-white"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm text-[var(--text-muted)]">End Date & Time</span>
+                <input
+                  type="datetime-local"
+                  value={endValue}
+                  onChange={(e) => setEnd(e.target.value)}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm text-white"
+                />
+              </label>
               <label className="block">
                 <span className="mb-2 block text-sm text-[var(--text-muted)]">Timezone</span>
                 <select className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm">
@@ -43,18 +98,18 @@ export default function CreateElectionSchedulePage() {
           <div className="mt-5 rounded-lg bg-[var(--surface-container-low)] p-6">
             <div className="flex items-center gap-3">
               <div className="text-center">
-                <p className="font-mono text-[10px] text-[var(--text-muted)]">NOV 14</p>
+                <p className="font-mono text-[10px] text-[var(--text-muted)]">{draft.startsAt ? new Date(draft.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase() : "—"}</p>
                 <p className="text-xs font-bold">START</p>
               </div>
               <div className="relative h-1 flex-1 rounded-full brand-gradient">
-                <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-[var(--primary)]/12 px-2 py-1 font-mono text-[10px] text-[var(--primary)]">57 Hours Duration</span>
+                <span className="absolute -top-6 left-1/2 -translate-x-1/2 rounded bg-[var(--primary)]/12 px-2 py-1 font-mono text-[10px] text-[var(--primary)]">{durationHours} Hours Duration</span>
               </div>
               <div className="text-center">
-                <p className="font-mono text-[10px] text-[var(--text-muted)]">NOV 16</p>
+                <p className="font-mono text-[10px] text-[var(--text-muted)]">{draft.endsAt ? new Date(draft.endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase() : "—"}</p>
                 <p className="text-xs font-bold">CLOSE</p>
               </div>
             </div>
-            <p className="mt-4 text-xs text-[var(--text-muted)]">Voters can cast ballots from Friday morning through Sunday afternoon.</p>
+            <p className="mt-4 text-xs text-[var(--text-muted)]">Voters can cast ballots within the selected voting period.</p>
           </div>
         </section>
 
@@ -91,18 +146,6 @@ function Stepper({ step }: { step: number }) {
         })}
       </div>
     </div>
-  );
-}
-
-function Field({ label, value, icon }: { label: string; value: string; icon: string }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm text-[var(--text-muted)]">{label}</span>
-      <div className="relative">
-        <input value={value} readOnly className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 pr-10 text-sm" />
-        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">{icon}</span>
-      </div>
-    </label>
   );
 }
 

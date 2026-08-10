@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
+import { createElection } from "@/lib/api-client";
+import { clearDraft, loadDraft } from "../draft";
 
 const checklistItems = [
   "Voter list integrity check",
@@ -11,10 +14,52 @@ const checklistItems = [
   "Outreach notifications scheduled",
 ];
 
+const TYPE_LABELS: Record<string, string> = {
+  single: "Single Choice Voting",
+  multi: "Multi Choice Voting",
+  ranked: "Ranked Choice Voting",
+};
+
 export default function CreateElectionReviewPage() {
+  const router = useRouter();
+  const draft = useMemo(() => loadDraft(), []);
   const [done, setDone] = useState<string[]>(checklistItems.slice(0, 3));
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const publishReady = useMemo(() => done.length === checklistItems.length, [done.length]);
+
+  const publish = async () => {
+    if (!publishReady) return;
+    if (!draft.title.trim()) {
+      setError("Election title is required. Go back to Basic Info to set it.");
+      return;
+    }
+    if (!draft.startsAt || !draft.endsAt) {
+      setError("Voting start and end times are required. Go back to Schedule to set them.");
+      return;
+    }
+    setPublishing(true);
+    setError(null);
+    try {
+      await createElection({
+        title: draft.title.trim(),
+        description: draft.description.trim() || undefined,
+        organization: draft.organization.trim() || undefined,
+        type: draft.type,
+        startsAt: draft.startsAt,
+        endsAt: draft.endsAt,
+      });
+      clearDraft();
+      router.push("/admin/elections");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to publish election");
+      setPublishing(false);
+    }
+  };
+
+  const formatDate = (ms: number) =>
+    ms ? new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "Not set";
 
   return (
     <AdminShell active="elections">
@@ -37,15 +82,15 @@ export default function CreateElectionReviewPage() {
             <section className="rounded-xl bg-[var(--surface-container)] p-6">
               <div className="mb-5 flex items-center justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Election Summary</p>
-                <button className="text-xs font-semibold text-[var(--primary)]">Edit</button>
+                <Link href="/admin/elections/create/basic-info" className="text-xs font-semibold text-[var(--primary)]">Edit</Link>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <Summary label="Election Title" value="2026 Global Executive Council Election" />
-                <Summary label="Type" value="Ranked Choice Voting" />
-                <Summary label="Open" value="Oct 14, 2026 09:00 UTC" />
-                <Summary label="Close" value="Oct 21, 2026 23:59 UTC" />
-                <Summary label="Eligible Voters" value="2,847 verified accounts" />
-                <Summary label="Ballot Sections" value="3 positions, 1 policy question" />
+                <Summary label="Election Title" value={draft.title || "Untitled"} />
+                <Summary label="Type" value={TYPE_LABELS[draft.type]} />
+                <Summary label="Open" value={formatDate(draft.startsAt)} />
+                <Summary label="Close" value={formatDate(draft.endsAt)} />
+                <Summary label="Organization" value={draft.organization || "—"} />
+                <Summary label="Description" value={draft.description || "—"} />
               </div>
             </section>
 
@@ -87,20 +132,24 @@ export default function CreateElectionReviewPage() {
             <section className="rounded-xl bg-[var(--surface-container)] p-6">
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Risk Gate</p>
               <div className="mt-4 space-y-4">
-                <GateRow label="KYC verified rate" value="84.3%" ok />
-                <GateRow label="Device anomaly score" value="Low" ok />
-                <GateRow label="Election quorum config" value="Set" ok />
-                <GateRow label="Admin signing key" value="Attached" ok />
+                <GateRow label="Election type" value={TYPE_LABELS[draft.type]} ok />
+                <GateRow label="Voting period" value={draft.startsAt && draft.endsAt ? "Set" : "Pending"} ok={!!draft.startsAt && !!draft.endsAt} />
+                <GateRow label="Election title" value={draft.title ? "Set" : "Pending"} ok={!!draft.title} />
+                <GateRow label="Organization" value={draft.organization ? "Set" : "Optional"} ok />
               </div>
             </section>
 
             <section className="rounded-xl border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-6">
               <p className="text-sm text-[var(--text-muted)]">Publishing locks critical parameters and writes an immutable audit event.</p>
+              {error ? <p className="mt-3 text-sm text-rose-300">{error}</p> : null}
               <button
-                disabled={!publishReady}
-                className={`mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold ${publishReady ? "brand-gradient text-white" : "bg-white/10 text-white/45"}`}
+                onClick={publish}
+                disabled={!publishReady || publishing}
+                className={`mt-4 flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold ${
+                  publishReady ? "brand-gradient text-white disabled:opacity-50" : "bg-white/10 text-white/45"
+                }`}
               >
-                {publishReady ? "Publish Election" : "Complete checklist to publish"}
+                {publishing ? "Publishing..." : publishReady ? "Publish Election" : "Complete checklist to publish"}
               </button>
             </section>
           </aside>
@@ -110,7 +159,7 @@ export default function CreateElectionReviewPage() {
           <Link href="/admin/elections/create/eligibility" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
             <button className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
-            <button className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white">Generate Final Package</button>
+            <button onClick={publish} disabled={publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Generate Final Package</button>
           </div>
         </footer>
       </section>

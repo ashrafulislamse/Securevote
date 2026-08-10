@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import 'core/navigation/app_router.dart';
+import 'core/providers/auth_provider.dart';
 import 'core/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
 
@@ -30,12 +32,15 @@ class SecureVoteApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SecureVote',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      initialRoute: AppRouter.splash,
-      onGenerateRoute: AppRouter.onGenerateRoute,
+    return ChangeNotifierProvider(
+      create: (_) => AuthProvider()..init(),
+      child: MaterialApp(
+        title: 'SecureVote',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.dark,
+        initialRoute: AppRouter.splash,
+        onGenerateRoute: AppRouter.onGenerateRoute,
+      ),
     );
   }
 }

@@ -11,7 +11,7 @@ _$AuthSessionImpl _$$AuthSessionImplFromJson(Map<String, dynamic> json) =>
       user: User.fromJson(json['user'] as Map<String, dynamic>),
       accessToken: json['accessToken'] as String,
       refreshToken: json['refreshToken'] as String,
-      expiresAt: DateTime.parse(json['expiresAt'] as String),
+      expiresAt: epochMsToDateTime(json['expiresAt']),
     );
 
 Map<String, dynamic> _$$AuthSessionImplToJson(_$AuthSessionImpl instance) =>
@@ -19,5 +19,5 @@ Map<String, dynamic> _$$AuthSessionImplToJson(_$AuthSessionImpl instance) =>
       'user': instance.user,
       'accessToken': instance.accessToken,
       'refreshToken': instance.refreshToken,
-      'expiresAt': instance.expiresAt.toIso8601String(),
+      'expiresAt': dateTimeToEpochMs(instance.expiresAt),
     };

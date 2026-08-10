@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 
 import '../errors/api_exception.dart';
 import 'secure_token_storage.dart';
@@ -168,7 +167,7 @@ class ApiClient {
       final body = response.data as Map<String, dynamic>;
       final Map<String, dynamic>? userJson = body['user'];
       final String accessToken = body['accessToken'] as String;
-      final String? newRefreshToken =
+      final String newRefreshToken =
           (body['refreshToken'] as String?) ?? refreshToken;
       final DateTime expiresAt = _parseExpiresAt(body);
 
@@ -197,7 +196,6 @@ class ApiClient {
   }
 
   /// Callback (set by the auth layer) to push fresh user data post-refresh.
-  @visibleForTesting
   void Function(Map<String, dynamic> user)? onUserRefreshed;
 
   void _notifyUserUpdated(Map<String, dynamic> userJson) {

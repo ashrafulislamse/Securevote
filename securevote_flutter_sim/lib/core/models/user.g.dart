@@ -16,9 +16,7 @@ _$UserImpl _$$UserImplFromJson(Map<String, dynamic> json) => _$UserImpl(
       $enumDecodeNullable(_$KycStatusEnumMap, json['kycStatus']) ??
       KycStatus.notSubmitted,
   profilePic: json['profilePic'] as String?,
-  createdAt: json['createdAt'] == null
-      ? null
-      : DateTime.parse(json['createdAt'] as String),
+  createdAt: epochMsToDateTimeNullable(json['createdAt']),
 );
 
 Map<String, dynamic> _$$UserImplToJson(_$UserImpl instance) =>
@@ -30,7 +28,7 @@ Map<String, dynamic> _$$UserImplToJson(_$UserImpl instance) =>
       'role': instance.role,
       'kycStatus': _$KycStatusEnumMap[instance.kycStatus]!,
       'profilePic': instance.profilePic,
-      'createdAt': instance.createdAt?.toIso8601String(),
+      'createdAt': dateTimeToEpochMsNullable(instance.createdAt),
     };
 
 const _$KycStatusEnumMap = {

@@ -29,6 +29,7 @@ mixin _$Receipt {
       throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
   String? get txHash => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Receipt to a JSON map.
@@ -53,6 +54,7 @@ abstract class $ReceiptCopyWith<$Res> {
     List<Map<String, String>> selections,
     String status,
     String? txHash,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime createdAt,
   });
 }
@@ -137,6 +139,7 @@ abstract class _$$ReceiptImplCopyWith<$Res> implements $ReceiptCopyWith<$Res> {
     List<Map<String, String>> selections,
     String status,
     String? txHash,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime createdAt,
   });
 }
@@ -214,6 +217,7 @@ class _$ReceiptImpl implements _Receipt {
     required final List<Map<String, String>> selections,
     this.status = 'confirmed',
     this.txHash,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required this.createdAt,
   }) : _selections = selections;
 
@@ -242,6 +246,7 @@ class _$ReceiptImpl implements _Receipt {
   @override
   final String? txHash;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   final DateTime createdAt;
 
   @override
@@ -308,6 +313,7 @@ abstract class _Receipt implements Receipt {
     required final List<Map<String, String>> selections,
     final String status,
     final String? txHash,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required final DateTime createdAt,
   }) = _$ReceiptImpl;
 
@@ -328,6 +334,7 @@ abstract class _Receipt implements Receipt {
   @override
   String? get txHash;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get createdAt;
 
   /// Create a copy of Receipt

@@ -17,7 +17,7 @@ _$ReceiptImpl _$$ReceiptImplFromJson(Map<String, dynamic> json) =>
           .toList(),
       status: json['status'] as String? ?? 'confirmed',
       txHash: json['txHash'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: epochMsToDateTime(json['createdAt']),
     );
 
 Map<String, dynamic> _$$ReceiptImplToJson(_$ReceiptImpl instance) =>
@@ -29,5 +29,5 @@ Map<String, dynamic> _$$ReceiptImplToJson(_$ReceiptImpl instance) =>
       'selections': instance.selections,
       'status': instance.status,
       'txHash': instance.txHash,
-      'createdAt': instance.createdAt.toIso8601String(),
+      'createdAt': dateTimeToEpochMs(instance.createdAt),
     };

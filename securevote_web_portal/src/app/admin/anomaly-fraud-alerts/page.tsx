@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { getAlerts } from "@/lib/api-client";
+import type { Alert } from "@/lib/api-client";
 
 type Severity = "critical" | "high" | "medium" | "low";
 type AlertStatus = "open" | "investigating" | "resolved";
@@ -17,54 +19,66 @@ type FraudAlert = {
   signal: string;
 };
 
-const starterAlerts: FraudAlert[] = [
-  {
-    id: "ALG-9942",
-    election: "Student Council 2026",
-    rule: "DUPLICATE_DEVICE",
-    severity: "critical",
-    score: 94,
+const API_SEVERITY: Severity[] = ["critical", "high", "medium", "low"];
+
+function toFraudAlert(alert: Alert): FraudAlert {
+  const severity: Severity = API_SEVERITY.includes(alert.severity as Severity)
+    ? (alert.severity as Severity)
+    : "medium";
+  const detectedAt = formatDetectedAt(alert.createdAt);
+  const target = alert.target ?? "Unknown election";
+  return {
+    id: alert.id,
+    election: target,
+    rule: alert.type,
+    severity,
+    score: alert.count ?? 50,
     status: "open",
-    detectedAt: "2m ago",
-    signal: "7 votes from one device fingerprint in 48s",
-  },
-  {
-    id: "ALG-9921",
-    election: "Union Board Referendum",
-    rule: "GEOLOCATION_JUMP",
-    severity: "high",
-    score: 82,
-    status: "investigating",
-    detectedAt: "9m ago",
-    signal: "4,320km movement within 3 minutes",
-  },
-  {
-    id: "ALG-9878",
-    election: "Faculty Senate 2026",
-    rule: "SESSION_REPLAY",
-    severity: "high",
-    score: 76,
-    status: "open",
-    detectedAt: "24m ago",
-    signal: "Repeated signed payload hash detected",
-  },
-  {
-    id: "ALG-9806",
-    election: "Clubs Council",
-    rule: "VOTE_RATE_SPIKE",
-    severity: "medium",
-    score: 64,
-    status: "resolved",
-    detectedAt: "1h ago",
-    signal: "Traffic spike normalized after captcha challenge",
-  },
-];
+    detectedAt,
+    signal: `Flagged by ${alert.type} rule${alert.count ? ` (${alert.count} signals)` : ""}. Target: ${target}.`,
+  };
+}
+
+function formatDetectedAt(createdAt: number): string {
+  if (!createdAt) return "unknown";
+  const seconds = Math.max(0, Math.floor((Date.now() - createdAt) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function AnomalyFraudAlertsPage() {
-  const [alerts, setAlerts] = useState<FraudAlert[]>(starterAlerts);
+  const [alerts, setAlerts] = useState<FraudAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<"all" | Severity>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | AlertStatus>("all");
-  const [selected, setSelected] = useState(starterAlerts[0]?.id ?? "");
+  const [selected, setSelected] = useState("");
+
+  // Load alerts from the backend on mount.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const items = await getAlerts();
+        if (!active) return;
+        const mapped = items.map(toFraudAlert);
+        setAlerts(mapped);
+        setSelected(mapped[0]?.id ?? "");
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "Failed to load alerts");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return alerts.filter((alert) => {
@@ -92,6 +106,10 @@ export default function AnomalyFraudAlertsPage() {
             <Badge label="Critical" value={criticalCount} tone="rose" />
           </div>
         </div>
+
+        {error ? (
+          <div className="rounded-xl border border-rose-500/35 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div>
+        ) : null}
 
         <section className="rounded-xl bg-[var(--surface-container)] p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -138,91 +156,99 @@ export default function AnomalyFraudAlertsPage() {
               Simulate Alert
             </button>
           </div>
+          {/* TODO: alert resolve endpoint — Assign/Mark Resolved below mutate local state only;
+              the backend has no per-alert resolution endpoint yet. */}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.25fr,0.95fr]">
-          <section className="space-y-3">
-            {filtered.map((alert) => (
-              <article
-                key={alert.id}
-                onClick={() => setSelected(alert.id)}
-                className={`cursor-pointer rounded-xl border p-4 transition ${
-                  active?.id === alert.id
-                    ? "border-[var(--primary)]/50 bg-[var(--primary)]/8"
-                    : "border-white/8 bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
-                }`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-semibold">{alert.rule}</p>
-                    <p className="text-xs text-[var(--text-muted)]">{alert.election}</p>
+        {loading ? (
+          <div className="rounded-xl bg-[var(--surface-container)] p-8 text-center text-sm text-[var(--text-muted)]">
+            Loading alerts...
+          </div>
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-[1.25fr,0.95fr]">
+            <section className="space-y-3">
+              {filtered.map((alert) => (
+                <article
+                  key={alert.id}
+                  onClick={() => setSelected(alert.id)}
+                  className={`cursor-pointer rounded-xl border p-4 transition ${
+                    active?.id === alert.id
+                      ? "border-[var(--primary)]/50 bg-[var(--primary)]/8"
+                      : "border-white/8 bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">{alert.rule}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{alert.election}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <SeverityPill severity={alert.severity} />
+                      <StatusPill status={alert.status} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <SeverityPill severity={alert.severity} />
-                    <StatusPill status={alert.status} />
+                  <p className="mt-3 text-sm text-white/85">{alert.signal}</p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-muted)]">
+                    <span>Risk score: {alert.score}</span>
+                    <span>{alert.detectedAt}</span>
                   </div>
-                </div>
-                <p className="mt-3 text-sm text-white/85">{alert.signal}</p>
-                <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-muted)]">
-                  <span>Risk score: {alert.score}</span>
-                  <span>{alert.detectedAt}</span>
-                </div>
-              </article>
-            ))}
-            {filtered.length === 0 ? (
-              <p className="rounded-lg bg-[var(--surface-container)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">No alerts match selected filters.</p>
-            ) : null}
-          </section>
+                </article>
+              ))}
+              {filtered.length === 0 ? (
+                <p className="rounded-lg bg-[var(--surface-container)] px-4 py-6 text-center text-sm text-[var(--text-muted)]">No alerts match selected filters.</p>
+              ) : null}
+            </section>
 
-          <aside className="rounded-xl bg-[var(--surface-container)] p-5">
-            {active ? (
-              <>
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Investigation Panel</p>
-                <h2 className="mt-3 text-2xl font-bold tracking-tight">{active.id}</h2>
-                <p className="text-sm text-[var(--text-muted)]">{active.rule} in {active.election}</p>
+            <aside className="rounded-xl bg-[var(--surface-container)] p-5">
+              {active ? (
+                <>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Investigation Panel</p>
+                  <h2 className="mt-3 text-2xl font-bold tracking-tight">{active.id}</h2>
+                  <p className="text-sm text-[var(--text-muted)]">{active.rule} in {active.election}</p>
 
-                <div className="mt-5 space-y-3 text-sm">
-                  <Detail label="Severity" value={active.severity.toUpperCase()} />
-                  <Detail label="Risk Score" value={`${active.score}/100`} mono />
-                  <Detail label="Status" value={active.status} />
-                  <Detail label="Detected" value={active.detectedAt} />
-                </div>
+                  <div className="mt-5 space-y-3 text-sm">
+                    <Detail label="Severity" value={active.severity.toUpperCase()} />
+                    <Detail label="Risk Score" value={`${active.score}/100`} mono />
+                    <Detail label="Status" value={active.status} />
+                    <Detail label="Detected" value={active.detectedAt} />
+                  </div>
 
-                <div className="mt-5 rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Signal Trace</p>
-                  <p className="mt-2 text-sm text-white/85">{active.signal}</p>
-                </div>
+                  <div className="mt-5 rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Signal Trace</p>
+                    <p className="mt-2 text-sm text-white/85">{active.signal}</p>
+                  </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAlerts((prev) =>
-                        prev.map((item) => (item.id === active.id ? { ...item, status: "investigating" } : item)),
-                      );
-                    }}
-                    className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm"
-                  >
-                    Assign Analyst
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAlerts((prev) =>
-                        prev.map((item) => (item.id === active.id ? { ...item, status: "resolved" } : item)),
-                      );
-                    }}
-                    className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
-                  >
-                    Mark Resolved
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-[var(--text-muted)]">Select an alert to inspect details.</p>
-            )}
-          </aside>
-        </div>
+                  <div className="mt-6 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAlerts((prev) =>
+                          prev.map((item) => (item.id === active.id ? { ...item, status: "investigating" } : item)),
+                        );
+                      }}
+                      className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm"
+                    >
+                      Assign Analyst
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAlerts((prev) =>
+                          prev.map((item) => (item.id === active.id ? { ...item, status: "resolved" } : item)),
+                        );
+                      }}
+                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                    >
+                      Mark Resolved
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--text-muted)]">Select an alert to inspect details.</p>
+              )}
+            </aside>
+          </div>
+        )}
       </section>
     </AdminShell>
   );

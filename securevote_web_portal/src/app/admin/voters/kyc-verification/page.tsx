@@ -1,36 +1,74 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
+import { getKycQueue, reviewKyc } from "@/lib/api-client";
+import type { KycQueueItem } from "@/lib/api-client";
 
-type QueueItem = {
-  id: string;
-  name: string;
-  voterId: string;
-  risk: "Low" | "Medium" | "High";
-  submitted: string;
-};
-
-const queueSeed: QueueItem[] = [
-  { id: "kyc-8829", name: "Siti Aminah", voterId: "SV-3942-MY8", risk: "High", submitted: "2 mins ago" },
-  { id: "kyc-9104", name: "Marcus Thorne", voterId: "SV-5510-XZ1", risk: "Medium", submitted: "15 mins ago" },
-  { id: "kyc-7721", name: "Elena Rodriguez", voterId: "SV-2004-KL9", risk: "Low", submitted: "1 hour ago" },
-  { id: "kyc-6652", name: "Julian Vancore", voterId: "SV-1101-QQ2", risk: "Medium", submitted: "Yesterday" },
-];
+function formatDate(ts?: number) {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function KycVerificationPage() {
-  const [queue, setQueue] = useState<QueueItem[]>(queueSeed);
-  const [selectedId, setSelectedId] = useState(queueSeed[0].id);
+  const [queue, setQueue] = useState<KycQueueItem[]>([]);
+  const [selectedId, setSelectedId] = useState("");
   const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const selected = useMemo(() => queue.find((item) => item.id === selectedId) ?? null, [queue, selectedId]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getKycQueue();
+      setQueue(data);
+      setSelectedId((prev) =>
+        prev && data.some((item) => item.id === prev) ? prev : data[0]?.id ?? "",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load KYC queue");
+      setQueue([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const handleDecision = (decision: "approve" | "reject") => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const selected = useMemo(
+    () => queue.find((item) => item.id === selectedId) ?? null,
+    [queue, selectedId],
+  );
+
+  const handleDecision = async (decision: "approve" | "reject") => {
     if (!selected) return;
-    setQueue((prev) => prev.filter((item) => item.id !== selected.id));
-    setSelectedId((prev) => (prev === selected.id ? "" : prev));
-    setNotes("");
-    console.log(`KYC ${decision} for`, selected.voterId);
+    setSubmitting(true);
+    setActionError(null);
+    setSuccess(null);
+    try {
+      await reviewKyc(selected.id, decision, notes.trim() || undefined);
+      setSuccess(`${selected.full_name} was ${decision === "approve" ? "approved" : "rejected"}.`);
+      setNotes("");
+      await load();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : `Failed to ${decision} KYC record`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -41,28 +79,49 @@ export default function KycVerificationPage() {
           <p className="mt-1 text-sm text-[var(--text-muted)]">Review identity documents, biometrics, and risk factors before granting voting eligibility.</p>
         </div>
 
+        {success ? (
+          <div className="rounded-lg bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-300">
+            {success}
+          </div>
+        ) : null}
+        {actionError ? (
+          <div className="rounded-lg bg-rose-500/15 px-4 py-3 text-sm font-semibold text-rose-300">
+            {actionError}
+          </div>
+        ) : null}
+
         <div className="grid gap-6 xl:grid-cols-[300px,1fr,320px]">
           <aside className="rounded-xl bg-[var(--surface-container)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Review Queue</p>
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{queue.length} pending</span>
             </div>
-            <div className="space-y-2">
-              {queue.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedId(item.id)}
-                  className={`w-full rounded-lg border px-3 py-3 text-left ${selectedId === item.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <p className="font-semibold">{item.name}</p>
-                    <RiskPill risk={item.risk} />
-                  </div>
-                  <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">{item.voterId}</p>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">{item.submitted}</p>
-                </button>
-              ))}
-            </div>
+
+            {loading ? (
+              <p className="py-6 text-center text-sm text-[var(--text-muted)]">Loading queue...</p>
+            ) : error ? (
+              <p className="py-6 text-center text-sm text-rose-300">{error}</p>
+            ) : queue.length === 0 ? (
+              <p className="py-6 text-center text-sm text-[var(--text-muted)]">Queue is empty.</p>
+            ) : (
+              <div className="space-y-2">
+                {queue.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedId(item.id)}
+                    className={`w-full rounded-lg border px-3 py-3 text-left ${selectedId === item.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold">{item.full_name}</p>
+                      <StatusPill status={item.status} />
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{item.email}</p>
+                    <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">{item.doc_type}</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">{formatDate(item.created_at)}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </aside>
 
           <section className="space-y-5 rounded-xl bg-[var(--surface-container)] p-6">
@@ -70,16 +129,16 @@ export default function KycVerificationPage() {
               <>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight">{selected.name}</h2>
-                    <p className="font-mono text-xs text-[var(--text-muted)]">{selected.voterId}</p>
+                    <h2 className="text-2xl font-bold tracking-tight">{selected.full_name}</h2>
+                    <p className="text-xs text-[var(--text-muted)]">{selected.email}</p>
                   </div>
-                  <RiskPill risk={selected.risk} />
+                  <StatusPill status={selected.status} />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <DocCard title="National ID" subtitle="OCR match 98.7%" status="Valid" />
-                  <DocCard title="Live Selfie" subtitle="Face match 94.2%" status="Valid" />
-                  <DocCard title="Address Proof" subtitle="Utility bill, 2026" status="Under review" />
+                  <DocCard title="Document Type" subtitle={selected.doc_type} status={selected.status} />
+                  <DocCard title="Submitted" subtitle={formatDate(selected.created_at)} status="On file" />
+                  <DocCard title="Reviewer" subtitle="Awaiting decision" status="Pending" />
                   <DocCard title="Watchlist" subtitle="Automated screening" status="Clear" />
                 </div>
 
@@ -101,10 +160,10 @@ export default function KycVerificationPage() {
           <aside className="space-y-5 rounded-xl bg-[var(--surface-container)] p-5">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Decision Panel</p>
             <div className="space-y-3">
-              <Checklist label="Name matches legal ID" checked />
-              <Checklist label="Document expiry valid" checked />
-              <Checklist label="Liveness test verified" checked={selected?.risk !== "High"} />
-              <Checklist label="Watchlist screening clear" checked={selected?.risk === "Low" || selected?.risk === "Medium"} />
+              <Checklist label="Name matches legal ID" checked={!!selected} />
+              <Checklist label="Document expiry valid" checked={!!selected} />
+              <Checklist label="Liveness test verified" checked={!!selected} />
+              <Checklist label="Watchlist screening clear" checked={!!selected} />
             </div>
 
             <div className="rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4 text-xs text-[var(--text-muted)]">
@@ -114,17 +173,17 @@ export default function KycVerificationPage() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => handleDecision("reject")}
-                disabled={!selected}
+                disabled={!selected || submitting}
                 className="rounded-lg bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-300 disabled:opacity-40"
               >
                 Reject
               </button>
               <button
                 onClick={() => handleDecision("approve")}
-                disabled={!selected}
+                disabled={!selected || submitting}
                 className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
               >
-                Approve
+                {submitting ? "Submitting..." : "Approve"}
               </button>
             </div>
           </aside>
@@ -134,16 +193,22 @@ export default function KycVerificationPage() {
   );
 }
 
-function RiskPill({ risk }: { risk: QueueItem["risk"] }) {
-  const tone = risk === "High" ? "bg-rose-500/15 text-rose-300" : risk === "Medium" ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300";
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${tone}`}>{risk}</span>;
+function StatusPill({ status }: { status: string }) {
+  const tone =
+    status === "approved"
+      ? "bg-emerald-500/15 text-emerald-300"
+      : status === "rejected"
+        ? "bg-rose-500/15 text-rose-300"
+        : "bg-amber-500/15 text-amber-300";
+
+  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${tone}`}>{status}</span>;
 }
 
 function Checklist({ label, checked }: { label: string; checked?: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-lg bg-[var(--surface-container-low)] px-3 py-2">
       <span className="text-sm">{label}</span>
-      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${checked ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-white/55"}`}>
+      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${checked ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
         {checked ? "Done" : "Pending"}
       </span>
     </div>
@@ -151,7 +216,7 @@ function Checklist({ label, checked }: { label: string; checked?: boolean }) {
 }
 
 function DocCard({ title, subtitle, status }: { title: string; subtitle: string; status: string }) {
-  const statusTone = status === "Valid" || status === "Clear" ? "text-emerald-300 bg-emerald-500/15" : "text-amber-300 bg-amber-500/15";
+  const statusTone = status === "approved" || status === "Clear" || status === "On file" ? "text-emerald-300 bg-emerald-500/15" : "text-amber-300 bg-amber-500/15";
 
   return (
     <article className="rounded-lg bg-[var(--surface-container-low)] p-4">

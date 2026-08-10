@@ -27,7 +27,9 @@ mixin _$Election {
   String? get organization => throw _privateConstructorUsedError;
   String get type => throw _privateConstructorUsedError;
   String get status => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get startsAt => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get endsAt => throw _privateConstructorUsedError;
   int? get candidateCount => throw _privateConstructorUsedError;
 
@@ -53,7 +55,9 @@ abstract class $ElectionCopyWith<$Res> {
     String? organization,
     String type,
     String status,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime startsAt,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime endsAt,
     int? candidateCount,
   });
@@ -144,7 +148,9 @@ abstract class _$$ElectionImplCopyWith<$Res>
     String? organization,
     String type,
     String status,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime startsAt,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime endsAt,
     int? candidateCount,
   });
@@ -227,7 +233,9 @@ class _$ElectionImpl implements _Election {
     this.organization,
     this.type = 'general',
     this.status = 'upcoming',
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required this.startsAt,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required this.endsAt,
     this.candidateCount,
   });
@@ -250,8 +258,10 @@ class _$ElectionImpl implements _Election {
   @JsonKey()
   final String status;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   final DateTime startsAt;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   final DateTime endsAt;
   @override
   final int? candidateCount;
@@ -318,7 +328,9 @@ abstract class _Election implements Election {
     final String? organization,
     final String type,
     final String status,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required final DateTime startsAt,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required final DateTime endsAt,
     final int? candidateCount,
   }) = _$ElectionImpl;
@@ -339,8 +351,10 @@ abstract class _Election implements Election {
   @override
   String get status;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get startsAt;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get endsAt;
   @override
   int? get candidateCount;

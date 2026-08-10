@@ -23,11 +23,14 @@ Vote _$VoteFromJson(Map<String, dynamic> json) {
 mixin _$Vote {
   String get id => throw _privateConstructorUsedError;
   String get electionId => throw _privateConstructorUsedError;
+  String? get electionTitle => throw _privateConstructorUsedError;
   List<Map<String, String>> get selections =>
       throw _privateConstructorUsedError;
   String get receiptId => throw _privateConstructorUsedError;
+  String? get voteHash => throw _privateConstructorUsedError;
   String? get txHash => throw _privateConstructorUsedError;
-  String? get blockNumber => throw _privateConstructorUsedError;
+  int? get blockNumber => throw _privateConstructorUsedError;
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Vote to a JSON map.
@@ -47,10 +50,13 @@ abstract class $VoteCopyWith<$Res> {
   $Res call({
     String id,
     String electionId,
+    String? electionTitle,
     List<Map<String, String>> selections,
     String receiptId,
+    String? voteHash,
     String? txHash,
-    String? blockNumber,
+    int? blockNumber,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime createdAt,
   });
 }
@@ -72,8 +78,10 @@ class _$VoteCopyWithImpl<$Res, $Val extends Vote>
   $Res call({
     Object? id = null,
     Object? electionId = null,
+    Object? electionTitle = freezed,
     Object? selections = null,
     Object? receiptId = null,
+    Object? voteHash = freezed,
     Object? txHash = freezed,
     Object? blockNumber = freezed,
     Object? createdAt = null,
@@ -88,6 +96,10 @@ class _$VoteCopyWithImpl<$Res, $Val extends Vote>
                 ? _value.electionId
                 : electionId // ignore: cast_nullable_to_non_nullable
                       as String,
+            electionTitle: freezed == electionTitle
+                ? _value.electionTitle
+                : electionTitle // ignore: cast_nullable_to_non_nullable
+                      as String?,
             selections: null == selections
                 ? _value.selections
                 : selections // ignore: cast_nullable_to_non_nullable
@@ -96,6 +108,10 @@ class _$VoteCopyWithImpl<$Res, $Val extends Vote>
                 ? _value.receiptId
                 : receiptId // ignore: cast_nullable_to_non_nullable
                       as String,
+            voteHash: freezed == voteHash
+                ? _value.voteHash
+                : voteHash // ignore: cast_nullable_to_non_nullable
+                      as String?,
             txHash: freezed == txHash
                 ? _value.txHash
                 : txHash // ignore: cast_nullable_to_non_nullable
@@ -103,7 +119,7 @@ class _$VoteCopyWithImpl<$Res, $Val extends Vote>
             blockNumber: freezed == blockNumber
                 ? _value.blockNumber
                 : blockNumber // ignore: cast_nullable_to_non_nullable
-                      as String?,
+                      as int?,
             createdAt: null == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -125,10 +141,13 @@ abstract class _$$VoteImplCopyWith<$Res> implements $VoteCopyWith<$Res> {
   $Res call({
     String id,
     String electionId,
+    String? electionTitle,
     List<Map<String, String>> selections,
     String receiptId,
+    String? voteHash,
     String? txHash,
-    String? blockNumber,
+    int? blockNumber,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     DateTime createdAt,
   });
 }
@@ -147,8 +166,10 @@ class __$$VoteImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? electionId = null,
+    Object? electionTitle = freezed,
     Object? selections = null,
     Object? receiptId = null,
+    Object? voteHash = freezed,
     Object? txHash = freezed,
     Object? blockNumber = freezed,
     Object? createdAt = null,
@@ -163,6 +184,10 @@ class __$$VoteImplCopyWithImpl<$Res>
             ? _value.electionId
             : electionId // ignore: cast_nullable_to_non_nullable
                   as String,
+        electionTitle: freezed == electionTitle
+            ? _value.electionTitle
+            : electionTitle // ignore: cast_nullable_to_non_nullable
+                  as String?,
         selections: null == selections
             ? _value._selections
             : selections // ignore: cast_nullable_to_non_nullable
@@ -171,6 +196,10 @@ class __$$VoteImplCopyWithImpl<$Res>
             ? _value.receiptId
             : receiptId // ignore: cast_nullable_to_non_nullable
                   as String,
+        voteHash: freezed == voteHash
+            ? _value.voteHash
+            : voteHash // ignore: cast_nullable_to_non_nullable
+                  as String?,
         txHash: freezed == txHash
             ? _value.txHash
             : txHash // ignore: cast_nullable_to_non_nullable
@@ -178,7 +207,7 @@ class __$$VoteImplCopyWithImpl<$Res>
         blockNumber: freezed == blockNumber
             ? _value.blockNumber
             : blockNumber // ignore: cast_nullable_to_non_nullable
-                  as String?,
+                  as int?,
         createdAt: null == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -194,10 +223,13 @@ class _$VoteImpl implements _Vote {
   const _$VoteImpl({
     required this.id,
     required this.electionId,
+    this.electionTitle,
     required final List<Map<String, String>> selections,
     required this.receiptId,
+    this.voteHash,
     this.txHash,
     this.blockNumber,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required this.createdAt,
   }) : _selections = selections;
 
@@ -208,6 +240,8 @@ class _$VoteImpl implements _Vote {
   final String id;
   @override
   final String electionId;
+  @override
+  final String? electionTitle;
   final List<Map<String, String>> _selections;
   @override
   List<Map<String, String>> get selections {
@@ -219,15 +253,18 @@ class _$VoteImpl implements _Vote {
   @override
   final String receiptId;
   @override
+  final String? voteHash;
+  @override
   final String? txHash;
   @override
-  final String? blockNumber;
+  final int? blockNumber;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   final DateTime createdAt;
 
   @override
   String toString() {
-    return 'Vote(id: $id, electionId: $electionId, selections: $selections, receiptId: $receiptId, txHash: $txHash, blockNumber: $blockNumber, createdAt: $createdAt)';
+    return 'Vote(id: $id, electionId: $electionId, electionTitle: $electionTitle, selections: $selections, receiptId: $receiptId, voteHash: $voteHash, txHash: $txHash, blockNumber: $blockNumber, createdAt: $createdAt)';
   }
 
   @override
@@ -238,12 +275,16 @@ class _$VoteImpl implements _Vote {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.electionId, electionId) ||
                 other.electionId == electionId) &&
+            (identical(other.electionTitle, electionTitle) ||
+                other.electionTitle == electionTitle) &&
             const DeepCollectionEquality().equals(
               other._selections,
               _selections,
             ) &&
             (identical(other.receiptId, receiptId) ||
                 other.receiptId == receiptId) &&
+            (identical(other.voteHash, voteHash) ||
+                other.voteHash == voteHash) &&
             (identical(other.txHash, txHash) || other.txHash == txHash) &&
             (identical(other.blockNumber, blockNumber) ||
                 other.blockNumber == blockNumber) &&
@@ -257,8 +298,10 @@ class _$VoteImpl implements _Vote {
     runtimeType,
     id,
     electionId,
+    electionTitle,
     const DeepCollectionEquality().hash(_selections),
     receiptId,
+    voteHash,
     txHash,
     blockNumber,
     createdAt,
@@ -282,10 +325,13 @@ abstract class _Vote implements Vote {
   const factory _Vote({
     required final String id,
     required final String electionId,
+    final String? electionTitle,
     required final List<Map<String, String>> selections,
     required final String receiptId,
+    final String? voteHash,
     final String? txHash,
-    final String? blockNumber,
+    final int? blockNumber,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required final DateTime createdAt,
   }) = _$VoteImpl;
 
@@ -296,14 +342,19 @@ abstract class _Vote implements Vote {
   @override
   String get electionId;
   @override
+  String? get electionTitle;
+  @override
   List<Map<String, String>> get selections;
   @override
   String get receiptId;
   @override
+  String? get voteHash;
+  @override
   String? get txHash;
   @override
-  String? get blockNumber;
+  int? get blockNumber;
   @override
+  @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
   DateTime get createdAt;
 
   /// Create a copy of Vote

@@ -31,11 +31,22 @@ export default function ImportVotersPage() {
     faculty: "faculty",
   });
   const [done, setDone] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const canReview = fileName.length > 0 && rows.length > 0;
   const mappingReady = useMemo(() => requiredFields.every((field) => mapping[field] && mapping[field].trim() !== ""), [mapping]);
 
   const status = done ? "Imported" : step === 1 ? "Upload" : step === 2 ? "Map" : "Confirm";
+
+  const handleConfirm = () => {
+    // TODO: POST /api/voters/import (R2 + CSV parse) — Phase 5
+    // Simulate submission until the import endpoint is available.
+    setConfirming(true);
+    setTimeout(() => {
+      setConfirming(false);
+      setDone(true);
+    }, 900);
+  };
 
   return (
     <AdminShell active="voters">
@@ -161,10 +172,11 @@ export default function ImportVotersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDone(true)}
-                  className="rounded-md brand-gradient px-4 py-2 text-xs font-semibold text-white"
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                  className="rounded-md brand-gradient px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
                 >
-                  Confirm Import
+                  {confirming ? "Importing..." : "Confirm Import"}
                 </button>
               </div>
 

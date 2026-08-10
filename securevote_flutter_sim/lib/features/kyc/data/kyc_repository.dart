@@ -1,40 +1,37 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import '../../../core/models/kyc_status.dart';
 import '../../../core/network/api_client.dart';
 
 /// Data access for identity verification (KYC).
-///
-/// NOTE: The backend does not expose these endpoints yet. These methods are
-/// stubs that issue the intended HTTP calls and return placeholders so the
-/// wiring is in place for a later phase.
 class KycRepository {
   KycRepository({ApiClient? api}) : _api = api ?? ApiClient.instance;
 
   final ApiClient _api;
 
-  /// Submits identity documents for review.
+  /// Submits an identity document for review.
   ///
-  /// TODO(backend): implement once `POST /api/kyc/documents` is available.
-  Future<void> submitDocuments({
-    required List<String> documentUrls,
-    required String documentType,
+  /// Backend: `POST /api/kyc/submit` expects multipart form-data with a
+  /// `file` field and an optional `docType` field (`id` | `selfie`).
+  Future<void> submitDocument({
+    required Uint8List bytes,
+    required String fileName,
+    String docType = 'id',
   }) async {
-    await _api.postApi(
-      '/api/kyc/documents',
-      data: {
-        'documentType': documentType,
-        'documentUrls': documentUrls,
-      },
-    );
+    final form = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: fileName),
+      'docType': docType,
+    });
+    await _api.dio.post('/api/kyc/submit', data: form);
   }
 
   /// Fetches the current user's KYC verification status.
   ///
-  /// TODO(backend): implement once `GET /api/kyc/status` is available.
+  /// Backend: `GET /api/kyc/status` returns `{ status: 'pending'|'approved'|'rejected' }`.
   Future<KycStatus> getStatus() async {
-    final data = await _api.getApi('/api/kyc/status');
-    if (data is Map<String, dynamic>) {
-      return KycStatus.parse(data['status'] as String?);
-    }
-    return KycStatus.notSubmitted;
+    final data = await _api.getApi('/api/kyc/status') as Map<String, dynamic>;
+    return KycStatus.parse(data['status'] as String?);
   }
 }

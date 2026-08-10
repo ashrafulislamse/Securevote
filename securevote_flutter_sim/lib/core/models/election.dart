@@ -1,5 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+// ignore_for_file: invalid_annotation_target
+
+import '../utils/json_utils.dart';
+
 part 'election.freezed.dart';
 part 'election.g.dart';
 
@@ -17,7 +21,9 @@ abstract class Election with _$Election {
     String? organization,
     @Default('general') String type,
     @Default('upcoming') String status,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required DateTime startsAt,
+    @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required DateTime endsAt,
     int? candidateCount,
   }) = _Election;

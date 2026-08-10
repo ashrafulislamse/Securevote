@@ -28,6 +28,10 @@ mixin _$User {
   String get role => throw _privateConstructorUsedError;
   KycStatus get kycStatus => throw _privateConstructorUsedError;
   String? get profilePic => throw _privateConstructorUsedError;
+  @JsonKey(
+    fromJson: epochMsToDateTimeNullable,
+    toJson: dateTimeToEpochMsNullable,
+  )
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this User to a JSON map.
@@ -52,6 +56,10 @@ abstract class $UserCopyWith<$Res> {
     String role,
     KycStatus kycStatus,
     String? profilePic,
+    @JsonKey(
+      fromJson: epochMsToDateTimeNullable,
+      toJson: dateTimeToEpochMsNullable,
+    )
     DateTime? createdAt,
   });
 }
@@ -136,6 +144,10 @@ abstract class _$$UserImplCopyWith<$Res> implements $UserCopyWith<$Res> {
     String role,
     KycStatus kycStatus,
     String? profilePic,
+    @JsonKey(
+      fromJson: epochMsToDateTimeNullable,
+      toJson: dateTimeToEpochMsNullable,
+    )
     DateTime? createdAt,
   });
 }
@@ -211,6 +223,10 @@ class _$UserImpl implements _User {
     this.role = 'voter',
     this.kycStatus = KycStatus.notSubmitted,
     this.profilePic,
+    @JsonKey(
+      fromJson: epochMsToDateTimeNullable,
+      toJson: dateTimeToEpochMsNullable,
+    )
     this.createdAt,
   });
 
@@ -234,6 +250,10 @@ class _$UserImpl implements _User {
   @override
   final String? profilePic;
   @override
+  @JsonKey(
+    fromJson: epochMsToDateTimeNullable,
+    toJson: dateTimeToEpochMsNullable,
+  )
   final DateTime? createdAt;
 
   @override
@@ -297,6 +317,10 @@ abstract class _User implements User {
     final String role,
     final KycStatus kycStatus,
     final String? profilePic,
+    @JsonKey(
+      fromJson: epochMsToDateTimeNullable,
+      toJson: dateTimeToEpochMsNullable,
+    )
     final DateTime? createdAt,
   }) = _$UserImpl;
 
@@ -317,6 +341,10 @@ abstract class _User implements User {
   @override
   String? get profilePic;
   @override
+  @JsonKey(
+    fromJson: epochMsToDateTimeNullable,
+    toJson: dateTimeToEpochMsNullable,
+  )
   DateTime? get createdAt;
 
   /// Create a copy of User
