@@ -6,10 +6,12 @@ import { FormEvent, useState } from "react";
 
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { demoCredentials, signInDemo } from "@/lib/demo-auth";
+import { useAuth } from "@/context/auth-context";
+import { demoCredentials } from "@/lib/demo-auth";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const defaults = demoCredentials();
   const [email, setEmail] = useState(defaults.email);
   const [password, setPassword] = useState(defaults.password);
@@ -18,19 +20,18 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setError(null);
 
-    const result = signInDemo({ email, password, otp });
-    if (!result.ok) {
-      setError(result.message);
+    try {
+      await login(email, password);
+      router.push("/admin/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed.");
       setLoading(false);
-      return;
     }
-
-    router.push("/admin/dashboard");
   }
 
   return (
@@ -120,13 +121,14 @@ export default function AdminLoginPage() {
                   </div>
                   <span className="text-sm font-semibold">Two-Factor Auth</span>
                 </div>
-                <span className="rounded bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">Required</span>
+<span className="rounded bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">Optional</span>
               </div>
               <div className="mb-3 grid grid-cols-6 gap-2">
                 {otp.padEnd(6, " ").slice(0, 6).split("").map((value, index) => (
                   <input
                     key={index}
                     value={value.trim()}
+                    disabled
                     onChange={(event) => {
                       const char = event.target.value.replace(/[^0-9]/g, "").slice(0, 1);
                       const next = otp.padEnd(6, " ").slice(0, 6).split("");
@@ -134,12 +136,12 @@ export default function AdminLoginPage() {
                       setOtp(next.join("").replace(/\s+/g, ""));
                     }}
                     maxLength={1}
-                    className="h-11 rounded-lg bg-[var(--surface-container-low)] text-center font-mono text-xl font-bold text-[var(--primary)] outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
+                    className="h-11 rounded-lg bg-[var(--surface-container-low)] text-center font-mono text-xl font-bold text-[var(--primary)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
                   />
                 ))}
               </div>
-              <button type="button" className="mx-auto block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] hover:text-[var(--primary)]">
-                Resend code (demo)
+              <button type="button" disabled className="mx-auto block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] hover:text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60">
+                Resend code (dev)
               </button>
             </div>
 
@@ -162,7 +164,7 @@ export default function AdminLoginPage() {
             Protected by enterprise-grade security. By continuing, you agree to SecureVote system terms and data integrity protocols.
           </p>
           <p className="mt-3 text-center text-[11px] text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-3">
-            Demo: <span className="font-mono">admin@securevote.io</span> / <span className="font-mono">SecureVote@2026</span> / 2FA <span className="font-mono">492000</span>
+            Demo: <span className="font-mono">admin@securevote.io</span> / <span className="font-mono">SecureVote@2026</span> (2FA OTP is not used for sign in)
           </p>
         </div>
       </section>

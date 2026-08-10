@@ -1,13 +1,16 @@
-export type DemoSession = {
-  email: string;
-  name: string;
-  role: string;
-  org: string;
-  issuedAt: number;
-};
-
-const SESSION_KEY = "securevote_demo_session";
-const RESET_REQUEST_KEY = "securevote_demo_reset_request";
+// Compatibility shim for the demo admin flow.
+//
+// Authentication now routes through the real backend API via `@/context/auth-context`
+// (`useAuth()`). The login page and admin shell no longer use this module.
+//
+// These helpers are retained so the forgot/reset password demo pages continue to work:
+//   - src/app/admin/forgot-password/page.tsx  -> requestReset
+//   - src/app/admin/reset-password/page.tsx   -> completeReset
+//
+// Demo operator credentials (must exist in the backend for login to succeed):
+//   email:    admin@securevote.io
+//   password  SecureVote@2026
+//   2FA / OTP: 492000  (login uses email + password only; the OTP field is disabled)
 
 const DEMO_USER = {
   email: "admin@securevote.io",
@@ -26,59 +29,16 @@ export function demoCredentials() {
   };
 }
 
-export function signInDemo(input: { email: string; password: string; otp: string }): { ok: boolean; message: string } {
-  const email = input.email.trim().toLowerCase();
-  const otp = input.otp.trim();
-
-  if (email !== DEMO_USER.email) {
-    return { ok: false, message: "Admin email not recognized." };
-  }
-
-  if (input.password !== DEMO_USER.password) {
-    return { ok: false, message: "Incorrect password." };
-  }
-
-  if (otp !== DEMO_USER.otp) {
-    return { ok: false, message: "Invalid 2FA code." };
-  }
-
-  const session: DemoSession = {
+export function demoUser() {
+  return {
     email: DEMO_USER.email,
     name: DEMO_USER.name,
     role: DEMO_USER.role,
     org: DEMO_USER.org,
-    issuedAt: Date.now(),
   };
-
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  }
-
-  return { ok: true, message: "Authenticated." };
 }
 
-export function getSession(): DemoSession | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const raw = window.localStorage.getItem(SESSION_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as DemoSession;
-  } catch {
-    return null;
-  }
-}
-
-export function signOutDemo() {
-  if (typeof window !== "undefined") {
-    window.localStorage.removeItem(SESSION_KEY);
-  }
-}
+const RESET_REQUEST_KEY = "securevote_demo_reset_request";
 
 export function requestReset(email: string): { ok: boolean; message: string } {
   const cleanEmail = email.trim().toLowerCase();

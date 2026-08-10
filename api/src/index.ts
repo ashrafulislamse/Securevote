@@ -7,6 +7,11 @@ import { Hono } from "hono";
 import type { Env } from "./types";
 import { corsHeaders } from "./lib/cors";
 import { authRoutes } from "./routes/auth";
+import { electionsRoutes } from "./routes/elections";
+import { votingRoutes } from "./routes/voting";
+import { kycRoutes } from "./routes/kyc";
+import { publicRoutes } from "./routes/public";
+import { adminRoutes } from "./routes/admin";
 
 export type { Env };
 
@@ -39,7 +44,11 @@ app.get("/api/health", (c) =>
 
 // Route groups.
 app.route("/api/auth", authRoutes);
-// Phase 2-4: elections, voting, kyc, admin, public routes registered here.
+app.route("/api/elections", electionsRoutes);
+app.route("/api/voting", votingRoutes);
+app.route("/api/kyc", kycRoutes);
+app.route("/api/public", publicRoutes);
+app.route("/api/admin", adminRoutes);
 
 // JSON 404 for unknown API routes.
 app.onError((err, c) => {

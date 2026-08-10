@@ -29,7 +29,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import { getSession, signOutDemo, type DemoSession } from "@/lib/demo-auth";
+import { useAuth } from "@/context/auth-context";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -277,8 +277,7 @@ export function AdminShellClient({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [session, setSession] = useState<DemoSession | null>(null);
-  const [ready, setReady] = useState(false);
+  const { user, loading: authLoading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
   const allNavItems = useMemo(() => navSections.flatMap((section) => section.items), []);
@@ -311,28 +310,23 @@ export function AdminShellClient({
   }, [activeHref, allNavItems]);
 
   useEffect(() => {
-    const current = getSession();
+    if (authLoading) {
+      return;
+    }
 
-    window.setTimeout(() => {
-      if (!current) {
-        router.replace("/admin/login");
-        setReady(true);
-        return;
-      }
-
-      setSession(current);
-      setReady(true);
-    }, 0);
-  }, [router]);
+    if (!user) {
+      router.replace("/admin/login");
+    }
+  }, [authLoading, user, router]);
 
   const handleSignOut = () => {
-    signOutDemo();
+    logout();
     router.replace("/admin/login");
   };
 
   const currentYear = new Date().getFullYear();
 
-  if (!ready || !session) {
+  if (authLoading || !user) {
     return (
       <div className="grid min-h-screen place-items-center bg-background text-foreground">
         <div className="text-center">
@@ -396,8 +390,8 @@ export function AdminShellClient({
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold">{session.name}</p>
-                  <p className="truncate text-[11px] text-[var(--tertiary)]">{session.role}</p>
+                  <p className="truncate text-sm font-semibold">{user.fullName}</p>
+                  <p className="truncate text-[11px] text-[var(--tertiary)]">{user.role}</p>
                 </div>
               </div>
               <Button variant="outline" size="icon" onClick={handleSignOut} aria-label="Sign out">
@@ -432,7 +426,7 @@ export function AdminShellClient({
 
               <div className="min-w-0">
                 <p className="truncate text-xs font-bold uppercase tracking-[0.14em] text-[var(--tertiary)]">{pageLabel}</p>
-                <p className="truncate text-xs text-[var(--text-muted)]">{session.org}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">{user.email}</p>
               </div>
               <Badge className="hidden md:inline-flex">Live</Badge>
             </div>
@@ -479,14 +473,14 @@ export function AdminShellClient({
                         <UserCircle2 className="h-4.5 w-4.5" />
                       </AvatarFallback>
                     </Avatar>
-                    <span className="hidden max-w-[120px] truncate text-xs font-semibold lg:block">{session.name}</span>
+                    <span className="hidden max-w-[120px] truncate text-xs font-semibold lg:block">{user.fullName}</span>
                     <ChevronDown className="h-3.5 w-3.5 text-[var(--text-muted)]" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
-                    <p className="font-semibold text-[var(--foreground)]">{session.name}</p>
-                    <p className="mt-1 text-[11px] font-medium tracking-[0.06em] text-[var(--text-muted)]">{session.role}</p>
+                    <p className="font-semibold text-[var(--foreground)]">{user.fullName}</p>
+                    <p className="mt-1 text-[11px] font-medium tracking-[0.06em] text-[var(--text-muted)]">{user.role}</p>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => router.push("/admin/dashboard")}>Dashboard</DropdownMenuItem>
