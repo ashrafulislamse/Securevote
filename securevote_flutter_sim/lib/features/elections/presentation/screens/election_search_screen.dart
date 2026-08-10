@@ -405,12 +405,9 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, _) {
-          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
-                data: (c) => c,
-                orElse: () => 0,
-              );
+      bottomNavigationBar: Builder(
+        builder: (context) {
+          final count = context.watch<NotificationsProvider>().unreadCount;
           return PremiumBottomNav(currentIndex: 1, alertsUnreadCount: count);
         },
       ),

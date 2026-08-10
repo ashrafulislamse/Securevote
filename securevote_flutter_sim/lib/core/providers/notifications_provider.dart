@@ -6,68 +6,121 @@ import 'package:provider/provider.dart';
 import '../../features/profile/data/profile_repository.dart';
 import '../models/notification.dart';
 
-/// Fetches the current user's notifications.
-Future<List<Notification>> fetchNotifications() async {
-  return ProfileRepository().getNotifications();
-}
-
-/// Fetches the current user's unread notification count.
-Future<int> fetchUnreadNotificationCount() async {
-  return ProfileRepository().getUnreadNotificationCount();
-}
-
-/// Async provider for the notifications list (latest 50, newest first).
-final notificationsProvider = FutureProvider<List<Notification>>(
-  create: (_) => fetchNotifications(),
-  initialData: const <Notification>[],
-);
-
-/// Async provider for the unread notification count.
-final unreadNotificationCountProvider = FutureProvider<int>(
-  create: (_) => fetchUnreadNotificationCount(),
-  initialData: 0,
-);
-
-/// Provider exposing the profile repository (used by the auto-refresh mixin).
-final profileRepositoryProvider = Provider<ProfileRepository>(
-  create: (_) => ProfileRepository(),
-);
-
-/// ChangeNotifier that polls the notifications API every 30 seconds.
+/// ChangeNotifier that owns the current user's notifications list.
 ///
-/// The actual data is still owned by [notificationsProvider] (a
-/// [FutureProvider]); this class just calls `ref.invalidate` on a fixed
-/// cadence so the inbox / badge stay live without requiring a manual pull.
-class NotificationsAutoRefresh extends ChangeNotifier {
-  NotificationsAutoRefresh({this.interval = const Duration(seconds: 30)});
+/// Acts as the single source of truth for the inbox / detail screens and the
+/// unread badge shown in the bottom navigation. The actual HTTP work is
+/// delegated to [ProfileRepository].
+class NotificationsProvider extends ChangeNotifier {
+  NotificationsProvider({ProfileRepository? repository})
+      : _repository = repository ?? ProfileRepository() {
+    _start();
+  }
 
-  final Duration interval;
+  final ProfileRepository _repository;
   Timer? _timer;
-  ProviderRef? _ref;
 
-  /// Attaches the auto-refresh to a [Provider] context.
-  ///
-  /// Must be called inside a `MultiProvider` or by passing a [ProviderRef]
-  /// directly (e.g. from a `ChangeNotifierProxyProvider`).
-  void attach(ProviderRef ref) {
-    _ref = ref;
+  List<AppNotification> _notifications = const <AppNotification>[];
+  bool _loading = false;
+  String? _error;
+  int _unreadCount = 0;
+
+  /// Polling cadence for the auto-refresh.
+  final Duration interval = const Duration(seconds: 30);
+
+  /// The latest notifications, newest first. Empty until the first fetch
+  /// completes (or while [loading] is true on the very first load).
+  List<AppNotification> get notifications => _notifications;
+
+  /// Whether a fetch is currently in flight.
+  bool get loading => _loading;
+
+  /// The last error message from a failed fetch, or null when there is none.
+  String? get error => _error;
+
+  /// Number of notifications where `read == false`.
+  int get unreadCount => _unreadCount;
+
+  void _start() {
+    // Kick off the first fetch and start the polling timer.
+    refresh();
+    _timer = Timer.periodic(interval, (_) => refresh());
   }
 
-  void start() {
-    _timer?.cancel();
-    _timer = Timer.periodic(interval, (_) {
-      _ref?.invalidate(notificationsProvider);
-      _ref?.invalidate(unreadNotificationCountProvider);
-    });
-  }
-
-  /// Refresh the providers once (e.g. on pull-to-refresh).
+  /// Re-fetches the notifications list from the server.
   Future<void> refresh() async {
-    _ref?.invalidate(notificationsProvider);
-    _ref?.invalidate(unreadNotificationCountProvider);
-    // Yield to the microtask queue so the new state is observable to
-    // listeners that call this from a callback.
-    await Future<void>.delayed(Duration.zero);
+    _setLoading(true);
+    try {
+      final list = await _repository.getNotifications();
+      _notifications = list;
+      _unreadCount = list.where((n) => !n.read).length;
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Marks a single notification as read and updates local state.
+  Future<void> markRead(String id) async {
+    final idx = _notifications.indexWhere((n) => n.id == id);
+    if (idx == -1) return;
+    final original = _notifications[idx];
+    if (original.read) return;
+
+    // Optimistic update so the badge updates immediately.
+    final updated = original.copyWith(read: true);
+    final newList = List<AppNotification>.from(_notifications);
+    newList[idx] = updated;
+    _notifications = newList;
+    _unreadCount = _unreadCount > 0 ? _unreadCount - 1 : 0;
+    notifyListeners();
+
+    try {
+      await _repository.markRead(id);
+    } catch (_) {
+      // Best-effort: keep the optimistic update even if the call fails.
+    }
+  }
+
+  /// Marks every notification as read.
+  Future<void> markAllRead() async {
+    if (_notifications.every((n) => n.read)) return;
+    final newList = _notifications
+        .map((n) => n.read ? n : n.copyWith(read: true))
+        .toList(growable: false);
+    _notifications = newList;
+    _unreadCount = 0;
+    notifyListeners();
+
+    try {
+      await _repository.markAllRead();
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+
+  /// Removes a notification from the local list.
+  ///
+  /// Useful if/when a delete endpoint is wired up; currently no-op against
+  /// the server but keeps the badge correct locally.
+  void removeLocal(String id) {
+    final idx = _notifications.indexWhere((n) => n.id == id);
+    if (idx == -1) return;
+    final wasUnread = !_notifications[idx].read;
+    final newList = List<AppNotification>.from(_notifications)..removeAt(idx);
+    _notifications = newList;
+    if (wasUnread && _unreadCount > 0) {
+      _unreadCount -= 1;
+    }
+    notifyListeners();
+  }
+
+  void _setLoading(bool value) {
+    if (_loading == value) return;
+    _loading = value;
+    notifyListeners();
   }
 
   @override
@@ -78,12 +131,12 @@ class NotificationsAutoRefresh extends ChangeNotifier {
   }
 }
 
-/// Provider that auto-refreshes notification providers on a fixed interval.
-final notificationsAutoRefreshProvider =
-    ChangeNotifierProvider<NotificationsAutoRefresh>(
-  create: (_) {
-    final notifier = NotificationsAutoRefresh();
-    notifier.start();
-    return notifier;
-  },
-);
+/// Provider definition for the [NotificationsProvider] singleton.
+///
+/// Register it at the app root with `ChangeNotifierProvider`:
+/// ```dart
+/// ChangeNotifierProvider<NotificationsProvider>(
+///   create: (_) => NotificationsProvider(),
+/// );
+/// ```
+typedef NotificationsProviderFactory = ChangeNotifierProvider<NotificationsProvider>;

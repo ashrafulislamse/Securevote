@@ -14,8 +14,8 @@ part 'notification.g.dart';
 /// new notification kinds (e.g. `election_published`) can be added by the
 /// backend without breaking the client.
 @freezed
-abstract class Notification with _$Notification {
-  const factory Notification({
+abstract class AppNotification with _$AppNotification {
+  const factory AppNotification({
     required String id,
     @Default('') String userId,
     required String title,
@@ -24,8 +24,8 @@ abstract class Notification with _$Notification {
     @Default(false) bool read,
     @JsonKey(fromJson: epochMsToDateTime, toJson: dateTimeToEpochMs)
     required DateTime createdAt,
-  }) = _Notification;
+  }) = _AppNotification;
 
-  factory Notification.fromJson(Map<String, dynamic> json) =>
-      _$NotificationFromJson(json);
+  factory AppNotification.fromJson(Map<String, dynamic> json) =>
+      _$AppNotificationFromJson(json);
 }

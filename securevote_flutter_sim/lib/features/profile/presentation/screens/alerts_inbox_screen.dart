@@ -1,7 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/models/notification.dart';
+import '../../../../core/models/notification.dart' as notif;
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/notifications_provider.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
@@ -10,14 +12,14 @@ import '../../../../shared/widgets/premium_bottom_nav.dart';
 ///
 /// Backed by `GET /api/notifications`. Pulls to refresh, marks individual
 /// items as read on tap, and exposes a "Mark all read" affordance.
-class AlertsInboxScreen extends ConsumerStatefulWidget {
+class AlertsInboxScreen extends StatefulWidget {
   const AlertsInboxScreen({super.key});
 
   @override
-  ConsumerState<AlertsInboxScreen> createState() => _AlertsInboxScreenState();
+  State<AlertsInboxScreen> createState() => _AlertsInboxScreenState();
 }
 
-class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
+class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
   String _selectedFilter = 'All';
   final List<String> _filters = const <String>[
     'All',
@@ -28,7 +30,7 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
   ];
 
   /// Maps a notification `type` to a UI filter bucket.
-  String _categoryFor(Notification n) {
+  String _categoryFor(notif.AppNotification n) {
     switch (n.type) {
       case 'kyc_approved':
       case 'kyc_rejected':
@@ -44,7 +46,7 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
     }
   }
 
-  IconData _iconFor(Notification n) {
+  IconData _iconFor(notif.AppNotification n) {
     switch (n.type) {
       case 'kyc_approved':
       case 'kyc_rejected':
@@ -62,7 +64,7 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
     }
   }
 
-  Color _colorFor(Notification n) {
+  Color _colorFor(notif.AppNotification n) {
     switch (n.type) {
       case 'kyc_approved':
         return const Color(0xFF2ADEC0);
@@ -101,18 +103,14 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
   }
 
   Future<void> _handleRefresh() async {
-    await ref.read(notificationsProvider.future);
-    ref.invalidate(notificationsProvider);
-    ref.invalidate(unreadNotificationCountProvider);
+    await context.read<NotificationsProvider>().refresh();
   }
 
-  Future<void> _handleMarkAllRead(List<Notification> items) async {
-    final unread = items.where((n) => !n.read).toList();
-    if (unread.isEmpty) return;
+  Future<void> _handleMarkAllRead() async {
+    final provider = context.read<NotificationsProvider>();
+    if (provider.notifications.every((n) => n.read)) return;
     try {
-      await ProfileRepository().markAllRead();
-      ref.invalidate(notificationsProvider);
-      ref.invalidate(unreadNotificationCountProvider);
+      await provider.markAllRead();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -121,16 +119,11 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
     }
   }
 
-  Future<void> _handleOpen(Notification n) async {
+  Future<void> _handleOpen(notif.AppNotification n) async {
     if (!n.read) {
-      try {
-        await ProfileRepository().markRead(n.id);
-      } catch (_) {
-        // Best-effort: even if the server update fails we still let the
-        // user open the notification locally.
-      }
-      ref.invalidate(notificationsProvider);
-      ref.invalidate(unreadNotificationCountProvider);
+      // markRead does an optimistic local update; no need to await the
+      // server call before navigating.
+      unawaited(context.read<NotificationsProvider>().markRead(n.id));
     }
     if (!mounted) return;
     await Navigator.pushNamed(
@@ -142,7 +135,11 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final asyncNotifications = ref.watch(notificationsProvider);
+    final provider = context.watch<NotificationsProvider>();
+    final items = provider.notifications;
+    final isLoading = provider.loading && items.isEmpty;
+    final hasError = provider.error != null && items.isEmpty;
+    final unreadCount = provider.unreadCount;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0D12),
@@ -165,30 +162,26 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
                     ),
                   ),
                   const Spacer(),
-                  asyncNotifications.maybeWhen(
-                    data: (items) => items.any((n) => !n.read)
-                        ? TextButton(
-                            onPressed: () => _handleMarkAllRead(items),
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: const Text(
-                              'Mark all read',
-                              style: TextStyle(
-                                color: Color(0xFFB9C3FF),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                    orElse: () => const SizedBox.shrink(),
-                  ),
+                  if (items.any((n) => !n.read))
+                    TextButton(
+                      onPressed: _handleMarkAllRead,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Mark all read',
+                        style: TextStyle(
+                          color: Color(0xFFB9C3FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -196,8 +189,8 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
             Container(
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: asyncNotifications.maybeWhen(
-                data: (items) {
+              child: Builder(
+                builder: (context) {
                   final counts = <String, int>{};
                   for (final filter in _filters) {
                     counts[filter] = filter == 'All'
@@ -278,42 +271,45 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
                     },
                   );
                 },
-                orElse: () => const SizedBox.shrink(),
               ),
             ),
 
             // Notifications List
             Expanded(
-              child: asyncNotifications.when(
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
-                ),
-                error: (err, _) => Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Icon(
-                        Icons.cloud_off_outlined,
-                        size: 64,
-                        color: Colors.white.withValues(alpha: 0.2),
+              child: Builder(
+                builder: (context) {
+                  if (isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+                    );
+                  }
+                  if (hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            Icons.cloud_off_outlined,
+                            size: 64,
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Could not load notifications',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: _handleRefresh,
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Could not load notifications',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: _handleRefresh,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-                data: (items) {
+                    );
+                  }
                   final filtered = _selectedFilter == 'All'
                       ? items
                       : items
@@ -359,10 +355,13 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
                   }
 
                   // Group by section label.
-                  final groups = <String, List<Notification>>{};
+                  final groups = <String, List<notif.AppNotification>>{};
                   for (final n in filtered) {
                     final section = _sectionFor(n.createdAt);
-                    groups.putIfAbsent(section, () => <Notification>[]);
+                    groups.putIfAbsent(
+                      section,
+                      () => <notif.AppNotification>[],
+                    );
                     groups[section]!.add(n);
                   }
 
@@ -376,7 +375,7 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
                       itemBuilder: (context, sectionIndex) {
                         final String section =
                             groups.keys.elementAt(sectionIndex);
-                        final List<Notification> sectionItems =
+                        final List<notif.AppNotification> sectionItems =
                             groups[section]!;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,7 +398,8 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
                             ),
                             ...sectionItems.asMap().entries.map((entry) {
                               final int idx = entry.key;
-                              final Notification notification = entry.value;
+                              final notif.AppNotification notification =
+                                  entry.value;
                               return Padding(
                                 padding: EdgeInsets.only(
                                   bottom: idx < sectionItems.length - 1 ? 12 : 0,
@@ -420,20 +420,15 @@ class _AlertsInboxScreenState extends ConsumerState<AlertsInboxScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, _) {
-          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
-                data: (c) => c,
-                orElse: () => 0,
-              );
-          return PremiumBottomNav(currentIndex: 3, alertsUnreadCount: count);
-        },
+      bottomNavigationBar: PremiumBottomNav(
+        currentIndex: 3,
+        alertsUnreadCount: unreadCount,
       ),
     );
   }
 
   Widget _buildPremiumNotificationCard({
-    required Notification notification,
+    required notif.AppNotification notification,
   }) {
     final bool unread = !notification.read;
     final Color iconColor = _colorFor(notification);

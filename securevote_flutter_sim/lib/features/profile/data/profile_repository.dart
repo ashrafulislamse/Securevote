@@ -29,12 +29,12 @@ class ProfileRepository implements ProfileRepositoryInterface {
   // ---------------------------------------------------------------------------
 
   /// Fetches the latest notifications for the current user (newest first).
-  Future<List<Notification>> getNotifications() async {
+  Future<List<AppNotification>> getNotifications() async {
     final data =
         await _api.getApi('/api/notifications') as Map<String, dynamic>;
     final list = data['notifications'] as List<dynamic>? ?? const [];
     return list
-        .map((n) => Notification.fromJson(n as Map<String, dynamic>))
+        .map((n) => AppNotification.fromJson(n as Map<String, dynamic>))
         .toList();
   }
 

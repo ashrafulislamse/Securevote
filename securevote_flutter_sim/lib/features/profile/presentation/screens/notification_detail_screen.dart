@@ -1,29 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/models/notification.dart';
+import '../../../../core/models/notification.dart' as notif;
 import '../../../../core/providers/notifications_provider.dart';
 
 /// Detailed view of a single in-app notification.
 ///
-/// Receives the [Notification] via `ModalRoute.settings.arguments`. If no
-/// argument is provided (e.g. a deep link), a friendly placeholder is shown.
-class NotificationDetailScreen extends ConsumerStatefulWidget {
+/// Receives the [notif.AppNotification] via `ModalRoute.settings.arguments`.
+/// If no argument is provided (e.g. a deep link), a friendly placeholder is
+/// shown.
+class NotificationDetailScreen extends StatefulWidget {
   const NotificationDetailScreen({super.key, this.notification});
 
   /// Convenience constructor for pre-loaded data.
-  const NotificationDetailScreen.withNotification(Notification notification)
-      : notification = notification;
+  // ignore: prefer_initializing_formals
+  const NotificationDetailScreen.withNotification(
+    notif.AppNotification this.notification, {
+    super.key,
+  });
 
-  final Notification? notification;
+  final notif.AppNotification? notification;
 
   @override
-  ConsumerState<NotificationDetailScreen> createState() =>
+  State<NotificationDetailScreen> createState() =>
       _NotificationDetailScreenState();
 }
 
-class _NotificationDetailScreenState
-    extends ConsumerState<NotificationDetailScreen> {
+class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
   bool _marked = false;
 
   @override
@@ -33,15 +36,9 @@ class _NotificationDetailScreenState
     final n = widget.notification;
     if (n != null && !n.read) {
       _marked = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        try {
-          await ProfileRepository().markRead(n.id);
-        } catch (_) {
-          // Best-effort.
-        }
-        if (!mounted) return;
-        ref.invalidate(notificationsProvider);
-        ref.invalidate(unreadNotificationCountProvider);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // markRead is optimistic; no need to block on the server.
+        context.read<NotificationsProvider>().markRead(n.id);
       });
     }
   }
@@ -103,15 +100,11 @@ class _NotificationDetailScreenState
               tooltip: 'Mark as read',
               icon: const Icon(Icons.mark_email_read_outlined),
               onPressed: () async {
-                try {
-                  await ProfileRepository().markRead(notification.id);
-                } catch (_) {
-                  // Best-effort.
-                }
+                final notifProvider = context.read<NotificationsProvider>();
+                final navigator = Navigator.of(context);
+                await notifProvider.markRead(notification.id);
                 if (!mounted) return;
-                ref.invalidate(notificationsProvider);
-                ref.invalidate(unreadNotificationCountProvider);
-                Navigator.pop(context);
+                navigator.pop();
               },
             ),
         ],
@@ -224,7 +217,10 @@ class _NotificationDetailScreenState
                         const SizedBox(height: 12),
                         _buildInfoItem('Type', _badgeFor(notification.type)),
                         const SizedBox(height: 8),
-                        _buildInfoItem('Received', _relative(notification.createdAt)),
+                        _buildInfoItem(
+                          'Received',
+                          _relative(notification.createdAt),
+                        ),
                         const SizedBox(height: 8),
                         _buildInfoItem(
                           'Status',

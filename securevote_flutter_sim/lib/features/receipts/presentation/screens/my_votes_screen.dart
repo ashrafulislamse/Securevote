@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/models/vote.dart';
 import '../../../../core/navigation/app_router.dart';
@@ -91,12 +92,9 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, _) {
-          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
-                data: (c) => c,
-                orElse: () => 0,
-              );
+      bottomNavigationBar: Builder(
+        builder: (context) {
+          final count = context.watch<NotificationsProvider>().unreadCount;
           return PremiumBottomNav(currentIndex: 2, alertsUnreadCount: count);
         },
       ),

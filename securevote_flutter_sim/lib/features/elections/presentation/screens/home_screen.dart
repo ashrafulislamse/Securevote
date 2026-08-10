@@ -138,12 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final Election? activeElection = _firstActive(allElections);
 
     return ObsidianScaffold(
-      bottomNavigationBar: Consumer(
-        builder: (context, ref, _) {
-          final count = ref.watch(unreadNotificationCountProvider).maybeWhen(
-                data: (c) => c,
-                orElse: () => 0,
-              );
+      bottomNavigationBar: Builder(
+        builder: (context) {
+          final count = context.watch<NotificationsProvider>().unreadCount;
           return PremiumBottomNav(currentIndex: 0, alertsUnreadCount: count);
         },
       ),
