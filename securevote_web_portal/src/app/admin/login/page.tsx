@@ -17,7 +17,6 @@ export default function AdminLoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
   const [password, setPassword] = useState(DEFAULT_ADMIN_PASSWORD);
-  const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -115,38 +114,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            <div className="ghost-border rounded-2xl bg-[var(--surface-container)] p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-container-high)] text-[var(--primary)]">
-                    <span className="material-symbols-outlined text-xl">phonelink_lock</span>
-                  </div>
-                  <span className="text-sm font-semibold">Two-Factor Auth</span>
-                </div>
-<span className="rounded bg-[var(--primary)]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">Optional</span>
-              </div>
-              <div className="mb-3 grid grid-cols-6 gap-2">
-                {otp.padEnd(6, " ").slice(0, 6).split("").map((value, index) => (
-                  <input
-                    key={index}
-                    value={value.trim()}
-                    disabled
-                    onChange={(event) => {
-                      const char = event.target.value.replace(/[^0-9]/g, "").slice(0, 1);
-                      const next = otp.padEnd(6, " ").slice(0, 6).split("");
-                      next[index] = char;
-                      setOtp(next.join("").replace(/\s+/g, ""));
-                    }}
-                    maxLength={1}
-                    className="h-11 rounded-lg bg-[var(--surface-container-low)] text-center font-mono text-xl font-bold text-[var(--primary)] outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                ))}
-              </div>
-              <button type="button" disabled className="mx-auto block text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)] hover:text-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60">
-                Resend code (dev)
-              </button>
-            </div>
-
             {error ? <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p> : null}
 
             <div className="space-y-4">
@@ -166,7 +133,7 @@ export default function AdminLoginPage() {
             Protected by enterprise-grade security. By continuing, you agree to SecureVote system terms and data integrity protocols.
           </p>
           <p className="mt-3 text-center text-[11px] text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-3">
-            Demo: <span className="font-mono">admin@securevote.io</span> / <span className="font-mono">SecureVote@2026</span> (2FA OTP is not used for sign in)
+            Demo: <span className="font-mono">admin@securevote.io</span> / <span className="font-mono">SecureVote@2026</span>
           </p>
         </div>
       </section>
