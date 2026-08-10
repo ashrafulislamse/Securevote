@@ -7,6 +7,8 @@ const ALLOWED_ORIGINS = [
   "http://localhost:8080",
   "https://securevote.pages.dev",
   "https://securevote-web.vercel.app",
+  "https://securevote-web.founder-fb4.workers.dev",
+  "https://securevote-api.founder-fb4.workers.dev",
 ];
 
 export function corsHeaders(origin: string | null): Record<string, string> {
