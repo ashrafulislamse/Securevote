@@ -5,7 +5,6 @@ import { FormEvent, useState } from "react";
 
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { requestReset } from "@/lib/demo-auth";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("admin@securevote.io");
@@ -14,15 +13,15 @@ export default function ForgotPasswordPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = requestReset(email);
-    if (!result.ok) {
-      setError(result.message);
+    if (!email.includes("@")) {
+      setError("Enter a valid admin email.");
       setStatus(null);
       return;
     }
-
+    // TODO: forgot-password endpoint — password reset is not yet implemented
+    // on the backend. Show a clear notice instead of faking a reset.
     setError(null);
-    setStatus(`Reset link sent to ${email}.`);
+    setStatus("Password reset is not yet available. Contact your administrator to reset your account.");
   }
 
   return (
@@ -103,12 +102,9 @@ export default function ForgotPasswordPage() {
                 </span>
               </div>
               <div>
-                <p className="font-semibold">{status ? "Reset link sent!" : "Ready to send"}</p>
+                <p className="font-semibold">{status ? "Notice" : "Ready to send"}</p>
                 <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {status ?? "Submit an admin email to generate a secure reset request in demo mode."}{" "}
-                  <button type="button" onClick={() => setStatus(`Reset link resent to ${email}.`)} className="font-semibold text-[var(--primary)] hover:underline">
-                    Resend
-                  </button>
+                  {status ?? "Submit an admin email to request a password reset."}
                 </p>
               </div>
             </div>

@@ -21,12 +21,16 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
 
   List<Map<String, dynamic>> _selectedCandidates = [];
 
+  List<Candidate>? get _passedCandidates {
+    final Object? args = ModalRoute.of(context)?.settings.arguments;
+    return _extractCandidates(args);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_selectedCandidates.isEmpty) {
-      final Object? args = ModalRoute.of(context)?.settings.arguments;
-      final List<Candidate>? candidates = _extractCandidates(args);
+      final List<Candidate>? candidates = _passedCandidates;
       if (candidates != null && candidates.isNotEmpty) {
         _selectedCandidates = candidates
             .take(2)
@@ -58,22 +62,31 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
         'position': 'Candidate',
       };
 
-  List<Map<String, dynamic>> _defaultCandidates() => <Map<String, dynamic>>[
-        <String, dynamic>{
-          'name': 'Alice Johnson',
-          'party': 'Democrat',
-          'color': const Color(0xFFB9C3FF),
-          'position': 'Candidate',
-        },
-        <String, dynamic>{
-          'name': 'Bob Smith',
-          'party': 'Republican',
-          'color': const Color(0xFFD2BBFF),
-          'position': 'Candidate',
-        },
-      ];
+  List<Map<String, dynamic>> _defaultCandidates() {
+    final List<Candidate>? candidates = _passedCandidates;
+    if (candidates != null && candidates.isNotEmpty) {
+      return candidates.map((Candidate c) => _toMap(c)).toList();
+    }
+    return <Map<String, dynamic>>[
+      <String, dynamic>{
+        'name': 'No candidates available',
+        'party': '—',
+        'color': const Color(0xFFB9C3FF),
+        'position': 'Candidate',
+      },
+    ];
+  }
 
   void _showCandidatePicker() {
+    final List<Candidate>? candidates = _passedCandidates;
+    if (candidates == null || candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No candidates to pick from. Open an election first.'),
+        ),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -87,6 +100,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
             }
           });
         },
+        candidates: candidates,
       ),
     );
   }

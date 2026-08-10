@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/models/candidate.dart';
+
 class CandidatePicker extends StatefulWidget {
   final List<Map<String, dynamic>> selectedCandidates;
   final Function(Map<String, dynamic>) onCandidateSelected;
+  final List<Candidate> candidates;
 
   const CandidatePicker({
     super.key,
     required this.selectedCandidates,
     required this.onCandidateSelected,
+    required this.candidates,
   });
 
   @override
@@ -17,32 +21,22 @@ class CandidatePicker extends StatefulWidget {
 class _CandidatePickerState extends State<CandidatePicker> {
   String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _allCandidates = [
-    {
-      'name': 'Alice Johnson',
-      'party': 'Democrat',
-      'color': const Color(0xFFB9C3FF),
-      'position': 'Mayor District 4',
-    },
-    {
-      'name': 'Bob Smith',
-      'party': 'Republican',
-      'color': const Color(0xFFD2BBFF),
-      'position': 'Mayor District 4',
-    },
-    {
-      'name': 'Carol Williams',
-      'party': 'Independent',
-      'color': const Color(0xFF2ADEC0),
-      'position': 'Mayor District 4',
-    },
-    {
-      'name': 'David Brown',
-      'party': 'Green Party',
-      'color': const Color(0xFF7FD8BE),
-      'position': 'Mayor District 4',
-    },
+  static const List<Color> _candidateColors = <Color>[
+    Color(0xFFB9C3FF),
+    Color(0xFFD2BBFF),
+    Color(0xFF2ADEC0),
+    Color(0xFFFF7B5A),
   ];
+
+  List<Map<String, dynamic>> get _allCandidates => widget.candidates
+      .map((Candidate c) => <String, dynamic>{
+            'name': c.name,
+            'party': c.party ?? 'Independent',
+            'color':
+                _candidateColors[(c.ballotOrder) % _candidateColors.length],
+            'position': 'Candidate',
+          })
+      .toList();
 
   List<Map<String, dynamic>> get _filteredCandidates {
     if (_searchQuery.isEmpty) return _allCandidates;

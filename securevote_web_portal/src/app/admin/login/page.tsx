@@ -7,15 +7,17 @@ import { FormEvent, useState } from "react";
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
-import { demoCredentials } from "@/lib/demo-auth";
+
+// Pre-filled with the real seeded admin account for convenience.
+const DEFAULT_ADMIN_EMAIL = "admin@securevote.io";
+const DEFAULT_ADMIN_PASSWORD = "SecureVote@2026";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const defaults = demoCredentials();
-  const [email, setEmail] = useState(defaults.email);
-  const [password, setPassword] = useState(defaults.password);
-  const [otp, setOtp] = useState(defaults.otp);
+  const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
+  const [password, setPassword] = useState(DEFAULT_ADMIN_PASSWORD);
+  const [otp, setOtp] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

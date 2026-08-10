@@ -6,7 +6,6 @@ import { FormEvent, useMemo, useState } from "react";
 
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { completeReset } from "@/lib/demo-auth";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -27,19 +26,20 @@ export default function ResetPasswordPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = completeReset(password, confirmPassword);
-
-    if (!result.ok) {
-      setError(result.message);
+    if (password.length < 10) {
+      setError("Password must be at least 10 characters.");
       setStatus(null);
       return;
     }
-
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setStatus(null);
+      return;
+    }
+    // TODO: forgot-password endpoint — password reset is not yet implemented
+    // on the backend. Show a clear notice instead of faking a reset.
     setError(null);
-    setStatus("Password updated. Redirecting to login...");
-    window.setTimeout(() => {
-      router.push("/admin/login");
-    }, 900);
+    setStatus("Password reset is not yet available. Contact your administrator to reset your account.");
   }
 
   return (
