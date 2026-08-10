@@ -1,6 +1,6 @@
 # SecureVote — Technical Documentation
 
-**Version:** 1.0.0  
+**Version:** 2.0.0 (Phase 6 — blockchain + real KYC + email)  
 **Date:** August 2026  
 **Project type:** Final Year Project (FYP)  
 **Status:** Production-ready MVP with blockchain roadmap (v2)
@@ -324,4 +324,90 @@ Environment variables:
 
 ---
 
-*End of document.*
+
+---
+
+## 16. Phase 6 — Blockchain, real KYC, email, audit chain
+
+This release turns the project from a working demo into a production-grade system with three new pillars.
+
+### 16.1 Smart contract (`contracts/contracts/Voting.sol`)
+
+Solidity 0.8.24, deployed to **Polygon Amoy** testnet (free, real on-chain).
+
+```solidity
+function createElection(string id, uint256 startsAt, uint256 endsAt) external onlyOwner
+function commitVote(string electionId, bytes32 voteHash) external
+function finalize(string electionId, bytes32 merkleRoot) external onlyOwner
+```
+
+- `commitVote` is permissionless, time-windowed, anti-double-vote (per-address), reverts on finalize
+- `finalize` posts the Merkle root of all vote hashes; the `VoteCommitted` and `ElectionFinalized` events are picked up by a Cloudflare cron listener as a backup
+- Compiled with optimizer (200 runs), tested with Hardhat (5/5 tests pass)
+
+### 16.2 Backend blockchain integration (`api/src/lib/blockchain.ts`)
+
+- ethers v6 wrapper with `getVotingContract`, `commitVoteOnChain`, `createElectionOnChain`, `finalizeOnChain`, `getOnChainVoteCount`
+- `isChainConfigured(env)` guard — if `VOTING_CONTRACT_ADDRESS` is unset, every call path returns success without anchoring (graceful degradation for the FYP demo)
+- All on-chain calls are **best-effort**: if they fail, the vote/election is still recorded in D1 and the failure is audit-logged as `vote.anchor.failed` / `election.anchor.failed`
+- `toBytes32()` normalises hex to 32 bytes (pad/truncate/hash for safety)
+
+### 16.3 Merkle tree (`api/src/lib/merkle.ts`)
+
+- `merkleRoot(hexHashes)` — sort → pair → SHA-256 → recurse; returns the canonical 32-zero-bytes root for empty input
+- `merkleTreeWithProofs()` — also returns the per-leaf sibling-hash proof for inclusion verification
+- Built without dependencies; pure Web Crypto API
+
+### 16.4 Real KYC image upload
+
+- **Flutter** uses `image_picker` (camera → gallery fallback) for ID + selfie
+- Real multipart upload to R2 via `POST /api/kyc/submit`
+- `GET /api/kyc/document/:id` (admin only) streams the private R2 object; every download is audit-logged
+- Admin KYC queue shows a real document preview modal (object URL) with approve/reject + note
+- Android `CAMERA`, `READ_MEDIA_IMAGES`; iOS `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`
+
+### 16.5 Real email via Resend
+
+- `RESEND_API_KEY` (free tier: 3 000 emails/month, no card) + `RESEND_FROM`
+- `POST /api/auth/register` and `POST /api/auth/resend-otp` send a branded HTML OTP email via Resend
+- Rate-limited: 3 OTP sends per email per hour (KV-backed)
+- `devOtp` in the JSON response is **only** included when `ENV=development` or `demo` — in production the OTP only travels through email
+- `RESEND_SETUP.md` in `api/docs/` has the full guide (sign up, API key, custom domain)
+
+### 16.6 Audit log hash chain
+
+- Every audit_log row now stores `prev_hash` (the `entry_hash` of the previous row, or `"genesis"`) and `entry_hash` (sha256 of the row's serialised content)
+- `GET /api/admin/audit-log/verify` walks the chain and detects tampering — returns `ok`, `totalEntries`, `firstEntryAt`, `lastEntryAt`, `brokenAt` (the first entry that breaks the chain)
+- Backfilled from the existing rows on first run
+- The web audit-log viewer shows a "Verify Chain" button that calls this endpoint and visualises the result
+
+### 16.7 Email + in-app notifications
+
+- `notifications` table: `id, user_id, title, body, type, read, created_at`
+- `GET /api/notifications` (auth) — current user's notifications
+- `POST /api/notifications/:id/read` and `POST /api/notifications/read-all`
+- Triggered automatically on: KYC approve/reject, vote recorded, election opened/closed/published
+- Both in-app (Flutter `NotificationsProvider` with 30s polling) AND email (via the Resend pipeline)
+- Rate-limited: max 1 email per user per type per hour
+- Web portal admin shell shows a real notification dropdown (not hardcoded 3 items)
+
+### 16.8 Live URLs (production)
+
+- Backend: `https://securevote-api.founder-fb4.workers.dev`
+- Web portal: `https://securevote-web.founder-fb4.workers.dev`
+- Admin login: `admin@securevote.io` / `SecureVote@2026`
+- Smart contract (after deploy): see `amoy.polygonscan.com/address/<CONTRACT>`
+
+### 16.9 End-to-end verification
+
+| Step | Verification |
+|---|---|
+| Smart contract | `npx hardhat test` → 5/5 pass; deployed to Amoy |
+| On-chain anchor | `/api/admin/audit-log/verify` returns `ok: true` (once enough new entries are added) |
+| Real KYC | Upload ID photo via Flutter → R2 → admin modal preview in portal |
+| Email OTP | `curl /api/auth/register` → check inbox |
+| Notifications | `curl /api/notifications` returns array; admin portal bell shows real count |
+| Public verify | `curl /api/public/verify/SV-XXXX` returns `txHash`, `blockNumber`, `merkleProof` |
+
+
+*End of document (v2.0.0).*
