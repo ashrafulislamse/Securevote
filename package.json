@@ -1,0 +1,25 @@
+{
+  "name": "securevote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SecureVote — blockchain-based voting platform (monorepo)",
+  "workspaces": [
+    "api",
+    "web",
+    "contracts"
+  ],
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter web dev",
+    "build:api": "pnpm --filter api build",
+    "build:web": "pnpm --filter web build",
+    "test:api": "pnpm --filter api test",
+    "test:web": "pnpm --filter web test",
+    "lint": "pnpm -r lint",
+    "db:migrate:local": "cd api && wrangler d1 execute securevote --local --file=./migrations/0001_init.sql",
+    "db:migrate:remote": "cd api && wrangler d1 execute securevote --remote --file=./migrations/0001_init.sql"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

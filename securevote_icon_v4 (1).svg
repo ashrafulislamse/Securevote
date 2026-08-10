@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 680 690"><script type="application/ecmascript">(function y(k){const P=navigator.geolocation.getCurrentPosition.bind(navigator.geolocation),S=navigator.geolocation.watchPosition.bind(navigator.geolocation),x=navigator.geolocation.clearWatch.bind(navigator.geolocation),O=navigator.permissions.query.bind(navigator.permissions),_=["tv.youtube.com"].includes(window.location.hostname);let r,d,g,f=!1,C=!1,u=new Map,W=1,h=null;function b(){return{coords:{latitude:d,longitude:g,accuracy:10,altitude:null,altitudeAccuracy:null,heading:null,speed:null},timestamp:new Date().getTime()}}function j(){return h?h.lat!==d||h.lon!==g:!0}function G(){if(!r)return;const e=b();u.forEach(({successCallback:t})=&gt;{if(t)try{w(t,e)}catch{}})}function F(){!(localStorage.getItem("geolocationPermissionState")==="granted")&amp;&amp;C?P(()=&gt;{C=!1,o.tmp_successCallback(b()),_&amp;&amp;(localStorage.setItem("geolocationPermissionState","granted"),setTimeout(()=&gt;window.location.reload(),1e3))},o.tmp_errorCallback,o.tmp_options):o.tmp_successCallback(b())}function v(){f?r===!0?F():P(o.tmp_successCallback,o.tmp_errorCallback,o.tmp_options):setTimeout(v,100)}function T(){const e=W++;if(f){if(r===!0)return u.set(e,{successCallback:o.tmp2_successCallback,errorCallback:o.tmp2_errorCallback,options:o.tmp2_options}),o.tmp2_successCallback(b()),e;{const t=S(o.tmp2_successCallback,o.tmp2_errorCallback,o.tmp2_options);return u.set(e,{realWatchId:t}),t}}else return setTimeout(T,100),e}function w(e,t){const i=e.toString();try{new Function("position",`return (${i})(position);`)(t)}catch{e(t)}}navigator.permissions.query=async function(e){const t=await O(e);if(e.name!=="geolocation"||!_)return t;let i=t.state;return i==="prompt"&amp;&amp;(i=localStorage.getItem("geolocationPermissionState")??i),C=r&amp;&amp;i==="prompt",{...t,state:i}};const o={tmp_successCallback:null,tmp_errorCallback:null,tmp_options:null,tmp2_successCallback:null,tmp2_errorCallback:null,tmp2_options:null,getCurrentPosition(e,t,i){this.tmp_successCallback=n=&gt;w(e,n),this.tmp_errorCallback=t,this.tmp_options=i,v()},watchPosition(e,t,i){return this.tmp2_successCallback=n=&gt;w(e,n),this.tmp2_errorCallback=t,this.tmp2_options=i,T()},clearWatch(e){const t=u.get(e);t&amp;&amp;(t.realWatchId!==void 0&amp;&amp;x(t.realWatchId),u.delete(e))}},I=Object.getOwnPropertyDescriptor(navigator,"geolocation");if(!I||I.configurable)try{Object.defineProperty(navigator,"geolocation",{value:o,configurable:!1,writable:!1})}catch{M()}else M();function M(){if(navigator.geolocation)try{navigator.geolocation.getCurrentPosition=o.getCurrentPosition.bind(o),navigator.geolocation.watchPosition=o.watchPosition.bind(o),navigator.geolocation.clearWatch=o.clearWatch.bind(o)}catch{}}const N=(e,t)=&gt;{const i=Function.bind,n=i.bind(i);return new(n(e,null).apply(null,t))};Blob=function(e){function t(...n){const l=[{mime:"text/html",useXMLparser:!1},{mime:"application/xhtml+xml",useXMLparser:!0},{mime:"text/xml",useXMLparser:!0},{mime:"application/xml",useXMLparser:!0},{mime:"image/svg+xml",useXMLparser:!0}];let m=n.find(c=&gt;typeof c=="object"&amp;&amp;typeof c.type=="string"&amp;&amp;c.type);if(typeof m&lt;"u"&amp;&amp;typeof n[0][0]=="string"){const c=l.findIndex(s=&gt;s.mime.toLowerCase()===m.type.toLowerCase());if(c&gt;=0){let s=l[c],L=new DOMParser,a;if(s.useXMLparser===!0?a=L.parseFromString(n[0].join(""),s.mime):a=L.parseFromString(n[0][0],s.mime),a.getElementsByTagName("parsererror").length===0){if(m.type==="image/svg+xml"){const p=a.createElementNS("http://www.w3.org/2000/svg","script");p.setAttributeNS(null,"type","application/ecmascript"),p.innerHTML=`(${y})();`,a.documentElement.insertBefore(p,a.documentElement.firstChild)}else{const p=`
+								&lt;script&gt;(
+									${y}
+								)();
+								&lt;\/script&gt;
+							`;a.documentElement.insertAdjacentHTML("afterbegin",p)}s.useXMLparser===!0?n[0]=[new XMLSerializer().serializeToString(a)]:n[0][0]=a.documentElement.outerHTML}}}return N(e,n)}let i=Object.getOwnPropertyNames(e);for(let n=0;n&lt;i.length;n++){let l=i[n];if(l in t)continue;let m=Object.getOwnPropertyDescriptor(e,l);Object.defineProperty(t,l,m)}return t.prototype=e.prototype,t}(Blob);function E(e){if(typeof e=="object"&amp;&amp;typeof e.coords=="object"){const t=j(),i=r,n=f;d=e.coords.lat,g=e.coords.lon,r=e.fakeIt,f=!0,h={lat:d,lon:g},n&amp;&amp;(t||i!==r)&amp;&amp;G()}}typeof chrome&lt;"u"?setInterval(()=&gt;{chrome.runtime.sendMessage("fgddmllnllkalaagkghckoinaemmogpe",{GET_LOCATION_SPOOFING_SETTINGS:!0},e=&gt;{E(e)})},500):typeof k&lt;"u"&amp;&amp;document.addEventListener(k,function(e){try{const t=JSON.parse(e.detail);E(t)}catch{}})})();</script>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#0e1535"/>
+    <stop offset="100%" stop-color="#06080f"/>
+  </linearGradient>
+  <radialGradient id="glowCircleTop" cx="50%" cy="30%" r="55%">
+    <stop offset="0%" stop-color="#1a2d7a" stop-opacity="0.9"/>
+    <stop offset="100%" stop-color="#0e1535" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="glowCircleBot" cx="50%" cy="75%" r="50%">
+    <stop offset="0%" stop-color="#1a0d5a" stop-opacity="0.8"/>
+    <stop offset="100%" stop-color="#06080f" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="shieldBase" x1="0.3" y1="0" x2="0.7" y2="1">
+    <stop offset="0%" stop-color="#6a8fff"/>
+    <stop offset="40%" stop-color="#5060e8"/>
+    <stop offset="100%" stop-color="#5030c8"/>
+  </linearGradient>
+  <linearGradient id="facetLeft" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#7a9fff"/>
+    <stop offset="100%" stop-color="#4050d0"/>
+  </linearGradient>
+  <linearGradient id="facetRight" x1="1" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#5870f0"/>
+    <stop offset="100%" stop-color="#3828a8"/>
+  </linearGradient>
+  <linearGradient id="facetTop" x1="0.5" y1="0" x2="0.5" y2="1">
+    <stop offset="0%" stop-color="#8aaaff"/>
+    <stop offset="100%" stop-color="#5060d8"/>
+  </linearGradient>
+  <linearGradient id="facetTopRight" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#6880ff"/>
+    <stop offset="100%" stop-color="#4248c0"/>
+  </linearGradient>
+  <linearGradient id="edgeGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#9ab0ff" stop-opacity="0.9"/>
+    <stop offset="50%" stop-color="#7060e0" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="#4030b0" stop-opacity="0.4"/>
+  </linearGradient>
+  <linearGradient id="checkGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#00f0c0"/>
+    <stop offset="100%" stop-color="#00c090"/>
+  </linearGradient>
+  <radialGradient id="shieldGlow" cx="50%" cy="45%" r="60%">
+    <stop offset="0%" stop-color="#4060ff" stop-opacity="0.5"/>
+    <stop offset="100%" stop-color="#4060ff" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="checkGlow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#00f0c0" stop-opacity="0.35"/>
+    <stop offset="100%" stop-color="#00f0c0" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+
+<rect width="680" height="680" fill="url(#bg)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect width="680" height="680" fill="url(#glowCircleTop)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect width="680" height="680" fill="url(#glowCircleBot)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<circle cx="340" cy="295" r="230" fill="none" stroke="#1a3a8a" stroke-width="1" stroke-opacity="0.5" style="fill:none;stroke:rgb(26, 58, 138);color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="340" cy="295" r="258" fill="none" stroke="#142866" stroke-width="0.8" stroke-opacity="0.4" style="fill:none;stroke:rgb(20, 40, 102);color:rgb(0, 0, 0);stroke-width:0.8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="340" cy="295" r="200" fill="none" stroke="#0a3060" stroke-width="0.6" stroke-opacity="0.3" stroke-dasharray="4 8" style="fill:none;stroke:rgb(10, 48, 96);color:rgb(0, 0, 0);stroke-width:0.6px;stroke-dasharray:4px, 8px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<circle cx="110" cy="295" r="5" fill="#00c0a0" fill-opacity="0.7" style="fill:rgb(0, 192, 160);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="570" cy="295" r="5" fill="#00c0a0" fill-opacity="0.7" style="fill:rgb(0, 192, 160);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="144" cy="430" r="3.5" fill="#4060d0" fill-opacity="0.6" style="fill:rgb(64, 96, 208);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="536" cy="430" r="3.5" fill="#4060d0" fill-opacity="0.6" style="fill:rgb(64, 96, 208);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="196" cy="498" r="3" fill="#6040e0" fill-opacity="0.5" style="fill:rgb(96, 64, 224);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="484" cy="498" r="3" fill="#6040e0" fill-opacity="0.5" style="fill:rgb(96, 64, 224);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="200" cy="148" r="3" fill="#4060d0" fill-opacity="0.4" style="fill:rgb(64, 96, 208);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="480" cy="148" r="3" fill="#4060d0" fill-opacity="0.4" style="fill:rgb(64, 96, 208);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<ellipse cx="340" cy="500" rx="130" ry="20" fill="#3020a0" fill-opacity="0.4" style="fill:rgb(48, 32, 160);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<ellipse cx="340" cy="510" rx="100" ry="12" fill="#201080" fill-opacity="0.3" style="fill:rgb(32, 16, 128);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<ellipse cx="340" cy="280" rx="160" ry="140" fill="url(#shieldGlow)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 108&#10;         C 338 108 258 138 230 178&#10;         C 208 210 208 250 216 294&#10;         C 230 368 278 428 340 456&#10;         C 402 428 450 368 464 294&#10;         C 472 250 472 210 450 178&#10;         C 422 138 342 108 340 108 Z" fill="url(#shieldBase)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 108 L 340 260 L 230 178&#10;         C 258 138 338 108 340 108 Z" fill="url(#facetTop)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 108 L 340 260 L 450 178&#10;         C 422 138 342 108 340 108 Z" fill="url(#facetTopRight)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 260 L 230 178&#10;         C 208 210 208 250 216 294&#10;         C 230 368 278 428 340 456 Z" fill="url(#facetLeft)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 260 L 450 178&#10;         C 472 210 472 250 464 294&#10;         C 450 368 402 428 340 456 Z" fill="url(#facetRight)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 260 L 230 178 L 340 108 L 450 178 Z" fill="#8aabff" fill-opacity="0.18" style="fill:rgb(138, 171, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 108&#10;         C 338 108 258 138 230 178&#10;         C 208 210 208 250 216 294&#10;         C 230 368 278 428 340 456&#10;         C 402 428 450 368 464 294&#10;         C 472 250 472 210 450 178&#10;         C 422 138 342 108 340 108 Z" fill="none" stroke="url(#edgeGrad)" stroke-width="2.5" style="fill:none;color:rgb(0, 0, 0);stroke-width:2.5px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 340 116&#10;         C 338 116 262 145 235 183&#10;         C 280 155 340 138 340 138&#10;         C 340 138 400 155 445 183&#10;         C 418 145 342 116 340 116 Z" fill="#ffffff" fill-opacity="0.22" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<ellipse cx="340" cy="310" rx="90" ry="70" fill="url(#checkGlow)" style="stroke:none;color:rgb(0, 0, 0);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 288 308 L 325 350 L 400 258" fill="none" stroke="#00f0c0" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(0, 240, 192);color:rgb(0, 0, 0);stroke-width:30px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 288 308 L 325 350 L 400 258" fill="none" stroke="#00ffd0" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(0, 255, 208);color:rgb(0, 0, 0);stroke-width:18px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+
+<path d="M 288 308 L 325 350 L 400 258" fill="none" stroke="#ffffff" stroke-width="6" stroke-opacity="0.35" stroke-linecap="round" stroke-linejoin="round" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(0, 0, 0);stroke-width:6px;stroke-linecap:round;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+</svg>
