@@ -7,6 +7,11 @@ import { castVoteSchema } from "../schemas";
 import { uuid, now, sha256hex, randomHex } from "../lib/utils";
 import { auth, requireRole, loadUser, type AuthUser, type AppContext } from "../middleware/auth";
 import { audit } from "../middleware/audit";
+import {
+  isChainConfigured,
+  commitVoteOnChain,
+  ChainNotConfiguredError,
+} from "../lib/blockchain";
 
 export const votingRoutes = new Hono<AppContext>();
 
@@ -104,6 +109,63 @@ votingRoutes.post(
       ip: c.req.header("cf-connecting-ip"),
     });
 
+    // -----------------------------------------------------------------------
+    // Phase 6: on-chain anchoring (best-effort).
+    // If the contract address + key are set, call `commitVote(electionId,
+    // bytes32(voteHash))` and store the receipt on the votes row. If the
+    // call fails, the vote is still recorded in D1 and the failure is
+    // logged to audit_log so the cron listener can retry later.
+    // -----------------------------------------------------------------------
+    let txHash: string | null = null;
+    let blockNumber: number | null = null;
+    if (isChainConfigured(c.env)) {
+      try {
+        const receipt = await commitVoteOnChain(c.env, electionId, voteHash);
+        txHash = receipt.txHash;
+        blockNumber = receipt.blockNumber;
+        await c.env.DB.prepare(
+          "UPDATE votes SET tx_hash = ?, block_number = ? WHERE id = ?",
+        )
+          .bind(txHash, blockNumber, voteId)
+          .run();
+        await audit(c.env, {
+          actorId: user.id,
+          action: "vote.anchor",
+          targetType: "vote",
+          targetId: voteId,
+          metadata: { txHash, blockNumber, electionId },
+          ip: c.req.header("cf-connecting-ip"),
+        });
+      } catch (e) {
+        const msg =
+          e instanceof ChainNotConfiguredError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        // Best-effort: the vote is recorded in D1, anchoring will be
+        // retried by the cron listener / next interaction.
+        await audit(c.env, {
+          actorId: user.id,
+          action: "vote.anchor.failed",
+          targetType: "vote",
+          targetId: voteId,
+          metadata: { electionId, error: msg },
+          ip: c.req.header("cf-connecting-ip"),
+        });
+        console.error("commitVote on-chain failed", msg);
+      }
+    } else {
+      await audit(c.env, {
+        actorId: user.id,
+        action: "vote.anchor.skipped",
+        targetType: "vote",
+        targetId: voteId,
+        metadata: { electionId, reason: "chain not configured" },
+        ip: c.req.header("cf-connecting-ip"),
+      });
+    }
+
     return c.json(
       {
         ok: true,
@@ -114,6 +176,8 @@ votingRoutes.post(
           voteHash,
           selections,
           createdAt: ts,
+          txHash,
+          blockNumber,
         },
       },
       201,

@@ -13,6 +13,14 @@ import {
 import { uuid, now } from "../lib/utils";
 import { auth, requireRole, type AuthUser, type AppContext } from "../middleware/auth";
 import { audit } from "../middleware/audit";
+import {
+  isChainConfigured,
+  createElectionOnChain,
+  finalizeOnChain,
+  getOnChainVoteCount,
+  ChainNotConfiguredError,
+} from "../lib/blockchain";
+import { merkleTreeWithProofs } from "../lib/merkle";
 
 export const electionsRoutes = new Hono<AppContext>();
 
@@ -38,6 +46,9 @@ function electionFromRow(row: Record<string, unknown>) {
     endsAt: row.ends_at,
     canVote: (row.status as string) === "active",
     candidateCount: row.candidate_count ?? 0,
+    merkleRoot: row.merkle_root ?? null,
+    onchainTxHash: row.onchain_tx_hash ?? null,
+    finalizedAt: row.finalized_at ?? null,
   };
 }
 
@@ -110,8 +121,73 @@ electionsRoutes.post(
       ip: c.req.header("cf-connecting-ip"),
     });
 
+    // -----------------------------------------------------------------------
+    // Phase 6: anchor the new election on Polygon Amoy (best-effort).
+    // If the contract is configured, call `createElection(id, startsAt,
+    // endsAt)`. Store the tx hash on the row + audit. If it fails, the
+    // election still exists in D1 and the cron listener can retry.
+    // -----------------------------------------------------------------------
+    let onchainTxHash: string | null = null;
+    if (isChainConfigured(c.env)) {
+      try {
+        const receipt = await createElectionOnChain(
+          c.env,
+          id,
+          data.startsAt,
+          data.endsAt,
+        );
+        onchainTxHash = receipt.txHash;
+        await c.env.DB.prepare(
+          "UPDATE elections SET onchain_tx_hash = ? WHERE id = ?",
+        )
+          .bind(onchainTxHash, id)
+          .run();
+        await audit(c.env, {
+          actorId: admin.id,
+          action: "election.create.onchain",
+          targetType: "election",
+          targetId: id,
+          metadata: { txHash: onchainTxHash, blockNumber: receipt.blockNumber },
+          ip: c.req.header("cf-connecting-ip"),
+        });
+      } catch (e) {
+        const msg =
+          e instanceof ChainNotConfiguredError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : String(e);
+        await audit(c.env, {
+          actorId: admin.id,
+          action: "election.create.onchain.failed",
+          targetType: "election",
+          targetId: id,
+          metadata: { error: msg },
+          ip: c.req.header("cf-connecting-ip"),
+        });
+        console.error("createElection on-chain failed", msg);
+      }
+    } else {
+      await audit(c.env, {
+        actorId: admin.id,
+        action: "election.create.onchain.skipped",
+        targetType: "election",
+        targetId: id,
+        metadata: { reason: "chain not configured" },
+        ip: c.req.header("cf-connecting-ip"),
+      });
+    }
+
     return c.json(
-      { ok: true, election: { id, title: data.title, status: "draft" } },
+      {
+        ok: true,
+        election: {
+          id,
+          title: data.title,
+          status: "draft",
+          onchainTxHash,
+        },
+      },
       201,
     );
   },
@@ -201,6 +277,10 @@ electionsRoutes.patch(
 // ---------------------------------------------------------------------------
 // POST /elections/:id/status — transition status (admin only)
 // draft -> scheduled -> active -> closed -> published
+//
+// On transition to "closed" we compute the merkle root over all vote
+// hashes, store per-vote merkle proofs, then call `finalize(electionId,
+// merkleRoot)` on the Voting contract. This is the "real" anchoring step.
 // ---------------------------------------------------------------------------
 electionsRoutes.post(
   "/:id/status",
@@ -217,6 +297,100 @@ electionsRoutes.post(
     const existing = await getElectionRow(c.env, id);
     if (!existing) return c.json({ error: "election not found" }, 404);
 
+    // -----------------------------------------------------------------------
+    // If we're closing the election, compute the merkle root + proofs first
+    // and store them on the votes table. Then call finalize on-chain.
+    // -----------------------------------------------------------------------
+    let merkleRootVal: string | null = null;
+    let onchainFinalizeTx: string | null = null;
+    if (status === "closed") {
+      const { results: voteRows } = await c.env.DB.prepare(
+        "SELECT id, vote_hash FROM votes WHERE election_id = ? AND vote_hash IS NOT NULL",
+      )
+        .bind(id)
+        .all<Record<string, unknown>>();
+
+      const leaves = voteRows
+        .map((r) => r.vote_hash as string | null)
+        .filter((h): h is string => Boolean(h));
+
+      if (leaves.length > 0) {
+        const { root, proofs } = await merkleTreeWithProofs(leaves);
+        merkleRootVal = root;
+        // Persist each vote's proof JSON.
+        for (const r of voteRows) {
+          const vh = r.vote_hash as string | null;
+          if (!vh) continue;
+          const key = "0x" + (vh.startsWith("0x") ? vh.slice(2).toLowerCase() : vh.toLowerCase());
+          const proof = proofs[key] ?? [];
+          await c.env.DB.prepare(
+            "UPDATE votes SET merkle_proof = ? WHERE id = ?",
+          )
+            .bind(JSON.stringify(proof), r.id as string)
+            .run();
+        }
+      } else {
+        merkleRootVal = "0x" + "00".repeat(32);
+      }
+
+      // Persist merkle root + finalized_at on the election row.
+      await c.env.DB.prepare(
+        "UPDATE elections SET merkle_root = ?, finalized_at = ? WHERE id = ?",
+      )
+        .bind(merkleRootVal, now(), id)
+        .run();
+
+      // On-chain finalize (best-effort).
+      if (isChainConfigured(c.env) && merkleRootVal) {
+        try {
+          const receipt = await finalizeOnChain(c.env, id, merkleRootVal);
+          onchainFinalizeTx = receipt.txHash;
+          await c.env.DB.prepare(
+            "UPDATE elections SET onchain_tx_hash = ? WHERE id = ?",
+          )
+            .bind(onchainFinalizeTx, id)
+            .run();
+          await audit(c.env, {
+            actorId: admin.id,
+            action: "election.finalize.onchain",
+            targetType: "election",
+            targetId: id,
+            metadata: {
+              txHash: onchainFinalizeTx,
+              blockNumber: receipt.blockNumber,
+              merkleRoot: merkleRootVal,
+            },
+            ip: c.req.header("cf-connecting-ip"),
+          });
+        } catch (e) {
+          const msg =
+            e instanceof ChainNotConfiguredError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : String(e);
+          await audit(c.env, {
+            actorId: admin.id,
+            action: "election.finalize.onchain.failed",
+            targetType: "election",
+            targetId: id,
+            metadata: { error: msg, merkleRoot: merkleRootVal },
+            ip: c.req.header("cf-connecting-ip"),
+          });
+          console.error("finalize on-chain failed", msg);
+        }
+      } else {
+        await audit(c.env, {
+          actorId: admin.id,
+          action: "election.finalize.onchain.skipped",
+          targetType: "election",
+          targetId: id,
+          metadata: { reason: "chain not configured", merkleRoot: merkleRootVal },
+          ip: c.req.header("cf-connecting-ip"),
+        });
+      }
+    }
+
     await c.env.DB.prepare("UPDATE elections SET status = ?, updated_at = ? WHERE id = ?")
       .bind(status, now(), id)
       .run();
@@ -229,7 +403,12 @@ electionsRoutes.post(
       ip: c.req.header("cf-connecting-ip"),
     });
 
-    return c.json({ ok: true, status });
+    return c.json({
+      ok: true,
+      status,
+      merkleRoot: merkleRootVal,
+      onchainFinalizeTx,
+    });
   },
 );
 

@@ -8,7 +8,9 @@ export const publicRoutes = new Hono<AppContext>();
 
 // ---------------------------------------------------------------------------
 // GET /public/verify/:receiptId — verify a vote by its receipt id.
-// Returns vote details + election title + validity. No auth required.
+// Returns vote details + election title + validity + on-chain anchoring
+// data (per-vote merkle proof + election merkle root + finalize tx). No
+// auth required.
 // ---------------------------------------------------------------------------
 publicRoutes.get("/verify/:receiptId", async (c) => {
   const receiptId = c.req.param("receiptId").toUpperCase().trim();
@@ -17,7 +19,10 @@ publicRoutes.get("/verify/:receiptId", async (c) => {
   }
 
   const vote = await c.env.DB.prepare(
-    `SELECT v.*, e.title AS election_title, e.organization AS election_org
+    `SELECT v.*, e.title AS election_title, e.organization AS election_org,
+            e.merkle_root AS election_merkle_root,
+            e.onchain_tx_hash AS election_onchain_tx_hash,
+            e.finalized_at AS election_finalized_at
      FROM votes v JOIN elections e ON e.id = v.election_id
      WHERE v.receipt_id = ?`,
   )
@@ -26,6 +31,17 @@ publicRoutes.get("/verify/:receiptId", async (c) => {
 
   if (!vote) {
     return c.json({ valid: false, message: "receipt not found", receiptId }, 404);
+  }
+
+  // merkle_proof is a JSON-encoded array of sibling hashes (low-to-high).
+  let merkleProof: string[] = [];
+  if (vote.merkle_proof && typeof vote.merkle_proof === "string") {
+    try {
+      const parsed = JSON.parse(vote.merkle_proof);
+      if (Array.isArray(parsed)) merkleProof = parsed.map(String);
+    } catch {
+      merkleProof = [];
+    }
   }
 
   return c.json({
@@ -38,6 +54,12 @@ publicRoutes.get("/verify/:receiptId", async (c) => {
     voteHash: vote.vote_hash,
     txHash: vote.tx_hash ?? null,
     blockNumber: vote.block_number ?? null,
+    merkleProof,
+    onchain: {
+      merkleRoot: vote.election_merkle_root ?? null,
+      finalizeTxHash: vote.election_onchain_tx_hash ?? null,
+      finalizedAt: vote.election_finalized_at ?? null,
+    },
     createdAt: vote.created_at,
     // Note: we do NOT expose WHO voted or WHAT they voted for — only that a
     // valid ballot exists for this receipt. Candidate selections are kept

@@ -416,6 +416,64 @@ export async function reviewKyc(
   });
 }
 
+/**
+ * Downloads a KYC document binary as a Blob (admin only).
+ *
+ * The returned Blob can be converted to an object URL for inline previewing
+ * (e.g. `<img src={URL.createObjectURL(blob)} />`) or saved via a download
+ * link. The endpoint is `GET /api/kyc/document/:id`.
+ */
+export async function getKycDocument(documentId: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE}/api/kyc/document/${documentId}`, {
+    headers: { Authorization: `Bearer ${getAccessToken()}` },
+  });
+
+  if (response.status === 401) {
+    // Mirror apiRequest's refresh-once behavior before failing.
+    if (await refresh()) {
+      return getKycDocument(documentId);
+    }
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Failed to load document");
+  }
+  return response.blob();
+}
+
+export type KycDocument = {
+  id: string;
+  user_id: string;
+  doc_type: string;
+  status: string;
+  r2_key: string;
+  created_at: number;
+};
+
+/**
+ * Lists KYC documents for a given user.
+ *
+ * The backend currently exposes the pending review queue via
+ * `GET /api/kyc/queue`. We filter that by `user_id` to surface every
+ * document that admin reviewers have already seen; for documents that
+ * have already been approved/rejected and dropped off the queue, the
+ * caller is expected to know the document ID from another source
+ * (e.g. a future `GET /api/admin/users/:id/kyc` endpoint).
+ */
+export async function listKycDocumentsForUser(userId: string): Promise<KycDocument[]> {
+  const queue = await getKycQueue();
+  return queue
+    .filter((item) => item.user_id === userId)
+    .map((item) => ({
+      id: item.id,
+      user_id: item.user_id,
+      doc_type: item.doc_type,
+      status: item.status,
+      r2_key: item.r2_key,
+      created_at: item.created_at,
+    }));
+}
+
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------

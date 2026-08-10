@@ -7,6 +7,7 @@ import { kycSubmitSchema, kycReviewSchema } from "../schemas";
 import { uuid, now } from "../lib/utils";
 import { auth, requireRole, type AuthUser, type AppContext } from "../middleware/auth";
 import { audit } from "../middleware/audit";
+import { getR2Object, buildContentDisposition } from "../lib/r2";
 
 export const kycRoutes = new Hono<AppContext>();
 
@@ -163,3 +164,53 @@ kycRoutes.post(
     return c.json({ ok: true, status: newStatus });
   },
 );
+
+// ---------------------------------------------------------------------------
+// GET /kyc/document/:id — admin-only streaming download of the private R2
+// object. The bucket is not public; we keep the file inside our origin and
+// gate every read on a valid admin session + audit row. This replaces the
+// presigned-URL pattern for an FYP (simpler, equally real, audit-friendly).
+// ---------------------------------------------------------------------------
+kycRoutes.get("/document/:id", auth(), requireRole("admin"), async (c) => {
+  const docId = c.req.param("id");
+  const admin = c.get("user") as AuthUser;
+
+  const doc = await c.env.DB.prepare(
+    "SELECT * FROM kyc_documents WHERE id = ?",
+  )
+    .bind(docId)
+    .first<Record<string, unknown>>();
+  if (!doc) return c.json({ error: "document not found" }, 404);
+
+  const obj = await getR2Object(c.env, doc.r2_key as string);
+  if (!obj || !obj.body) {
+    return c.json({ error: "object not found in storage" }, 404);
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Disposition": buildContentDisposition(doc.r2_key as string),
+  };
+  if (obj.httpMetadata?.contentType) {
+    headers["Content-Type"] = obj.httpMetadata.contentType;
+  } else {
+    headers["Content-Type"] = "application/octet-stream";
+  }
+  if (typeof obj.size === "number") {
+    headers["Content-Length"] = String(obj.size);
+  }
+  if (obj.etag) headers["ETag"] = obj.etag;
+  if (obj.httpMetadata?.cacheControl) {
+    headers["Cache-Control"] = obj.httpMetadata.cacheControl;
+  }
+
+  await audit(c.env, {
+    actorId: admin.id,
+    action: "kyc.document.download",
+    targetType: "kyc_document",
+    targetId: docId,
+    metadata: { r2Key: doc.r2_key, userId: doc.user_id, size: obj.size ?? null },
+    ip: c.req.header("cf-connecting-ip"),
+  });
+
+  return new Response(obj.body, { headers });
+});

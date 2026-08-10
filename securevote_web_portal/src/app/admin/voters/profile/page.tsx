@@ -3,8 +3,12 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { getVoter } from "@/lib/api-client";
-import type { MyVote, Voter } from "@/lib/api-client";
+import {
+  getKycDocument,
+  getVoter,
+  listKycDocumentsForUser,
+} from "@/lib/api-client";
+import type { KycDocument, MyVote, Voter } from "@/lib/api-client";
 
 type TimelineEvent = {
   id: string;
@@ -25,17 +29,31 @@ function formatDate(ts?: number) {
   });
 }
 
+function kycTone(status: string) {
+  if (status === "approved") return "bg-emerald-500/15 text-emerald-300";
+  if (status === "rejected") return "bg-rose-500/15 text-rose-300";
+  if (status === "pending") return "bg-amber-500/15 text-amber-300";
+  return "bg-white/10 text-white/75";
+}
+
 function VoterProfileContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") ?? "";
 
-  const [tab, setTab] = useState<"overview" | "history" | "security">("overview");
+  const [tab, setTab] = useState<"overview" | "history" | "security" | "kyc">(
+    "overview",
+  );
   const [suspended, setSuspended] = useState(false);
 
   const [voter, setVoter] = useState<(Voter & { vote_count?: number }) | null>(null);
   const [votes, setVotes] = useState<(MyVote & { election_title?: string })[]>([]);
+  const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) {
@@ -49,10 +67,18 @@ function VoterProfileContent() {
       const data = await getVoter(id);
       setVoter(data.voter);
       setVotes(data.votes ?? []);
+      try {
+        const docs = await listKycDocumentsForUser(id);
+        setDocuments(docs);
+      } catch {
+        // Non-fatal: the profile can still render without the doc list.
+        setDocuments([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load voter");
       setVoter(null);
       setVotes([]);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -77,6 +103,34 @@ function VoterProfileContent() {
       })),
     [votes],
   );
+
+  const openDocumentPreview = useCallback(async (doc: KycDocument) => {
+    setPreviewLoadingId(doc.id);
+    setPreviewError(null);
+    try {
+      const blob = await getKycDocument(doc.id);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      setPreviewError(
+        err instanceof Error ? err.message : "Failed to load document",
+      );
+    } finally {
+      setPreviewLoadingId(null);
+    }
+  }, [previewUrl]);
+
+  const closeDocumentPreview = useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewError(null);
+  }, [previewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const initials = voter?.fullName
     .split(" ")
@@ -127,7 +181,11 @@ function VoterProfileContent() {
                 <Row label="Email" value={voter.email} />
                 <Row label="Phone" value={voter.phone ?? "—"} />
                 <Row label="Role" value={voter.role} />
-                <Row label="Status" value={suspended ? "Suspended" : voter.kycStatus} />
+                <Row
+                  label="KYC Status"
+                  value={voter.kycStatus}
+                  toneClass={kycTone(voter.kycStatus)}
+                />
                 <Row label="Joined" value={formatDate(voter.createdAt)} />
               </div>
 
@@ -149,11 +207,16 @@ function VoterProfileContent() {
                 <Tab label="Overview" selected={tab === "overview"} onClick={() => setTab("overview")} />
                 <Tab label="Activity History" selected={tab === "history"} onClick={() => setTab("history")} />
                 <Tab label="Security" selected={tab === "security"} onClick={() => setTab("security")} />
+                <Tab label="KYC" selected={tab === "kyc"} onClick={() => setTab("kyc")} />
               </div>
 
               {tab === "overview" ? (
                 <div className="space-y-3 text-sm">
-                  <InfoCard title="KYC Status" text={voter.kycStatus} />
+                  <InfoCard
+                    title="KYC Status"
+                    text={voter.kycStatus}
+                    toneClass={kycTone(voter.kycStatus)}
+                  />
                   <InfoCard title="Registered" text={formatDate(voter.createdAt)} />
                   <InfoCard title="Participation" text={`${votes.length} confirmed vote${votes.length === 1 ? "" : "s"} on record.`} />
                 </div>
@@ -185,10 +248,83 @@ function VoterProfileContent() {
                   <InfoCard title="Session Pattern" text="No impossible travel patterns detected in the last 30 days." />
                 </div>
               ) : null}
+
+              {tab === "kyc" ? (
+                <div className="space-y-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">Identity Verification</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${kycTone(voter.kycStatus)}`}>
+                      {voter.kycStatus}
+                    </span>
+                  </div>
+                  {documents.length === 0 ? (
+                    <p className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
+                      No KYC documents are currently in the review queue for this voter. Approved or rejected documents may be available from the KYC verification page.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map((doc) => (
+                        <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3">
+                          <div>
+                            <p className="text-sm font-semibold">{doc.doc_type}</p>
+                            <p className="mt-1 text-[11px] text-[var(--text-muted)]">Submitted {formatDate(doc.created_at)}</p>
+                            <p className="mt-1 font-mono text-[11px] text-[var(--text-muted)]">{doc.r2_key}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${kycTone(doc.status)}`}>
+                              {doc.status}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => openDocumentPreview(doc)}
+                              disabled={previewLoadingId === doc.id}
+                              className="rounded-md bg-[var(--primary)]/15 px-3 py-1.5 text-xs font-semibold text-[var(--primary)] disabled:opacity-40"
+                            >
+                              {previewLoadingId === doc.id ? "Loading..." : "View Document"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {previewError ? (
+                    <p className="text-xs text-rose-300">{previewError}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </article>
           </div>
         ) : null}
       </section>
+
+      {previewUrl ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={closeDocumentPreview}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-xl bg-[var(--surface-container)] p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">{voter?.fullName} · KYC document</p>
+              <button
+                type="button"
+                onClick={closeDocumentPreview}
+                className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt={`KYC document for ${voter?.fullName ?? ""}`}
+              className="max-h-[80vh] max-w-full rounded-md object-contain"
+            />
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }
@@ -201,11 +337,15 @@ export default function VoterProfilePage() {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, toneClass }: { label: string; value: string; toneClass?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <p className="text-xs uppercase tracking-[0.08em] text-[var(--text-muted)]">{label}</p>
-      <p className="text-sm font-semibold">{value}</p>
+      {toneClass ? (
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${toneClass}`}>{value}</span>
+      ) : (
+        <p className="text-sm font-semibold">{value}</p>
+      )}
     </div>
   );
 }
@@ -231,11 +371,15 @@ function Tab({ label, selected, onClick }: { label: string; selected: boolean; o
   );
 }
 
-function InfoCard({ title, text }: { title: string; text: string }) {
+function InfoCard({ title, text, toneClass }: { title: string; text: string; toneClass?: string }) {
   return (
     <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3">
       <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-xs text-[var(--text-muted)]">{text}</p>
+      {toneClass ? (
+        <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${toneClass}`}>{text}</span>
+      ) : (
+        <p className="mt-1 text-xs text-[var(--text-muted)]">{text}</p>
+      )}
     </div>
   );
 }

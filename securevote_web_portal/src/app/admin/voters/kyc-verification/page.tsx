@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { getKycQueue, reviewKyc } from "@/lib/api-client";
+import { getKycDocument, getKycQueue, reviewKyc } from "@/lib/api-client";
 import type { KycQueueItem } from "@/lib/api-client";
 
 function formatDate(ts?: number) {
@@ -25,6 +25,10 @@ export default function KycVerificationPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,6 +74,34 @@ export default function KycVerificationPage() {
       setSubmitting(false);
     }
   };
+
+  const openPreview = useCallback(async (item: KycQueueItem) => {
+    setPreviewLoading(true);
+    setPreviewError(null);
+    try {
+      const blob = await getKycDocument(item.id);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (err) {
+      setPreviewError(
+        err instanceof Error ? err.message : "Failed to load document",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [previewUrl]);
+
+  const closePreview = useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewError(null);
+  }, [previewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   return (
     <AdminShell active="voters">
@@ -142,6 +174,36 @@ export default function KycVerificationPage() {
                   <DocCard title="Watchlist" subtitle="Automated screening" status="Clear" />
                 </div>
 
+                <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold">Submitted document</p>
+                      <p className="mt-1 font-mono text-[11px] text-[var(--text-muted)]">{selected.r2_key}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openPreview(selected)}
+                        disabled={previewLoading}
+                        className="rounded-md bg-[var(--primary)]/15 px-3 py-2 text-xs font-semibold text-[var(--primary)] disabled:opacity-40"
+                      >
+                        {previewLoading ? "Loading..." : "View Document"}
+                      </button>
+                      <a
+                        href={`/api/kyc/document/${selected.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-md bg-white/8 px-3 py-2 text-xs font-semibold"
+                      >
+                        Open in new tab
+                      </a>
+                    </div>
+                  </div>
+                  {previewError ? (
+                    <p className="mt-3 text-xs text-rose-300">{previewError}</p>
+                  ) : null}
+                </div>
+
                 <div>
                   <label className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">Internal audit notes</label>
                   <textarea
@@ -189,6 +251,35 @@ export default function KycVerificationPage() {
           </aside>
         </div>
       </section>
+
+      {previewUrl ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+          onClick={closePreview}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-xl bg-[var(--surface-container)] p-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">{selected?.full_name} · {selected?.doc_type}</p>
+              <button
+                type="button"
+                onClick={closePreview}
+                className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold"
+              >
+                Close
+              </button>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt={`KYC document for ${selected?.full_name ?? ""}`}
+              className="max-h-[80vh] max-w-full rounded-md object-contain"
+            />
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   );
 }
