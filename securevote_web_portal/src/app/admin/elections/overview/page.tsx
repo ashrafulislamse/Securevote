@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
@@ -14,6 +15,20 @@ const STATUS_LABELS: Record<api.ElectionStatus, string> = {
 };
 
 export default function ElectionOverviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <AdminShell active="elections">
+          <p className="text-sm text-[var(--text-muted)]">Loading election control center...</p>
+        </AdminShell>
+      }
+    >
+      <ElectionOverviewContent />
+    </Suspense>
+  );
+}
+
+function ElectionOverviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedId = searchParams?.get("id") ?? null;
