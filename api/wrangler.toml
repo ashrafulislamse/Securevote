@@ -13,7 +13,7 @@ ENV = "development"
 [[d1_databases]]
 binding = "DB"
 database_name = "securevote"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "8c3a411c-2787-4a57-98fb-6f33aed5944f"
 
 # R2 file storage (KYC docs, candidate images)
 [[r2_buckets]]
@@ -23,7 +23,7 @@ bucket_name = "securevote-files"
 # KV for sessions / rate limiting / cache
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "79069c0b141f4860bbaf5343e12027d2"
 
 # Cron: chain listener (Phase 6) — every 60s
 [triggers]
