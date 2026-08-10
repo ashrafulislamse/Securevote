@@ -26,8 +26,9 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="relative grid min-h-screen overflow-hidden lg:grid-cols-2">
-      <div className="pointer-events-none absolute -left-24 top-16 h-[360px] w-[360px] rounded-full bg-[var(--primary)]/15 blur-[120px]" />
-      <div className="pointer-events-none absolute -right-20 top-[36%] h-[340px] w-[340px] rounded-full bg-[var(--secondary)]/12 blur-[110px]" />
+      <div className="pointer-events-none absolute -left-24 top-16 h-[360px] w-[360px] rounded-full bg-[var(--primary)]/15 blur-[120px] animate-orb" />
+      <div className="pointer-events-none absolute -right-20 top-[36%] h-[340px] w-[340px] rounded-full bg-[var(--secondary)]/12 blur-[110px] animate-orb-slow" />
+
       <header className="fixed inset-x-0 top-0 z-30 border-b border-[var(--border-default)] bg-[var(--surface-overlay)] backdrop-blur-xl">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 md:px-8">
           <Link href="/" className="flex items-center gap-2 text-base font-extrabold tracking-tight">
@@ -58,69 +59,80 @@ export default function ForgotPasswordPage() {
         badge="Reset Integrity Mode"
       />
 
-      <section className="relative flex items-center justify-center px-6 py-12 pt-24 md:px-12">
-        <Link href="/admin/login" className="absolute left-8 top-24 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-white">
+      <section className="relative flex items-center justify-center px-6 py-12 pt-28 md:px-12">
+        <Link href="/admin/login" className="absolute left-8 top-24 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-white">
           <span className="material-symbols-outlined">arrow_left_alt</span>
           Back to Sign In
         </Link>
 
-        <div className="w-full max-w-[430px] space-y-8">
-          <div className="text-center reveal-up reveal-fast reveal-delay-1">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--primary)]/15">
-              <span className="material-symbols-outlined text-[28px] text-[var(--primary)]" style={{ fontVariationSettings: '"FILL" 1' }}>
-                mail
-              </span>
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight">Reset your password</h1>
-            <p className="mt-2 text-[var(--text-muted)]">Enter your admin email to receive reset instructions.</p>
-            <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-white/55">
-              Recovery requests are logged and signed in the audit stream to preserve administrative accountability.
-            </p>
-          </div>
-
-          <form className="space-y-5 reveal-up reveal-fast reveal-delay-2" onSubmit={handleSubmit}>
-            <div>
-              <label className="mb-2 ml-1 block text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Admin Email Address</label>
-              <input
-                type="email"
-                placeholder="admin@securevote.gov"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-lg bg-[var(--surface-container-low)] px-5 py-4 font-mono text-sm outline-none ring-1 ring-transparent transition focus:ring-[var(--primary)]"
-              />
-            </div>
-            <button type="submit" className="brand-gradient w-full rounded-lg py-4 font-semibold text-white shadow-[0_0_20px_rgba(79,110,247,0.3)] transition hover:brightness-110">
-              Send Reset Link
-            </button>
-          </form>
-
-          <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/8 p-5 reveal-up reveal-fast reveal-delay-3">
-            <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/15">
-                <span className="material-symbols-outlined text-emerald-400" style={{ fontVariationSettings: '"FILL" 1' }}>
-                  check_circle
+        <div className="w-full max-w-[430px] self-center">
+          <div className="panel-elevated top-accent card-glow relative rounded-3xl p-7 reveal-up reveal-fast reveal-delay-1 sm:p-10">
+            <div className="text-center">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--border-brand)] bg-[var(--brand)]/12 shadow-[0_0_30px_rgba(79,110,247,0.25)]">
+                <span className="material-symbols-outlined text-[28px] text-[var(--brand)]" style={{ fontVariationSettings: '"FILL" 1' }}>
+                  mail
                 </span>
               </div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                Reset your <span className="text-gradient">password</span>
+              </h1>
+              <p className="mt-2 text-[var(--text-muted)]">Enter your admin email to receive reset instructions.</p>
+              <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-white/55">
+                Recovery requests are logged and signed in the audit stream to preserve administrative accountability.
+              </p>
+            </div>
+
+            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
               <div>
-                <p className="font-semibold">{status ? "Notice" : "Ready to send"}</p>
-                <p className="mt-1 text-sm text-[var(--text-muted)]">
-                  {status ?? "Submit an admin email to request a password reset."}
-                </p>
+                <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Admin Email Address</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">mail</span>
+                  <input
+                    type="email"
+                    placeholder="admin@securevote.gov"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="auth-input py-3.5 pl-12 pr-4 font-mono text-sm"
+                  />
+                </div>
               </div>
+              <button type="submit" className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110">
+                Send Reset Link
+              </button>
+            </form>
+
+            {error ? (
+              <p className="check-pop mt-5 flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                <span className="material-symbols-outlined text-sm">error</span>
+                {error}
+              </p>
+            ) : null}
+
+            {status ? (
+              <div className="check-pop mt-5 rounded-xl border border-[var(--border-amber)] bg-[var(--amber-surface)] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--amber)]/15">
+                    <span className="material-symbols-outlined text-[var(--amber)]" style={{ fontVariationSettings: '"FILL" 1' }}>
+                      info
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold tracking-tight text-[var(--amber)]">Reset not yet available</p>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--text-muted)]">{status}</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-low)] px-3 py-2.5">
+              <span className="material-symbols-outlined text-sm text-[var(--teal)]">lock_clock</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">Reset links expire in 15 minutes</span>
             </div>
           </div>
 
-          {error ? <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 reveal-up reveal-fast reveal-delay-3">{error}</p> : null}
-
-          <div className="space-y-3 text-center reveal-up reveal-fast reveal-delay-3">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              <span className="material-symbols-outlined text-sm">lock_clock</span>
-              Reset links expire in 15 minutes
-            </div>
-            <p className="text-xs leading-relaxed text-white/50">
-              If you still have trouble, contact the Department of Digital Integrity support desk.
-            </p>
-          </div>
+          <p className="mt-6 text-center text-xs leading-relaxed text-white/50 reveal-up reveal-fast reveal-delay-2">
+            If you still have trouble, contact the Department of Digital Integrity support desk.
+          </p>
         </div>
       </section>
     </main>
