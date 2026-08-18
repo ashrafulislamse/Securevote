@@ -42,7 +42,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
       builder: (context) => const VoteConfirmationDialog(),
     );
 
-    if (confirmed == true && context.mounted) {
+    if (confirmed == true && mounted) {
       Navigator.pushNamed(
         context,
         AppRouter.voteSuccess,
@@ -96,9 +96,9 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFFBBF24).withOpacity(0.08),
+                color: const Color(0xFFFBBF24).withValues(alpha: 0.08),
                 border: Border.all(
-                  color: const Color(0xFFFBBF24).withOpacity(0.2),
+                  color: const Color(0xFFFBBF24).withValues(alpha: 0.2),
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -108,7 +108,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFBBF24).withOpacity(0.2),
+                      color: const Color(0xFFFBBF24).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
@@ -200,7 +200,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
             }),
             if (_candidates.isEmpty)
               const Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No selections to review.',
@@ -218,12 +218,12 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                 Icon(Icons.lock, color: Color(0xFF8E90A0), size: 14),
                 SizedBox(width: 8),
                 Text(
-                  'AES 256-BIT END-TO-END ENCRYPTION ACTIVE',
+                  'Your selection is encrypted and private',
                   style: TextStyle(
                     color: Color(0xFF8E90A0),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    letterSpacing: 1.0,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ],
@@ -298,7 +298,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D0E13).withOpacity(0.8),
+          color: const Color(0xFF0D0E13).withValues(alpha: 0.8),
           border: const Border(
             top: BorderSide(color: Color(0xFF1A1B21), width: 1),
           ),
@@ -320,7 +320,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                   foregroundColor: Colors.white,
                   elevation: _isConfirmed ? 8 : 0,
                   shadowColor: _isConfirmed
-                      ? const Color(0xFFDC2626).withOpacity(0.25)
+                      ? const Color(0xFFDC2626).withValues(alpha: 0.25)
                       : Colors.transparent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -349,7 +349,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                 Icon(Icons.visibility_off, color: Color(0xFF8E90A0), size: 12),
                 SizedBox(width: 6),
                 Text(
-                  'ANONYMOUS PROTOCOL V2.4',
+                  'YOUR VOTE REMAINS ANONYMOUS',
                   style: TextStyle(
                     color: Color(0xFF8E90A0),
                     fontSize: 10,
@@ -361,11 +361,11 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Your unique voter key will be hashed and stored separately from your choice to ensure total privacy and zero-knowledge proof verification.',
+              'Your identity is stored separately from your choice to ensure total privacy.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF8E90A0),
-                fontSize: 9,
+                fontSize: 10,
                 height: 1.3,
               ),
             ),
@@ -387,7 +387,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
         color: const Color(0xFF1A1B21),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: const Color(0xFFB9C3FF).withOpacity(0.2),
+          color: const Color(0xFFB9C3FF).withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -420,21 +420,24 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFB9C3FF).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(
-                    color: Color(0xFFB9C3FF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Edit',
+                    style: TextStyle(
+                      color: Color(0xFFB9C3FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -444,9 +447,9 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF34343A).withOpacity(0.4),
+              color: const Color(0xFF34343A).withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Row(
               children: [
@@ -470,10 +473,7 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                               );
                             },
                           )
-                        : const Icon(
-                            Icons.person,
-                            color: Color(0xFF8E90A0),
-                          ),
+                        : const Icon(Icons.person, color: Color(0xFF8E90A0)),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -504,9 +504,9 @@ class _ReviewVoteScreenState extends State<ReviewVoteScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                    color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
                     border: Border.all(
-                      color: const Color(0xFF2ADEC0).withOpacity(0.3),
+                      color: const Color(0xFF2ADEC0).withValues(alpha: 0.3),
                     ),
                     borderRadius: BorderRadius.circular(20),
                   ),

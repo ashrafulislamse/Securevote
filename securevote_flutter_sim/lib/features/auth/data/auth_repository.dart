@@ -21,11 +21,24 @@ class RegisterResult {
   final int? expiresInSeconds;
 
   factory RegisterResult.fromJson(Map<String, dynamic> json) => RegisterResult(
-        ok: json['ok'] as bool? ?? false,
-        message: json['message'] as String? ?? '',
-        devOtp: json['devOtp'] as String?,
-        expiresInSeconds: json['expiresInSeconds'] as int?,
-      );
+    ok: json['ok'] as bool? ?? false,
+    message: json['message'] as String? ?? '',
+    devOtp: json['devOtp'] as String?,
+    expiresInSeconds: json['expiresInSeconds'] as int?,
+  );
+}
+
+/// Result of a forgot-password request (no session is established).
+class ForgotPasswordResult {
+  final bool ok;
+  final String message;
+  final String? devResetToken;
+
+  ForgotPasswordResult({
+    required this.ok,
+    required this.message,
+    this.devResetToken,
+  });
 }
 
 /// Data access for all authentication endpoints.
@@ -35,8 +48,8 @@ class RegisterResult {
 /// (e.g. `AuthProvider`) stay in sync whenever the user is set or cleared.
 class AuthRepository {
   AuthRepository({ApiClient? api, SecureTokenStorage? tokenStorage})
-      : _api = api ?? ApiClient.instance,
-        _tokenStorage = tokenStorage ?? SecureTokenStorage.instance {
+    : _api = api ?? ApiClient.instance,
+      _tokenStorage = tokenStorage ?? SecureTokenStorage.instance {
     _api.onUserRefreshed = _applyRefreshedUser;
   }
 
@@ -176,6 +189,56 @@ class AuthRepository {
     await _api.postApi(
       '/api/auth/change-password',
       data: {'currentPassword': currentPassword, 'newPassword': newPassword},
+    );
+  }
+
+  /// Requests a password reset link for the given email.
+  ///
+  /// Backend: `POST /api/auth/forgot-password` with `{ email }` returns
+  /// `{ ok, message, devResetToken? }`. Does not establish a session.
+  Future<ForgotPasswordResult> forgotPassword(String email) async {
+    final dynamic data = await _api.postApi(
+      '/api/auth/forgot-password',
+      data: {'email': email},
+    );
+    final map = data as Map<String, dynamic>;
+    return ForgotPasswordResult(
+      ok: map['ok'] as bool? ?? false,
+      message:
+          map['message'] as String? ??
+          'If the email exists, a reset link has been sent.',
+      devResetToken: map['devResetToken'] as String?,
+    );
+  }
+
+  /// Resets the password using a reset token.
+  ///
+  /// Backend: `POST /api/auth/reset-password` with
+  /// `{ token, newPassword }` returns `{ ok }`.
+  Future<bool> resetPassword(String token, String newPassword) async {
+    final dynamic data = await _api.postApi(
+      '/api/auth/reset-password',
+      data: {'token': token, 'newPassword': newPassword},
+    );
+    return (data as Map<String, dynamic>)['ok'] as bool? ?? false;
+  }
+
+  /// Resends the OTP to the given email (e.g. after registration).
+  ///
+  /// Backend: `POST /api/auth/resend-otp` with `{ email }` returns
+  /// `{ ok, devOtp?, expiresInSeconds }`.
+  Future<({bool ok, String? devOtp, int expiresInSeconds})> resendOtp(
+    String email,
+  ) async {
+    final dynamic data = await _api.postApi(
+      '/api/auth/resend-otp',
+      data: {'email': email},
+    );
+    final map = data as Map<String, dynamic>;
+    return (
+      ok: map['ok'] as bool? ?? false,
+      devOtp: map['devOtp'] as String?,
+      expiresInSeconds: map['expiresInSeconds'] as int? ?? 600,
     );
   }
 

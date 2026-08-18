@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// static settings screen.
+import '../../../../core/navigation/app_router.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -24,12 +25,68 @@ class _NotificationSettingsScreenState
   bool _emailEnabled = true;
   bool _quietHours = true;
 
+  static const String _kMaster = 'notif_master';
+  static const String _kElectionReminders = 'notif_election_reminders';
+  static const String _kVotingDeadline = 'notif_voting_deadline';
+  static const String _kResultsPublished = 'notif_results_published';
+  static const String _kNewElections = 'notif_new_elections';
+  static const String _kKycUpdates = 'notif_kyc_updates';
+  static const String _kSecurityAlerts = 'notif_security_alerts';
+  static const String _kAnnouncements = 'notif_announcements';
+  static const String _kPushEnabled = 'notif_push_enabled';
+  static const String _kEmailEnabled = 'notif_email_enabled';
+  static const String _kQuietHours = 'notif_quiet_hours';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _allNotifications = prefs.getBool(_kMaster) ?? true;
+      _electionReminders = prefs.getBool(_kElectionReminders) ?? true;
+      _votingDeadline = prefs.getBool(_kVotingDeadline) ?? true;
+      _resultsPublished = prefs.getBool(_kResultsPublished) ?? true;
+      _newElections = prefs.getBool(_kNewElections) ?? false;
+      _kycUpdates = prefs.getBool(_kKycUpdates) ?? true;
+      _securityAlerts = prefs.getBool(_kSecurityAlerts) ?? true;
+      _announcements = prefs.getBool(_kAnnouncements) ?? false;
+      _pushEnabled = prefs.getBool(_kPushEnabled) ?? true;
+      _emailEnabled = prefs.getBool(_kEmailEnabled) ?? true;
+      _quietHours = prefs.getBool(_kQuietHours) ?? true;
+    });
+  }
+
+  Future<void> _persist(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  void _toggleMaster(bool val) {
+    setState(() => _allNotifications = val);
+    _persist(_kMaster, val);
+  }
+
+  void _toggle(
+    bool Function() read,
+    void Function(bool) write,
+    String key,
+    bool val,
+  ) {
+    setState(() => write(val));
+    _persist(key, val);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0E13).withOpacity(0.8),
+        backgroundColor: const Color(0xFF0D0E13).withValues(alpha: 0.8),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFB9C3FF)),
@@ -46,7 +103,8 @@ class _NotificationSettingsScreenState
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications, color: Color(0xFFB9C3FF)),
-            onPressed: () {},
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRouter.alertsInbox),
           ),
         ],
       ),
@@ -66,8 +124,8 @@ class _NotificationSettingsScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                color: Colors.white.withValues(alpha: 0.03),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Row(
@@ -76,10 +134,10 @@ class _NotificationSettingsScreenState
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFB9C3FF).withOpacity(0.1),
+                      color: const Color(0xFFB9C3FF).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFFB9C3FF).withOpacity(0.2),
+                        color: const Color(0xFFB9C3FF).withValues(alpha: 0.2),
                       ),
                     ),
                     child: const Icon(
@@ -88,10 +146,10 @@ class _NotificationSettingsScreenState
                     ),
                   ),
                   const SizedBox(width: 16),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'All Notifications',
                           style: TextStyle(
@@ -111,10 +169,7 @@ class _NotificationSettingsScreenState
                       ],
                     ),
                   ),
-                  _buildToggle(
-                    _allNotifications,
-                    (val) => setState(() => _allNotifications = val),
-                  ),
+                  _buildToggle(_allNotifications, _toggleMaster),
                 ],
               ),
             ),
@@ -129,7 +184,12 @@ class _NotificationSettingsScreenState
                 Icons.calendar_today,
                 const Color(0xFFD2BBFF),
                 _electionReminders,
-                (val) => setState(() => _electionReminders = val),
+                (val) => _toggle(
+                  () => _electionReminders,
+                  (v) => _electionReminders = v,
+                  _kElectionReminders,
+                  val,
+                ),
               ),
               _buildNotificationItem(
                 'Voting Deadline',
@@ -137,7 +197,12 @@ class _NotificationSettingsScreenState
                 Icons.timer,
                 const Color(0xFF2ADEC0),
                 _votingDeadline,
-                (val) => setState(() => _votingDeadline = val),
+                (val) => _toggle(
+                  () => _votingDeadline,
+                  (v) => _votingDeadline = v,
+                  _kVotingDeadline,
+                  val,
+                ),
               ),
               _buildNotificationItem(
                 'Results Published',
@@ -145,7 +210,12 @@ class _NotificationSettingsScreenState
                 Icons.leaderboard,
                 const Color(0xFFB9C3FF),
                 _resultsPublished,
-                (val) => setState(() => _resultsPublished = val),
+                (val) => _toggle(
+                  () => _resultsPublished,
+                  (v) => _resultsPublished = v,
+                  _kResultsPublished,
+                  val,
+                ),
               ),
               _buildNotificationItem(
                 'New Elections',
@@ -153,7 +223,12 @@ class _NotificationSettingsScreenState
                 Icons.fiber_new,
                 const Color(0xFFD2BBFF),
                 _newElections,
-                (val) => setState(() => _newElections = val),
+                (val) => _toggle(
+                  () => _newElections,
+                  (v) => _newElections = v,
+                  _kNewElections,
+                  val,
+                ),
               ),
             ]),
 
@@ -167,7 +242,12 @@ class _NotificationSettingsScreenState
                 Icons.verified_user,
                 const Color(0xFF2ADEC0),
                 _kycUpdates,
-                (val) => setState(() => _kycUpdates = val),
+                (val) => _toggle(
+                  () => _kycUpdates,
+                  (v) => _kycUpdates = v,
+                  _kKycUpdates,
+                  val,
+                ),
               ),
               _buildNotificationItem(
                 'Security Alerts',
@@ -175,7 +255,12 @@ class _NotificationSettingsScreenState
                 Icons.gpp_maybe,
                 const Color(0xFFFFB4AB),
                 _securityAlerts,
-                (val) => setState(() => _securityAlerts = val),
+                (val) => _toggle(
+                  () => _securityAlerts,
+                  (v) => _securityAlerts = v,
+                  _kSecurityAlerts,
+                  val,
+                ),
               ),
               _buildNotificationItem(
                 'Announcements',
@@ -183,7 +268,12 @@ class _NotificationSettingsScreenState
                 Icons.campaign,
                 const Color(0xFFE3E1E9),
                 _announcements,
-                (val) => setState(() => _announcements = val),
+                (val) => _toggle(
+                  () => _announcements,
+                  (v) => _announcements = v,
+                  _kAnnouncements,
+                  val,
+                ),
               ),
             ]),
 
@@ -199,7 +289,12 @@ class _NotificationSettingsScreenState
                       Icons.send_to_mobile,
                       const Color(0xFFB9C3FF),
                       _pushEnabled,
-                      (val) => setState(() => _pushEnabled = val),
+                      (val) => _toggle(
+                        () => _pushEnabled,
+                        (v) => _pushEnabled = v,
+                        _kPushEnabled,
+                        val,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -209,7 +304,12 @@ class _NotificationSettingsScreenState
                       Icons.mail,
                       const Color(0xFFD2BBFF),
                       _emailEnabled,
-                      (val) => setState(() => _emailEnabled = val),
+                      (val) => _toggle(
+                        () => _emailEnabled,
+                        (v) => _emailEnabled = v,
+                        _kEmailEnabled,
+                        val,
+                      ),
                     ),
                   ),
                 ],
@@ -222,9 +322,9 @@ class _NotificationSettingsScreenState
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
+                color: Colors.white.withValues(alpha: 0.03),
                 border: Border.all(
-                  color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                  color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
                 ),
                 borderRadius: BorderRadius.circular(24),
               ),
@@ -233,9 +333,9 @@ class _NotificationSettingsScreenState
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
                             'Quiet Hours',
                             style: TextStyle(
@@ -256,7 +356,12 @@ class _NotificationSettingsScreenState
                       ),
                       _buildToggle(
                         _quietHours,
-                        (val) => setState(() => _quietHours = val),
+                        (val) => _toggle(
+                          () => _quietHours,
+                          (v) => _quietHours = v,
+                          _kQuietHours,
+                          val,
+                        ),
                       ),
                     ],
                   ),
@@ -267,15 +372,15 @@ class _NotificationSettingsScreenState
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Column(
+                          child: const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'START',
                                 style: TextStyle(
@@ -303,15 +408,15 @@ class _NotificationSettingsScreenState
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.05),
+                              color: Colors.white.withValues(alpha: 0.05),
                             ),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Column(
+                          child: const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'END',
                                 style: TextStyle(
@@ -331,6 +436,26 @@ class _NotificationSettingsScreenState
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.white.withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Quiet hours are not customizable in this version.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -388,8 +513,8 @@ class _NotificationSettingsScreenState
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF34343A),
+            decoration: const BoxDecoration(
+              color: Color(0xFF34343A),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: iconColor, size: 20),
@@ -435,7 +560,7 @@ class _NotificationSettingsScreenState
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1B21),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -444,7 +569,7 @@ class _NotificationSettingsScreenState
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 30),
@@ -459,9 +584,9 @@ class _NotificationSettingsScreenState
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Active',
-            style: TextStyle(color: Color(0xFFC4C5D7), fontSize: 10),
+          Text(
+            value ? 'Active' : 'Off',
+            style: const TextStyle(color: Color(0xFFC4C5D7), fontSize: 10),
           ),
           const SizedBox(height: 16),
           _buildToggle(value, onChanged),
@@ -478,10 +603,10 @@ class _NotificationSettingsScreenState
         height: 20,
         decoration: BoxDecoration(
           color: value
-              ? const Color(0xFFB9C3FF).withOpacity(0.2)
+              ? const Color(0xFFB9C3FF).withValues(alpha: 0.2)
               : const Color(0xFF34343A),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withOpacity(0.05)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 200),

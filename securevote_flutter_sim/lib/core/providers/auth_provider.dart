@@ -13,7 +13,7 @@ import '../network/secure_token_storage.dart';
 /// sync via the repository's `onUserChanged` callback.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthRepository? repository})
-      : _repository = repository ?? AuthRepository() {
+    : _repository = repository ?? AuthRepository() {
     _repository.onUserChanged = _onUserChanged;
   }
 
@@ -167,6 +167,59 @@ class AuthProvider extends ChangeNotifier {
     } on ApiException catch (e) {
       _setError(e.message);
       rethrow;
+    }
+  }
+
+  /// Requests a password reset link for the given email.
+  ///
+  /// Returns the [ForgotPasswordResult] on success, or null when the request
+  /// fails (the error is captured in [error]).
+  Future<ForgotPasswordResult?> forgotPassword(String email) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      final result = await _repository.forgotPassword(email);
+      return result;
+    } on ApiException catch (e) {
+      _setError(e.message);
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Resets the password using a reset token.
+  ///
+  /// Returns true on success, false on failure (error captured in [error]).
+  Future<bool> resetPassword(String token, String newPassword) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      final ok = await _repository.resetPassword(token, newPassword);
+      return ok;
+    } on ApiException catch (e) {
+      _setError(e.message);
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Resends the OTP to the given email.
+  ///
+  /// Returns a record with `ok` and the optional dev OTP; on failure `ok` is
+  /// false (the error is captured in [error]).
+  Future<({bool ok, String? devOtp})> resendOtp(String email) async {
+    _setLoading(true);
+    _setError(null);
+    try {
+      final result = await _repository.resendOtp(email);
+      return (ok: result.ok, devOtp: result.devOtp);
+    } on ApiException catch (e) {
+      _setError(e.message);
+      return (ok: false, devOtp: null);
+    } finally {
+      _setLoading(false);
     }
   }
 }

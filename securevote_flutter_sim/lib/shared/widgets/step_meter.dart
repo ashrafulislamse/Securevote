@@ -23,7 +23,7 @@ class StepMeter extends StatelessWidget {
           return const SizedBox(width: 8);
         }
         final int meterIndex = index ~/ 2;
-        final bool isActive = meterIndex == active;
+        final bool isActive = meterIndex <= active;
         return Container(
           width: segmentWidth,
           height: segmentHeight,

@@ -13,7 +13,7 @@ import '../models/notification.dart';
 /// delegated to [ProfileRepository].
 class NotificationsProvider extends ChangeNotifier {
   NotificationsProvider({ProfileRepository? repository})
-      : _repository = repository ?? ProfileRepository() {
+    : _repository = repository ?? ProfileRepository() {
     _start();
   }
 
@@ -101,11 +101,12 @@ class NotificationsProvider extends ChangeNotifier {
     }
   }
 
-  /// Removes a notification from the local list.
+  /// Removes a notification from the local list and best-effort deletes it
+  /// on the server.
   ///
-  /// Useful if/when a delete endpoint is wired up; currently no-op against
-  /// the server but keeps the badge correct locally.
-  void removeLocal(String id) {
+  /// The local list and unread badge are updated optimistically; a failed
+  /// server delete is ignored since the local state is already correct.
+  Future<void> removeLocal(String id) async {
     final idx = _notifications.indexWhere((n) => n.id == id);
     if (idx == -1) return;
     final wasUnread = !_notifications[idx].read;
@@ -115,6 +116,13 @@ class NotificationsProvider extends ChangeNotifier {
       _unreadCount -= 1;
     }
     notifyListeners();
+
+    // Best-effort server delete.
+    try {
+      await _repository.deleteNotification(id);
+    } catch (_) {
+      // Ignore — the local state is already updated.
+    }
   }
 
   void _setLoading(bool value) {
@@ -139,4 +147,5 @@ class NotificationsProvider extends ChangeNotifier {
 ///   create: (_) => NotificationsProvider(),
 /// );
 /// ```
-typedef NotificationsProviderFactory = ChangeNotifierProvider<NotificationsProvider>;
+typedef NotificationsProviderFactory =
+    ChangeNotifierProvider<NotificationsProvider>;

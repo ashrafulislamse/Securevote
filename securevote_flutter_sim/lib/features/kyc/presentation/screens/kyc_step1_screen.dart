@@ -224,9 +224,7 @@ class _KycStep1ScreenState extends State<KycStep1Screen> {
                   ),
                   onPressed: _submitting
                       ? null
-                      : () => _pickAndSubmit(
-                            source: ImageSourceChoice.gallery,
-                          ),
+                      : () => _pickAndSubmit(source: ImageSourceChoice.gallery),
                   icon: const Icon(Icons.upload_file_rounded),
                   label: const Text('Upload ID'),
                 ),
@@ -252,10 +250,10 @@ class _KycStep1ScreenState extends State<KycStep1Screen> {
               onPressed: _submitting
                   ? null
                   : () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRouter.homeScreen,
-                        (Route<dynamic> route) => route.isFirst,
-                      ),
+                      context,
+                      AppRouter.homeScreen,
+                      (Route<dynamic> route) => route.isFirst,
+                    ),
               icon: const Icon(Icons.schedule_rounded),
               label: const Text('Verify later from profile'),
             ),

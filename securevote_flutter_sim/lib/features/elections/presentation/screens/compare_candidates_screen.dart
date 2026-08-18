@@ -19,7 +19,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
     Color(0xFFFF7B5A),
   ];
 
-  List<Map<String, dynamic>> _selectedCandidates = [];
+  List<Map<String, dynamic>> _selectedCandidates = <Map<String, dynamic>>[];
 
   List<Candidate>? get _passedCandidates {
     final Object? args = ModalRoute.of(context)?.settings.arguments;
@@ -56,11 +56,12 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
   }
 
   Map<String, dynamic> _toMap(Candidate c) => <String, dynamic>{
-        'name': c.name,
-        'party': c.party ?? 'Independent',
-        'color': _candidateColors[(c.ballotOrder) % _candidateColors.length],
-        'position': 'Candidate',
-      };
+    'name': c.name,
+    'party': c.party ?? 'Independent',
+    'color': _candidateColors[c.ballotOrder % _candidateColors.length],
+    'bio': c.bio ?? '',
+    'manifesto': c.manifesto ?? '',
+  };
 
   List<Map<String, dynamic>> _defaultCandidates() {
     final List<Candidate>? candidates = _passedCandidates;
@@ -72,7 +73,8 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
         'name': 'No candidates available',
         'party': '—',
         'color': const Color(0xFFB9C3FF),
-        'position': 'Candidate',
+        'bio': '',
+        'manifesto': '',
       },
     ];
   }
@@ -137,7 +139,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
           ),
         ),
         centerTitle: true,
-        actions: [
+        actions: <Widget>[
           TextButton(
             onPressed: _resetComparison,
             child: const Text(
@@ -152,16 +154,16 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
         ],
       ),
       body: Column(
-        children: [
+        children: <Widget>[
           // Selector Row
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
-              children: [
+              children: <Widget>[
                 ..._selectedCandidates.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final candidate = entry.value;
+                  final int index = entry.key;
+                  final Map<String, dynamic> candidate = entry.value;
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: _buildCandidateChip(
@@ -186,27 +188,26 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
                   top: Radius.circular(24),
                 ),
                 border: Border(
-                  top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                 ),
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
-                  children: [
+                  children: <Widget>[
                     // Sticky Header: Avatars
                     Container(
                       padding: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A1B21),
+                      decoration: const BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(color: const Color(0xFF34343A)),
+                          bottom: BorderSide(color: Color(0xFF34343A)),
                         ),
                       ),
                       child: Row(
                         children: _selectedCandidates.asMap().entries.map((
                           entry,
                         ) {
-                          final candidate = entry.value;
+                          final Map<String, dynamic> candidate = entry.value;
                           return Expanded(
                             child: Padding(
                               padding: EdgeInsets.only(
@@ -228,39 +229,26 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Criteria Rows
-                    _buildCriteriaSection('Running For', [
-                      _buildCriteriaRow(
-                        'Mayor\nDistrict 4',
-                        'Mayor\nDistrict 4',
+                    // Bio row
+                    _buildCriteriaSection('Biography', <Widget>[
+                      _buildTextRow(
+                        _selectedCandidates
+                            .map((c) => _truncate(c['bio'] as String, 160))
+                            .toList(),
                       ),
                     ]),
 
                     const SizedBox(height: 32),
 
-                    _buildCriteriaSection('Experience', [
-                      _buildExperienceRow(
-                        Icons.account_balance,
-                        'City Council',
-                        '5 Years',
-                        const Color(0xFFB9C3FF),
-                        Icons.storefront,
-                        'Business Owner',
-                        '10 Years',
-                        const Color(0xFFD2BBFF),
+                    // Manifesto row
+                    _buildCriteriaSection('Manifesto', <Widget>[
+                      _buildTextRow(
+                        _selectedCandidates
+                            .map(
+                              (c) => _truncate(c['manifesto'] as String, 200),
+                            )
+                            .toList(),
                       ),
-                    ]),
-
-                    const SizedBox(height: 32),
-
-                    _buildCriteriaSection('Key Focus Areas', [
-                      _buildFocusAreasRow(),
-                    ]),
-
-                    const SizedBox(height: 32),
-
-                    _buildCriteriaSection('SecureVote Verified', [
-                      _buildVerificationRow(),
                     ]),
 
                     const SizedBox(height: 100),
@@ -274,25 +262,27 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.2))),
+          color: Colors.white.withValues(alpha: 0.05),
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          ),
         ),
         child: SizedBox(
           height: 56,
           child: ElevatedButton(
-            onPressed: () {},
+            onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFB9C3FF),
               foregroundColor: const Color(0xFF001D79),
               elevation: 8,
-              shadowColor: const Color(0xFFB9C3FF).withOpacity(0.3),
+              shadowColor: const Color(0xFFB9C3FF).withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: const <Widget>[
                 Icon(Icons.how_to_vote, size: 20),
                 SizedBox(width: 8),
                 Text(
@@ -307,6 +297,12 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
     );
   }
 
+  String _truncate(String text, int max) {
+    if (text.isEmpty) return '—';
+    if (text.length <= max) return text;
+    return '${text.substring(0, max)}…';
+  }
+
   Widget _buildCandidateChip(
     String name,
     Color color,
@@ -318,11 +314,11 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF34343A),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        children: [
+        children: <Widget>[
           Icon(Icons.person, color: color, size: 18),
           const SizedBox(width: 8),
           Text(
@@ -333,7 +329,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
-          if (hasClose && onRemove != null) ...[
+          if (hasClose && onRemove != null) ...<Widget>[
             const SizedBox(width: 8),
             GestureDetector(
               onTap: onRemove,
@@ -363,7 +359,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
-          children: const [
+          children: const <Widget>[
             Icon(Icons.add, color: Color(0xFFC4C5D7), size: 18),
             SizedBox(width: 8),
             Text(
@@ -382,7 +378,7 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
 
   Widget _buildCandidateHeader(String name, String party, Color color) {
     return Column(
-      children: [
+      children: <Widget>[
         Container(
           width: 80,
           height: 80,
@@ -419,11 +415,11 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
 
   Widget _buildCriteriaSection(String title, List<Widget> children) {
     return Column(
-      children: [
+      children: <Widget>[
         Container(
           padding: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: const Color(0xFF34343A))),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFF34343A))),
           ),
           child: Text(
             title.toUpperCase(),
@@ -441,244 +437,26 @@ class _CompareCandidatesScreenState extends State<CompareCandidatesScreen> {
     );
   }
 
-  Widget _buildCriteriaRow(String left, String right) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            left,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFFE3E1E9),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Text(
-            right,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFFE3E1E9),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExperienceRow(
-    IconData icon1,
-    String title1,
-    String years1,
-    Color color1,
-    IconData icon2,
-    String title2,
-    String years2,
-    Color color2,
-  ) {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF34343A).withOpacity(0.3),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Icon(icon1, color: color1, size: 24),
-                const SizedBox(height: 8),
-                Text(
-                  title1,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFE3E1E9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  years1,
-                  style: TextStyle(
-                    color: color1,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF34343A).withOpacity(0.3),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Icon(icon2, color: color2, size: 24),
-                const SizedBox(height: 8),
-                Text(
-                  title2,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFE3E1E9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  years2,
-                  style: TextStyle(
-                    color: color2,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFocusAreasRow() {
+  /// Renders one text cell per selected candidate side by side.
+  Widget _buildTextRow(List<String> values) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              _buildFocusItem(
-                'Public Transportation Expansion',
-                const Color(0xFFB9C3FF),
+      children: values.asMap().entries.map((entry) {
+        final int i = entry.key;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(right: i < values.length - 1 ? 24 : 0),
+            child: Text(
+              entry.value,
+              style: const TextStyle(
+                color: Color(0xFFE3E1E9),
+                fontSize: 14,
+                height: 1.5,
               ),
-              const SizedBox(height: 12),
-              _buildFocusItem(
-                'Affordable Housing Initiatives',
-                const Color(0xFFB9C3FF),
-              ),
-              const SizedBox(height: 12),
-              _buildFocusItem(
-                'Green Energy Transition',
-                const Color(0xFFB9C3FF),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Column(
-            children: [
-              _buildFocusItem(
-                'Small Business Tax Cuts',
-                const Color(0xFFD2BBFF),
-              ),
-              const SizedBox(height: 12),
-              _buildFocusItem(
-                'Law Enforcement Funding',
-                const Color(0xFFD2BBFF),
-              ),
-              const SizedBox(height: 12),
-              _buildFocusItem('Infrastructure Repair', const Color(0xFFD2BBFF)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFocusItem(String text, Color color) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.check_circle, color: color, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(color: Color(0xFFE3E1E9), fontSize: 14),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerificationRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2ADEC0).withOpacity(0.2),
-              border: Border.all(
-                color: const Color(0xFF2ADEC0).withOpacity(0.3),
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.verified_user, color: Color(0xFF2ADEC0), size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'Identity Confirmed',
-                  style: TextStyle(
-                    color: Color(0xFF2ADEC0),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
             ),
           ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2ADEC0).withOpacity(0.2),
-              border: Border.all(
-                color: const Color(0xFF2ADEC0).withOpacity(0.3),
-              ),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.verified_user, color: Color(0xFF2ADEC0), size: 16),
-                SizedBox(width: 6),
-                Text(
-                  'Identity Confirmed',
-                  style: TextStyle(
-                    color: Color(0xFF2ADEC0),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+        );
+      }).toList(),
     );
   }
 }

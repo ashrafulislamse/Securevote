@@ -66,8 +66,8 @@ class PremiumBottomNav extends StatelessWidget {
           children: List<Widget>.generate(items.length, (int index) {
             final _NavItem item = items[index];
             final bool active = index == currentIndex;
-            final bool showBadge = item.alertsIndex == index &&
-                alertsUnreadCount > 0;
+            final bool showBadge =
+                item.alertsIndex == index && alertsUnreadCount > 0;
             return Expanded(
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),
@@ -115,8 +115,9 @@ class PremiumBottomNav extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(8),
                                   boxShadow: <BoxShadow>[
                                     BoxShadow(
-                                      color: const Color(0xFFFF6B6B)
-                                          .withValues(alpha: 0.4),
+                                      color: const Color(
+                                        0xFFFF6B6B,
+                                      ).withValues(alpha: 0.4),
                                       blurRadius: 6,
                                     ),
                                   ],

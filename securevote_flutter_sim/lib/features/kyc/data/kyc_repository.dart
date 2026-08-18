@@ -11,8 +11,8 @@ import '../../../core/network/api_client.dart';
 /// Data access for identity verification (KYC).
 class KycRepository {
   KycRepository({ApiClient? api, ImagePicker? picker})
-      : _api = api ?? ApiClient.instance,
-        _picker = picker ?? ImagePicker();
+    : _api = api ?? ApiClient.instance,
+      _picker = picker ?? ImagePicker();
 
   final ApiClient _api;
   final ImagePicker _picker;
@@ -92,11 +92,7 @@ class KycRepository {
     );
     if (file == null) return null;
     final bytes = await _readFileBytes(file);
-    return PickedKycImage(
-      bytes: bytes,
-      fileName: file.name,
-      docType: docType,
-    );
+    return PickedKycImage(bytes: bytes, fileName: file.name, docType: docType);
   }
 
   /// Convenience that picks an image and submits it in a single call.

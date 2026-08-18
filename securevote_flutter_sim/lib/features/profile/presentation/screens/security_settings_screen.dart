@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-// static settings screen.
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/providers.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -11,9 +12,6 @@ class SecuritySettingsScreen extends StatefulWidget {
 }
 
 class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
-  bool _twoFactorAuth = false;
-  bool _biometric = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,19 +32,15 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           _buildSection('Authentication', [
-            _buildToggleItem(
+            _buildComingSoonToggle(
               Icons.security,
               'Two-Factor Authentication',
-              'Add an extra layer of security',
-              _twoFactorAuth,
-              (value) => setState(() => _twoFactorAuth = value),
+              'Coming soon — not yet available',
             ),
-            _buildToggleItem(
+            _buildComingSoonToggle(
               Icons.fingerprint,
               'Biometric Login',
-              'Use fingerprint or face recognition',
-              _biometric,
-              (value) => setState(() => _biometric = value),
+              'Coming soon — not yet available',
             ),
           ]),
           const SizedBox(height: 24),
@@ -59,8 +53,23 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
           ]),
           const SizedBox(height: 24),
           _buildSection('Session Management', [
-            _buildActionItem(Icons.devices, 'Active Sessions', () {}),
-            _buildActionItem(Icons.logout, 'Sign Out All Devices', () {}),
+            _buildActionItem(Icons.devices, 'Active Sessions', () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Session management coming soon.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }),
+            _buildActionItem(Icons.logout, 'Sign Out All Devices', () async {
+              await context.read<AuthProvider>().logout();
+              if (!context.mounted) return;
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.welcome,
+                (route) => false,
+              );
+            }),
           ]),
         ],
       ),
@@ -94,18 +103,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     );
   }
 
-  Widget _buildToggleItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+  Widget _buildComingSoonToggle(IconData icon, String title, String subtitle) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFFB9C3FF), size: 24),
+          Icon(icon, color: Colors.white.withValues(alpha: 0.4), size: 24),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -113,10 +116,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: Colors.white.withValues(alpha: 0.5),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -124,16 +127,23 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: Colors.white.withValues(alpha: 0.4),
                   ),
                 ),
               ],
             ),
           ),
           Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: const Color(0xFFB9C3FF),
+            value: false,
+            onChanged: (_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('This feature is coming soon.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            activeThumbColor: const Color(0xFFB9C3FF),
           ),
         ],
       ),

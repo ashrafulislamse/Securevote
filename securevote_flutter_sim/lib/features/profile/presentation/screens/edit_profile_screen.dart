@@ -64,7 +64,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0E13),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0E13).withOpacity(0.8),
+        backgroundColor: const Color(0xFF0D0E13).withValues(alpha: 0.8),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFB9C3FF)),
@@ -172,29 +172,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             // Form Fields
             _buildTextField('Full Name', _nameController, Icons.person),
             const SizedBox(height: 24),
-            _buildTextField('Email', _emailController, Icons.mail),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField('Phone', _phoneController, Icons.flag),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildTextField(
-                    'Date of Birth',
-                    TextEditingController(text: '04 / 12 / 1992'),
-                    Icons.calendar_today,
-                  ),
-                ),
-              ],
+            _buildTextField(
+              'Email',
+              _emailController,
+              Icons.mail,
+              readOnly: true,
             ),
             const SizedBox(height: 24),
-            _buildDropdownField('Gender', 'Male', Icons.diversity_3),
-            const SizedBox(height: 24),
-            _buildTextArea(
-              'Bio',
-              'Digital rights advocate and tech enthusiast. Committed to transparent democratic processes and blockchain security. Living in San Francisco.',
+            _buildTextField('Phone', _phoneController, Icons.phone),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Only Full Name and Phone are editable. Email changes are not supported.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.4),
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
             ),
 
             const SizedBox(height: 120),
@@ -204,8 +200,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+          color: Colors.white.withValues(alpha: 0.05),
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          ),
         ),
         child: SizedBox(
           height: 56,
@@ -238,8 +236,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildTextField(
     String label,
     TextEditingController controller,
-    IconData icon,
-  ) {
+    IconData icon, {
+    bool readOnly = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -261,110 +260,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
           child: TextField(
             controller: controller,
-            style: const TextStyle(
-              color: Color(0xFFE3E1E9),
+            readOnly: readOnly,
+            style: TextStyle(
+              color: readOnly
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : const Color(0xFFE3E1E9),
               fontWeight: FontWeight.w500,
             ),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, color: const Color(0xFF8E90A0), size: 20),
+              suffixIcon: readOnly
+                  ? const Icon(
+                      Icons.lock_outline,
+                      color: Color(0xFF8E90A0),
+                      size: 18,
+                    )
+                  : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
                 vertical: 16,
               ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDropdownField(String label, String value, IconData icon) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            color: Color(0xFFC4C5D7),
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF292A2F),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: const Color(0xFF8E90A0), size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color(0xFFE3E1E9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const Icon(Icons.expand_more, color: Color(0xFF8E90A0)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTextArea(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFFC4C5D7),
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const Text(
-              '142 / 200',
-              style: TextStyle(
-                color: Color(0xFF8E90A0),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF292A2F),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: TextEditingController(text: value),
-            maxLines: 4,
-            style: const TextStyle(
-              color: Color(0xFFE3E1E9),
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
             ),
           ),
         ),

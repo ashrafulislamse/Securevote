@@ -25,8 +25,18 @@ class _HomeScreenState extends State<HomeScreen> {
   static const double _headerMaxExtent = 112;
 
   static const List<String> _months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   int _selectedTabIndex = 0;
@@ -53,8 +63,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
-      final List<Election> elections =
-          await context.read<ElectionsRepository>().getElections();
+      final List<Election> elections = await context
+          .read<ElectionsRepository>()
+          .getElections();
       if (!mounted) {
         return;
       }
@@ -71,6 +82,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = 'Could not load elections.';
       });
     }
+  }
+
+  static String _greeting() {
+    final int hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning,';
+    if (hour < 17) return 'Good afternoon,';
+    return 'Good evening,';
   }
 
   static bool _isActive(Election e) => e.status == 'active';
@@ -144,127 +162,137 @@ class _HomeScreenState extends State<HomeScreen> {
           return PremiumBottomNav(currentIndex: 0, alertsUnreadCount: count);
         },
       ),
-      child: CustomScrollView(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
-        slivers: <Widget>[
-          SliverAppBar(
-            pinned: true,
-            automaticallyImplyLeading: false,
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            expandedHeight: _headerMaxExtent,
-            collapsedHeight: _headerMinExtent,
-            toolbarHeight: _headerMinExtent,
-            flexibleSpace: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final double currentHeight = constraints.biggest.height.clamp(
-                  _headerMinExtent,
-                  _headerMaxExtent,
-                );
-                final double t =
-                    1 -
-                    ((currentHeight - _headerMinExtent) /
-                            (_headerMaxExtent - _headerMinExtent))
-                        .clamp(0, 1);
+      child: RefreshIndicator(
+        color: const Color(0xFFB9C3FF),
+        onRefresh: _load,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const BouncingScrollPhysics(
+            parent: AlwaysScrollableScrollPhysics(),
+          ),
+          slivers: <Widget>[
+            SliverAppBar(
+              pinned: true,
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              expandedHeight: _headerMaxExtent,
+              collapsedHeight: _headerMinExtent,
+              toolbarHeight: _headerMinExtent,
+              flexibleSpace: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double currentHeight = constraints.biggest.height.clamp(
+                    _headerMinExtent,
+                    _headerMaxExtent,
+                  );
+                  final double t =
+                      1 -
+                      ((currentHeight - _headerMinExtent) /
+                              (_headerMaxExtent - _headerMinExtent))
+                          .clamp(0, 1);
 
-                return Container(
-                  padding: EdgeInsets.only(
-                    top: lerpDouble(10, 6, t)!,
-                    bottom: lerpDouble(12, 8, t)!,
-                  ),
-                  color: const Color(0x1212182F),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _topHeader(context, t),
-                  ),
-                );
-              },
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(height: lerpDouble(14, 2, _collapseT)),
-          ),
-          SliverToBoxAdapter(
-            child: _heroCard(context, _collapseT, activeElection),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(child: _quickStatsRow(context, allElections)),
-          const SliverToBoxAdapter(child: SizedBox(height: 14)),
-          SliverToBoxAdapter(child: _tabsRow(context, allElections)),
-          const SliverToBoxAdapter(child: SizedBox(height: 18)),
-          SliverToBoxAdapter(
-            child: Text(
-              '$activeTab Elections',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontSize: 30),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-          if (isLoading && allElections.isEmpty)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
-                ),
+                  return Container(
+                    padding: EdgeInsets.only(
+                      top: lerpDouble(10, 6, t)!,
+                      bottom: lerpDouble(12, 8, t)!,
+                    ),
+                    color: const Color(0x1212182F),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _topHeader(context, t),
+                    ),
+                  );
+                },
               ),
-            )
-          else if (hasError)
+            ),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+              child: SizedBox(height: lerpDouble(14, 2, _collapseT)),
+            ),
+            SliverToBoxAdapter(
+              child: _heroCard(context, _collapseT, activeElection),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            SliverToBoxAdapter(child: _quickStatsRow(context, allElections)),
+            const SliverToBoxAdapter(child: SizedBox(height: 14)),
+            SliverToBoxAdapter(child: _tabsRow(context, allElections)),
+            const SliverToBoxAdapter(child: SizedBox(height: 18)),
+            SliverToBoxAdapter(
+              child: Text(
+                '$activeTab Elections',
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(fontSize: 30),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
+            if (isLoading && allElections.isEmpty)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+                  ),
+                ),
+              )
+            else if (hasError)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Column(
+                    children: <Widget>[
+                      Icon(
+                        Icons.cloud_off_rounded,
+                        size: 40,
+                        color: AppColors.textMuted.withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Could not load elections.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverToBoxAdapter(
                 child: Column(
                   children: <Widget>[
-                    Icon(
-                      Icons.cloud_off_rounded,
-                      size: 40,
-                      color: AppColors.textMuted.withValues(alpha: 0.7),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Could not load elections.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: _load,
-                      child: const Text('Retry'),
-                    ),
+                    for (
+                      int i = 0;
+                      i < visibleElections.length;
+                      i++
+                    ) ...<Widget>[
+                      _electionItem(
+                        context: context,
+                        election: visibleElections[i],
+                      ),
+                      if (i != visibleElections.length - 1)
+                        const SizedBox(height: 14),
+                    ],
                   ],
                 ),
               ),
-            )
-          else
-            SliverToBoxAdapter(
-              child: Column(
-                children: <Widget>[
-                  for (int i = 0; i < visibleElections.length; i++) ...<Widget>[
-                    _electionItem(
-                      context: context,
-                      election: visibleElections[i],
-                    ),
-                    if (i != visibleElections.length - 1)
-                      const SizedBox(height: 14),
-                  ],
-                ],
-              ),
-            ),
-          if (!isLoading && !hasError && visibleElections.isEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  'No elections in this section.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+            if (!isLoading && !hasError && visibleElections.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    'No elections in this section.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
               ),
-            ),
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          ],
+        ),
       ),
     );
   }
@@ -293,8 +321,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final AuthProvider auth = context.watch<AuthProvider>();
     final String fullName = auth.user?.fullName ?? '';
-    final String firstName =
-        fullName.trim().isEmpty ? 'User' : fullName.trim().split(' ').first;
+    final String firstName = fullName.trim().isEmpty
+        ? 'User'
+        : fullName.trim().split(' ').first;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -378,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Opacity(
                       opacity: subtitleOpacity,
                       child: Text(
-                        'Good morning,',
+                        _greeting(),
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
                     ),
@@ -416,7 +445,14 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 8),
           _squareAction(
             icon: Icons.shield_rounded,
-            onTap: () {},
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Security info'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
             size: actionSize,
             iconSize: lerpDouble(20, 17, t)!,
           ),
@@ -427,11 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // ─── HERO CARD ─────────────────────────────────────────────────────────────
 
-  Widget _heroCard(
-    BuildContext context,
-    double t,
-    Election? activeElection,
-  ) {
+  Widget _heroCard(BuildContext context, double t, Election? activeElection) {
     if (activeElection == null) {
       return _noActiveCard(context);
     }
@@ -577,10 +609,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 gradient: const LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
-                  colors: <Color>[
-                    Color(0xFFB9C3FF),
-                    Color(0xFFD2BBFF),
-                  ],
+                  colors: <Color>[Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: const <BoxShadow>[
@@ -730,8 +759,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 18),
           InkWell(
             borderRadius: BorderRadius.circular(16),
-            onTap: () =>
-                Navigator.pushNamed(context, AppRouter.electionSearch),
+            onTap: () => Navigator.pushNamed(context, AppRouter.electionSearch),
             child: Container(
               height: 52,
               decoration: BoxDecoration(
@@ -998,11 +1026,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               InkWell(
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  route,
-                  arguments: election,
-                ),
+                onTap: () =>
+                    Navigator.pushNamed(context, route, arguments: election),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[

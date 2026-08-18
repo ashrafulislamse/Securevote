@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/candidate.dart';
+import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
 
 class CandidateDetailsScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
   final List<String> _tabs = <String>['Manifesto', 'Profile', 'Media'];
 
   Candidate? _candidate;
+  Election? _election;
 
   @override
   void didChangeDependencies() {
@@ -22,6 +24,15 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
     final Object? args = ModalRoute.of(context)?.settings.arguments;
     if (args is Candidate) {
       _candidate = args;
+    } else if (args is Map) {
+      final Object? c = args['candidate'];
+      if (c is Candidate) {
+        _candidate = c;
+      }
+      final Object? e = args['election'];
+      if (e is Election) {
+        _election = e;
+      }
     }
   }
 
@@ -78,7 +89,21 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
                       borderRadius: BorderRadius.circular(12),
                       color: Colors.white.withValues(alpha: 0.1),
                     ),
-                    child: const Icon(Icons.share, size: 20),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(_candidate?.name ?? 'Candidate'),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Icon(Icons.share, size: 20),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -119,7 +144,15 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
               Expanded(
                 child: InkWell(
                   onTap: () {
-                    Navigator.pushNamed(context, AppRouter.compareCandidates);
+                    Navigator.pushNamed(
+                      context,
+                      AppRouter.compareCandidates,
+                      arguments: <String, dynamic>{
+                        if (_election != null) 'election': _election,
+                        if (_candidate != null)
+                          'candidates': <Candidate>[_candidate!],
+                      },
+                    );
                   },
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
@@ -144,28 +177,51 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
               const SizedBox(width: 12),
               Expanded(
                 flex: 2,
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: const LinearGradient(
-                      colors: <Color>[Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
-                    ),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: const Color(0xFFB9C3FF).withValues(alpha: 0.3),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
+                child: InkWell(
+                  onTap: () {
+                    final Candidate? candidate = _candidate;
+                    if (candidate == null) return;
+                    final String blockId =
+                        _election?.id ?? candidate.electionId;
+                    Navigator.pushNamed(
+                      context,
+                      AppRouter.reviewVote,
+                      arguments: <String, dynamic>{
+                        'election': _election,
+                        'candidates': <Candidate>[candidate],
+                        'selections': <Map<String, String>>[
+                          <String, String>{
+                            'blockId': blockId,
+                            'candidateId': candidate.id,
+                          },
+                        ],
+                      },
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      gradient: const LinearGradient(
+                        colors: <Color>[Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
                       ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Select Candidate',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF001257),
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(
+                          color: const Color(0xFFB9C3FF).withValues(alpha: 0.3),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Select Candidate',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF001257),
+                        ),
                       ),
                     ),
                   ),
@@ -292,26 +348,37 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
   }
 
   Widget _buildSocialButton(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.white.withValues(alpha: 0.03),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.7)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w500,
-            ),
+    return InkWell(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Social links coming soon'),
+            duration: Duration(seconds: 2),
           ),
-        ],
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: Colors.white.withValues(alpha: 0.03),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.7),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -332,7 +399,11 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
             onTap: () {
               if (index == 0) {
                 // Manifesto tab - navigate to full manifesto screen
-                Navigator.pushNamed(context, AppRouter.candidateManifesto);
+                Navigator.pushNamed(
+                  context,
+                  AppRouter.candidateManifesto,
+                  arguments: _candidate,
+                );
               } else {
                 setState(() {
                   _selectedTab = index;
@@ -370,89 +441,73 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
   }
 
   Widget _buildContent() {
+    final Candidate? candidate = _candidate;
+    final String bio = candidate?.bio?.isNotEmpty == true
+        ? candidate!.bio!
+        : '';
+    final String manifesto = candidate?.manifesto?.isNotEmpty == true
+        ? candidate!.manifesto!
+        : '';
+
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // Quote Card
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              color: Colors.white.withValues(alpha: 0.03),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+          if (bio.isNotEmpty) ...<Widget>[
+            _buildSection(
+              'About',
+              Icons.person_outline,
+              const Color(0xFFB9C3FF),
+              bio,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Icon(
-                  Icons.format_quote,
-                  size: 32,
-                  color: Colors.white.withValues(alpha: 0.1),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _candidate?.bio?.isNotEmpty == true
-                        ? '"${_candidate!.bio}"'
-                        : _candidate?.manifesto?.isNotEmpty == true
-                        ? '"${_candidate!.manifesto}"'
-                        : '"This candidate has not added a statement yet."',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      height: 1.6,
+            const SizedBox(height: 20),
+          ],
+          if (manifesto.isNotEmpty) ...<Widget>[
+            _buildSection(
+              'Manifesto',
+              Icons.article_outlined,
+              const Color(0xFFD2BBFF),
+              manifesto,
+            ),
+            const SizedBox(height: 20),
+          ],
+          if (bio.isEmpty && manifesto.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF1A1B21),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.white.withValues(alpha: 0.5),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'This candidate has not added a biography or manifesto yet.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withValues(alpha: 0.6),
+                        height: 1.5,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
-
-          // Vision Section
-          _buildSection(
-            'Core Vision',
-            Icons.visibility,
-            const Color(0xFFB9C3FF),
-            'To transform our campus into a pioneering digital-first student ecosystem where every voice is heard through secure, decentralized channels.',
-            <String>[
-              'Establish a 24/7 transparent budget tracking dashboard.',
-              'Launch the \'Student-Led Innovation Fund\' for local tech projects.',
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Education Section
-          _buildSection(
-            'Education & Policy',
-            Icons.school,
-            const Color(0xFFD2BBFF),
-            null,
-            <String>[
-              'Hybrid Learning Infrastructure - Improving accessibility for off-campus students.',
-              'Mental Health First-Aid - Integrating 1-on-1 counseling resources.',
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Finance Section
-          _buildFinanceSection(),
           const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _buildSection(
-    String title,
-    IconData icon,
-    Color color,
-    String? description,
-    List<String> points,
-  ) {
+  Widget _buildSection(String title, IconData icon, Color color, String body) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -477,154 +532,13 @@ class _CandidateDetailsScreenState extends State<CandidateDetailsScreen> {
               ),
             ],
           ),
-          if (description != null) ...<Widget>[
-            const SizedBox(height: 16),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withValues(alpha: 0.7),
-                height: 1.6,
-              ),
-            ),
-          ],
           const SizedBox(height: 16),
-          ...points.map(
-            (point) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Container(
-                    margin: const EdgeInsets.only(top: 6),
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      point,
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFinanceSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF1A1B21),
-        border: const Border(
-          left: BorderSide(color: Color(0xFF2ADEC0), width: 4),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const Row(
-            children: <Widget>[
-              Icon(Icons.payments, color: Color(0xFF2ADEC0), size: 24),
-              SizedBox(width: 12),
-              Text(
-                'Financial Sustainability',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFF292A2F),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Proposed Budget Allocation',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        flex: 40,
-                        child: Container(
-                          height: 8,
-                          color: const Color(0xFFB9C3FF),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 30,
-                        child: Container(
-                          height: 8,
-                          color: const Color(0xFFD2BBFF),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 30,
-                        child: Container(
-                          height: 8,
-                          color: const Color(0xFF2ADEC0),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Text(
-                      '40% Tech',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '30% Welfare',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      '30% Events',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          Text(
+            body,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.8),
+              height: 1.6,
             ),
           ),
         ],

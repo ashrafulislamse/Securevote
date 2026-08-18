@@ -1,3 +1,4 @@
+import '../../../core/models/receipt_verification.dart';
 import '../../../core/models/vote.dart';
 import '../../../core/network/api_client.dart';
 
@@ -18,10 +19,12 @@ class VotingRepository {
     required String electionId,
     required List<Map<String, String>> selections,
   }) async {
-    final data = await _api.postApi(
-      '/api/voting/cast',
-      data: {'electionId': electionId, 'selections': selections},
-    ) as Map<String, dynamic>;
+    final data =
+        await _api.postApi(
+              '/api/voting/cast',
+              data: {'electionId': electionId, 'selections': selections},
+            )
+            as Map<String, dynamic>;
     return Vote.fromJson(data['vote'] as Map<String, dynamic>);
   }
 
@@ -31,17 +34,27 @@ class VotingRepository {
   Future<List<Vote>> getMyVotes() async {
     final data = await _api.getApi('/api/voting/mine') as Map<String, dynamic>;
     final list = data['votes'] as List<dynamic>? ?? const [];
-    return list
-        .map((v) => Vote.fromJson(v as Map<String, dynamic>))
-        .toList();
+    return list.map((v) => Vote.fromJson(v as Map<String, dynamic>)).toList();
   }
 
   /// Checks whether the current user has already voted in an election.
   ///
   /// Backend: `GET /api/voting/voted/:electionId` returns `{ voted: bool }`.
   Future<bool> hasVoted(String electionId) async {
-    final data = await _api.getApi('/api/voting/voted/$electionId')
-        as Map<String, dynamic>;
+    final data =
+        await _api.getApi('/api/voting/voted/$electionId')
+            as Map<String, dynamic>;
     return data['voted'] as bool? ?? false;
+  }
+
+  /// Verifies a ballot receipt by its receipt id.
+  ///
+  /// Backend: `GET /api/public/verify/:receiptId` returns the verification
+  /// payload (valid flag, on-chain proof, merkle data, etc.).
+  Future<ReceiptVerification> verifyReceipt(String receiptId) async {
+    final dynamic data = await _api.getApi(
+      '/api/public/verify/${Uri.encodeComponent(receiptId)}',
+    );
+    return ReceiptVerification.fromJson(data as Map<String, dynamic>);
   }
 }

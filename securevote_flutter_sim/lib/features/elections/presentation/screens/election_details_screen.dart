@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/models/candidate.dart';
 import '../../../../core/models/election.dart';
+import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../features/elections/data/elections_repository.dart';
+import '../../../../features/voting/data/voting_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 
 class ElectionDetailsScreen extends StatefulWidget {
@@ -25,8 +28,18 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
   ];
 
   static const List<String> _months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   int _selectedTab = 0;
@@ -35,6 +48,11 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
   bool _loading = true;
   String? _error;
   bool _started = false;
+
+  // Eligibility state derived from real auth + vote checks.
+  bool _kycApproved = false;
+  bool _hasVoted = false;
+  bool _eligibilityChecked = false;
 
   @override
   void didChangeDependencies() {
@@ -61,8 +79,8 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
     });
     try {
       final repo = context.read<ElectionsRepository>();
-      final (Election election, List<Candidate> candidates) =
-          await repo.getElectionWithCandidates(id);
+      final (Election election, List<Candidate> candidates) = await repo
+          .getElectionWithCandidates(id);
       if (!mounted) {
         return;
       }
@@ -71,6 +89,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
         _candidates = candidates;
         _loading = false;
       });
+      await _checkEligibility(election.id);
     } catch (_) {
       if (!mounted) {
         return;
@@ -103,6 +122,41 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
       }
     }
     return null;
+  }
+
+  Future<void> _checkEligibility(String electionId) async {
+    final AuthProvider auth = context.read<AuthProvider>();
+    final bool kycApproved = auth.user?.kycStatus == KycStatus.approved;
+    bool voted = false;
+    try {
+      voted = await VotingRepository().hasVoted(electionId);
+    } on Exception {
+      // Treat lookup failures as "not voted" so the ballot still opens.
+      voted = false;
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _kycApproved = kycApproved;
+      _hasVoted = voted;
+      _eligibilityChecked = true;
+    });
+  }
+
+  void _shareElection() {
+    final Election? election = _election;
+    if (election == null) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${election.title} — ${election.organization ?? 'SecureVote Election'}',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   static String _formatDate(DateTime d) {
@@ -182,7 +236,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () {},
+                        onTap: _shareElection,
                         borderRadius: BorderRadius.circular(24),
                         child: const Icon(Icons.share, size: 20),
                       ),
@@ -304,10 +358,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 style: const TextStyle(color: Color(0xFFC4C5D7)),
               ),
               const SizedBox(height: 20),
-              OutlinedButton(
-                onPressed: _load,
-                child: const Text('Retry'),
-              ),
+              OutlinedButton(onPressed: _load, child: const Text('Retry')),
             ],
           ),
         ),
@@ -474,10 +525,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
     return Row(
       children: <Widget>[
         Expanded(
-          child: _StatCard(
-            label: 'Candidates',
-            value: '${_candidates.length}',
-          ),
+          child: _StatCard(label: 'Candidates', value: '${_candidates.length}'),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -488,10 +536,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
         ),
         const SizedBox(width: 16),
         Expanded(
-          child: _StatCard(
-            label: 'Ends',
-            value: _formatDate(election.endsAt),
-          ),
+          child: _StatCard(label: 'Ends', value: _formatDate(election.endsAt)),
         ),
       ],
     );
@@ -503,10 +548,13 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
         .difference(election.startsAt)
         .inMilliseconds
         .toDouble();
-    final double elapsed = now.difference(election.startsAt).inMilliseconds
+    final double elapsed = now
+        .difference(election.startsAt)
+        .inMilliseconds
         .toDouble();
-    final double progress =
-        total <= 0 ? 0.0 : (elapsed / total).clamp(0.0, 1.0);
+    final double progress = total <= 0
+        ? 0.0
+        : (elapsed / total).clamp(0.0, 1.0);
     final int percent = (progress * 100).round();
 
     return Container(
@@ -645,6 +693,30 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
   }
 
   Widget _eligibilityCard(BuildContext context) {
+    final bool eligible = _kycApproved && !_hasVoted;
+    final Color statusColor = _hasVoted
+        ? const Color(0xFFFFB547)
+        : eligible
+        ? const Color(0xFF2ADEC0)
+        : const Color(0xFFFF6B6B);
+    final IconData statusIcon = _hasVoted
+        ? Icons.how_to_vote_rounded
+        : eligible
+        ? Icons.check_circle
+        : Icons.gpp_bad_outlined;
+    final String title = _hasVoted
+        ? 'You have already voted'
+        : eligible
+        ? 'You are eligible to vote'
+        : 'KYC verification required';
+    final String subtitle = !_eligibilityChecked
+        ? 'Checking your eligibility...'
+        : _hasVoted
+        ? 'Your ballot for this election has been recorded.'
+        : eligible
+        ? 'Your KYC profile is verified. You can cast your ballot.'
+        : 'Complete KYC verification to become eligible to vote.';
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -659,22 +731,18 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
             height: 32,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
+              color: statusColor.withValues(alpha: 0.2),
             ),
-            child: const Icon(
-              Icons.check_circle,
-              color: Color(0xFF2ADEC0),
-              size: 16,
-            ),
+            child: Icon(statusIcon, color: statusColor, size: 16),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
-                  'You are eligible to vote',
-                  style: TextStyle(
+                Text(
+                  title,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -682,12 +750,24 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Ensure your KYC profile is verified before casting your ballot.',
+                  subtitle,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
+                if (!_eligibilityChecked && !_kycApproved && !_hasVoted)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFFB9C3FF),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -740,7 +820,10 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           Navigator.pushNamed(
             context,
             AppRouter.candidateDetails,
-            arguments: candidate,
+            arguments: <String, dynamic>{
+              'candidate': candidate,
+              'election': _election,
+            },
           );
         },
         borderRadius: BorderRadius.circular(16),
@@ -801,10 +884,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: Color(0xFF8E90A0),
-              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF8E90A0)),
             ],
           ),
         ),
@@ -826,6 +906,26 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           ),
         ),
         const SizedBox(height: 16),
+        if (election.description != null && election.description!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF1A1B21),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Text(
+                election.description!,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withValues(alpha: 0.75),
+                  height: 1.6,
+                ),
+              ),
+            ),
+          ),
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -839,7 +939,7 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
               _buildRuleItem(
                 Icons.how_to_vote,
                 'Voting Method',
-                'One vote per registered participant. Anonymous ballot with cryptographic verification.',
+                'One vote per person. Anonymous ballot with cryptographic verification.',
               ),
               const SizedBox(height: 16),
               _buildRuleItem(

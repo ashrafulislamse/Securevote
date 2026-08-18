@@ -167,8 +167,8 @@ class AppRouter {
       case notificationDetail:
         final notif.AppNotification? notification =
             settings.arguments is notif.AppNotification
-                ? settings.arguments as notif.AppNotification
-                : null;
+            ? settings.arguments as notif.AppNotification
+            : null;
         return _page(
           notification == null
               ? const NotificationDetailScreen()

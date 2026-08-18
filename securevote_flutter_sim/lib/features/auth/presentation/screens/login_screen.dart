@@ -30,8 +30,77 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value);
+  }
+
+  Future<void> _doLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final auth = context.read<AuthProvider>();
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (email.isEmpty || password.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Please enter email and password'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidEmail(email)) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a valid email address'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (password.length < 8) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Password must be at least 8 characters'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await auth.login(email: email, password: password);
+      if (!mounted) return;
+
+      // Route by KYC status
+      if (auth.user?.kycStatus != KycStatus.approved) {
+        navigator.pushNamedAndRemoveUntil(
+          AppRouter.kycStep1,
+          (Route<dynamic> route) => false,
+        );
+      } else {
+        navigator.pushNamedAndRemoveUntil(
+          AppRouter.homeScreen,
+          (Route<dynamic> route) => false,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(auth.error ?? e.toString()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return ObsidianScaffold(
       child: SingleChildScrollView(
         child: Column(
@@ -174,58 +243,34 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            GradientButton(
-              label: 'Sign In Securely',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () async {
-                final email = _emailController.text.trim();
-                final password = _passwordController.text;
-
-                // Validate fields
-                if (email.isEmpty || password.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Please enter email and password'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                final auth = context.read<AuthProvider>();
-                if (auth.isLoading) return;
-
-                try {
-                  await auth.login(email: email, password: password);
-                  if (!mounted) return;
-
-                  // Route by KYC status
-                  if (auth.user?.kycStatus != KycStatus.approved) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRouter.kycStep1,
-                      (Route<dynamic> route) => false,
-                    );
-                  } else {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRouter.homeScreen,
-                      (Route<dynamic> route) => false,
-                    );
-                  }
-                } catch (_) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        auth.error ?? 'Could not sign in. Please try again.',
+            if (auth.isLoading)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    colors: <Color>[AppColors.primary, AppColors.secondary],
+                  ),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF0D0E13),
+                        strokeWidth: 2,
                       ),
-                      backgroundColor: Colors.red,
                     ),
-                  );
-                }
-              },
-            ),
+                  ),
+                ),
+              )
+            else
+              GradientButton(
+                label: 'Sign In Securely',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: _doLogin,
+              ),
             const SizedBox(height: 14),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
@@ -236,11 +281,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 backgroundColor: const Color(0xFF2ADEC0).withValues(alpha: 0.1),
               ),
               onPressed: () {
-                // Pre-fill the admin demo credentials; the user then signs in
-                // through the normal backend flow above.
-                _emailController.text = 'admin@securevote.io';
-                _passwordController.text = 'SecureVote@2026';
-                setState(() {});
+                setState(() {
+                  _emailController.text = 'admin@securevote.io';
+                  _passwordController.text = 'SecureVote@2026';
+                });
+                Future.delayed(const Duration(milliseconds: 50), _doLogin);
               },
               icon: const Icon(
                 Icons.play_circle_outline,
@@ -260,7 +305,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
                 backgroundColor: Colors.white.withValues(alpha: 0.06),
               ),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Google sign-in coming soon')),
+                );
+              },
               icon: const FaIcon(
                 FontAwesomeIcons.google,
                 size: 16,

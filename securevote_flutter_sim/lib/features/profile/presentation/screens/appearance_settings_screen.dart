@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-// static settings screen.
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppearanceSettingsScreen extends StatefulWidget {
   const AppearanceSettingsScreen({super.key});
@@ -14,6 +13,44 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
   String _theme = 'dark';
   String _language = 'en';
   double _fontSize = 16.0;
+
+  static const String _kThemeMode = 'theme_mode';
+  static const String _kLanguage = 'appearance_language';
+  static const String _kFontSize = 'appearance_font_size';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _theme = prefs.getString(_kThemeMode) ?? 'dark';
+      _language = prefs.getString(_kLanguage) ?? 'en';
+      _fontSize = prefs.getDouble(_kFontSize) ?? 16.0;
+    });
+  }
+
+  Future<void> _setTheme(String value) async {
+    setState(() => _theme = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kThemeMode, value);
+  }
+
+  Future<void> _setLanguage(String value) async {
+    setState(() => _language = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kLanguage, value);
+  }
+
+  Future<void> _setFontSize(double value) async {
+    setState(() => _fontSize = value);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kFontSize, value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,18 +72,50 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           _buildSection('Theme', [
-            _buildRadioItem('Dark Mode', 'dark', enabled: true),
-            _buildComingSoonItem('Light Mode'),
-            _buildComingSoonItem('System Default'),
+            RadioGroup<String>(
+              groupValue: _theme,
+              onChanged: (value) {
+                if (value != null) _setTheme(value);
+              },
+              child: Column(
+                children: <Widget>[
+                  _buildRadioItem('Dark Mode', 'dark'),
+                  _buildInfoItem(
+                    'Light Mode',
+                    'Not customizable in this version.',
+                  ),
+                  _buildInfoItem(
+                    'System Default',
+                    'Not customizable in this version.',
+                  ),
+                ],
+              ),
+            ),
           ]),
           const SizedBox(height: 24),
           _buildSection('Language', [
-            _buildLanguageItem('English', 'en', enabled: true),
-            _buildComingSoonItem('Spanish'),
-            _buildComingSoonItem('French'),
-            _buildComingSoonItem('German'),
-            _buildComingSoonItem('Chinese'),
-            _buildComingSoonItem('Arabic'),
+            RadioGroup<String>(
+              groupValue: _language,
+              onChanged: (value) {
+                if (value != null) _setLanguage(value);
+              },
+              child: Column(
+                children: <Widget>[
+                  _buildLanguageItem('English', 'en'),
+                  _buildInfoItem(
+                    'Spanish',
+                    'Not customizable in this version.',
+                  ),
+                  _buildInfoItem('French', 'Not customizable in this version.'),
+                  _buildInfoItem('German', 'Not customizable in this version.'),
+                  _buildInfoItem(
+                    'Chinese',
+                    'Not customizable in this version.',
+                  ),
+                  _buildInfoItem('Arabic', 'Not customizable in this version.'),
+                ],
+              ),
+            ),
           ]),
           const SizedBox(height: 24),
           _buildFontSizeSection(),
@@ -82,63 +151,47 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
     );
   }
 
-  Widget _buildRadioItem(String title, String value, {bool enabled = true}) {
-    return InkWell(
-      onTap: enabled ? () => setState(() => _theme = value) : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: _theme,
-              onChanged: enabled ? (val) => setState(() => _theme = val!) : null,
-              activeColor: const Color(0xFFB9C3FF),
+  Widget _buildRadioItem(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Radio<String>(value: value, activeColor: const Color(0xFFB9C3FF)),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLanguageItem(String title, String value, {bool enabled = true}) {
-    return InkWell(
-      onTap: enabled ? () => setState(() => _language = value) : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Radio<String>(
-              value: value,
-              groupValue: _language,
-              onChanged: enabled ? (val) => setState(() => _language = val!) : null,
-              activeColor: const Color(0xFFB9C3FF),
+  Widget _buildLanguageItem(String title, String value) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Radio<String>(value: value, activeColor: const Color(0xFFB9C3FF)),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: enabled ? Colors.white : Colors.white.withValues(alpha: 0.5),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildComingSoonItem(String title) {
+  Widget _buildInfoItem(String title, String note) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -157,32 +210,26 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: Colors.white.withValues(alpha: 0.05),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
-              ),
-            ),
-            child: Text(
-              'COMING SOON',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: Colors.white.withValues(alpha: 0.4),
-                letterSpacing: 0.5,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.3),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  note,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.3),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -234,7 +281,17 @@ class _AppearanceSettingsScreenState extends State<AppearanceSettingsScreen> {
                 max: 20,
                 divisions: 8,
                 activeColor: const Color(0xFFB9C3FF),
-                onChanged: (value) => setState(() => _fontSize = value),
+                onChanged: _setFontSize,
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Font size is saved to this device only.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.3),
+                  ),
+                ),
               ),
             ],
           ),

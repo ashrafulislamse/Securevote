@@ -2,20 +2,42 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/candidate.dart';
 
-class CandidateManifestoScreen extends StatelessWidget {
+class CandidateManifestoScreen extends StatefulWidget {
   const CandidateManifestoScreen({super.key});
 
-  Candidate? _candidate(BuildContext context) {
+  @override
+  State<CandidateManifestoScreen> createState() =>
+      _CandidateManifestoScreenState();
+}
+
+class _CandidateManifestoScreenState extends State<CandidateManifestoScreen> {
+  // Font size for the manifesto body, adjustable via the A-/A+ controls.
+  double _fontSize = 18.0;
+  static const double _minFontSize = 14.0;
+  static const double _maxFontSize = 26.0;
+
+  Candidate? _candidate;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final Object? args = ModalRoute.of(context)?.settings.arguments;
-    return args is Candidate ? args : null;
+    if (args is Candidate) {
+      _candidate = args;
+    } else if (args is Map) {
+      final Object? c = args['candidate'];
+      if (c is Candidate) {
+        _candidate = c;
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final Candidate? candidate = _candidate(context);
+    final Candidate? candidate = _candidate;
     final String name = candidate?.name ?? 'Candidate';
     final String party = candidate?.party ?? 'Independent';
-    final String manifesto = candidate?.manifesto?.isNotEmpty == true
+    final String body = candidate?.manifesto?.isNotEmpty == true
         ? candidate!.manifesto!
         : candidate?.bio?.isNotEmpty == true
         ? candidate!.bio!
@@ -24,16 +46,16 @@ class CandidateManifestoScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
       body: CustomScrollView(
-        slivers: [
+        slivers: <Widget>[
           // Reading Progress Bar
           SliverAppBar(
             pinned: true,
-            backgroundColor: const Color(0xFF0F1117).withOpacity(0.5),
+            backgroundColor: const Color(0xFF0F1117).withValues(alpha: 0.5),
             elevation: 0,
             leading: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: IconButton(
@@ -49,16 +71,23 @@ class CandidateManifestoScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            actions: [
+            actions: <Widget>[
               Container(
                 margin: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.bookmark, color: Color(0xFFE3E1E9)),
-                  onPressed: () {},
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Bookmarked'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -67,7 +96,7 @@ class CandidateManifestoScreen extends StatelessWidget {
               child: Container(
                 height: 3,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                 ),
                 child: FractionallySizedBox(
                   widthFactor: 0.65,
@@ -75,7 +104,7 @@ class CandidateManifestoScreen extends StatelessWidget {
                   child: Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
+                        colors: <Color>[Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
                       ),
                     ),
                   ),
@@ -89,17 +118,19 @@ class CandidateManifestoScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   // Mini Author Bar
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1A1B21).withOpacity(0.5),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
+                      color: const Color(0xFF1A1B21).withValues(alpha: 0.5),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
-                      children: [
+                      children: <Widget>[
                         Container(
                           width: 48,
                           height: 48,
@@ -107,7 +138,7 @@ class CandidateManifestoScreen extends StatelessWidget {
                             color: const Color(0xFF292A2F),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                           ),
                           child: const Icon(
@@ -119,7 +150,7 @@ class CandidateManifestoScreen extends StatelessWidget {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            children: <Widget>[
                               Text(
                                 name,
                                 style: const TextStyle(
@@ -129,7 +160,7 @@ class CandidateManifestoScreen extends StatelessWidget {
                                 ),
                               ),
                               Row(
-                                children: [
+                                children: <Widget>[
                                   const Icon(
                                     Icons.verified,
                                     color: Color(0xFF2ADEC0),
@@ -152,34 +183,6 @@ class CandidateManifestoScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF34343A).withOpacity(0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(
-                                Icons.schedule,
-                                color: Color(0xFFC4C5D7),
-                                size: 14,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                '5 min read',
-                                style: TextStyle(
-                                  color: Color(0xFFC4C5D7),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -189,7 +192,7 @@ class CandidateManifestoScreen extends StatelessWidget {
                   // Article Header
                   ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFFE3E1E9), Color(0xFFC4C5D7)],
+                      colors: <Color>[Color(0xFFE3E1E9), Color(0xFFC4C5D7)],
                     ).createShader(bounds),
                     child: Text(
                       '$name — Manifesto',
@@ -202,43 +205,11 @@ class CandidateManifestoScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  Row(
-                    children: [
-                      const Text(
-                        'Published Sept 12, 2024',
-                        style: TextStyle(
-                          color: Color(0xFFC4C5D7),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Container(
-                        width: 4,
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const Text(
-                        'Policy Paper #16',
-                        style: TextStyle(
-                          color: Color(0xFFC4C5D7),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-
                   const SizedBox(height: 32),
 
-                  // Section 1
+                  // Section header
                   Row(
-                    children: [
+                    children: <Widget>[
                       Container(
                         width: 6,
                         height: 32,
@@ -246,96 +217,17 @@ class CandidateManifestoScreen extends StatelessWidget {
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
-                            colors: [Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
+                            colors: <Color>[
+                              Color(0xFFB9C3FF),
+                              Color(0xFFD2BBFF),
+                            ],
                           ),
                           borderRadius: BorderRadius.all(Radius.circular(3)),
                         ),
                       ),
                       const SizedBox(width: 16),
                       const Text(
-                    'Manifesto',
-                    style: TextStyle(
-                      color: Color(0xFFE3E1E9),
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-
-                  const SizedBox(height: 24),
-
-                  Text(
-                    manifesto,
-                    style: const TextStyle(
-                      color: Color(0xFFC4C5D7),
-                      fontSize: 18,
-                      height: 1.6,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(color: Color(0xFF4F6EF7), width: 4),
-                      ),
-                    ),
-                    child: const Text(
-                      '"True digital sovereignty is not merely the right to speak, but the guaranteed right to be heard without fear of surveillance or manipulation."',
-                      style: TextStyle(
-                        color: Color(0xFFB9C3FF),
-                        fontSize: 20,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w500,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Key Promises
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildPromiseCard(
-                          'Immutable Ledger',
-                          'Publicly auditable voting records using decentralized consensus protocols.',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildPromiseCard(
-                          'Identity Privacy',
-                          'Decoupled voter identity from ballot content using homomorphic encryption.',
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Section 2
-                  Row(
-                    children: [
-                      Container(
-                        width: 6,
-                        height: 32,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
-                          ),
-                          borderRadius: BorderRadius.all(Radius.circular(3)),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        'Economic Reconfiguration',
+                        'Manifesto',
                         style: TextStyle(
                           color: Color(0xFFE3E1E9),
                           fontSize: 24,
@@ -347,62 +239,15 @@ class CandidateManifestoScreen extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  const Text(
-                    'The governance of our data should yield dividends to the citizen, not just the corporation. I propose a Universal Data Dividend (UDD), where every verified SecureVote participant receives a micro-percentage of national tech growth.',
+                  // Manifesto body (font size adjustable).
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 150),
                     style: TextStyle(
-                      color: Color(0xFFC4C5D7),
-                      fontSize: 18,
+                      color: const Color(0xFFC4C5D7),
+                      fontSize: _fontSize,
                       height: 1.6,
                     ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1B21),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          bottom: 24,
-                          left: 24,
-                          child: Row(
-                            children: const [
-                              Icon(
-                                Icons.bolt,
-                                color: Color(0xFF2ADEC0),
-                                size: 16,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                'LIVE GROWTH PROJECTION',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  const Text(
-                    'By aligning economic incentives with civic participation, we create a self-sustaining loop of engagement. This isn\'t just a policy; it\'s a protocol for national resilience.',
-                    style: TextStyle(
-                      color: Color(0xFFC4C5D7),
-                      fontSize: 18,
-                      height: 1.6,
-                    ),
+                    child: Text(body),
                   ),
 
                   const SizedBox(height: 80),
@@ -415,15 +260,22 @@ class CandidateManifestoScreen extends StatelessWidget {
       floatingActionButton: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D0E13).withOpacity(0.8),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          color: const Color(0xFF0D0E13).withValues(alpha: 0.8),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
+          children: <Widget>[
             TextButton(
-              onPressed: () {},
+              onPressed: _fontSize <= _minFontSize
+                  ? null
+                  : () => setState(
+                      () => _fontSize = (_fontSize - 2).clamp(
+                        _minFontSize,
+                        _maxFontSize,
+                      ),
+                    ),
               child: const Text(
                 'A-',
                 style: TextStyle(
@@ -436,10 +288,17 @@ class CandidateManifestoScreen extends StatelessWidget {
             Container(
               width: 1,
               height: 24,
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: _fontSize >= _maxFontSize
+                  ? null
+                  : () => setState(
+                      () => _fontSize = (_fontSize + 2).clamp(
+                        _minFontSize,
+                        _maxFontSize,
+                      ),
+                    ),
               child: const Text(
                 'A+',
                 style: TextStyle(
@@ -451,53 +310,6 @@ class CandidateManifestoScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPromiseCard(String title, String description) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF292A2F),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2ADEC0).withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.check_circle,
-              color: Color(0xFF2ADEC0),
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFFE3E1E9),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            style: const TextStyle(
-              color: Color(0xFFC4C5D7),
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-        ],
       ),
     );
   }

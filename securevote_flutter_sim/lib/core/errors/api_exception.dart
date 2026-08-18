@@ -3,11 +3,7 @@
 /// Carries a stable [code] (for programmatic handling) and a pre-translated
 /// [message] that is safe to show directly to end users.
 class ApiException implements Exception {
-  const ApiException({
-    required this.message,
-    this.statusCode,
-    this.code,
-  });
+  const ApiException({required this.message, this.statusCode, this.code});
 
   /// Human-readable message suitable for display to the user.
   final String message;

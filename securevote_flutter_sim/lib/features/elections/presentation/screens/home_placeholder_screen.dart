@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
 
-import '../../../../shared/widgets/glass_card.dart';
-import '../../../../shared/widgets/obsidian_scaffold.dart';
+import '../../../../core/navigation/app_router.dart';
 
-class HomePlaceholderScreen extends StatelessWidget {
+/// Lightweight landing route that immediately forwards to the real home
+/// screen. Kept as a route target so legacy deep-links still resolve.
+class HomePlaceholderScreen extends StatefulWidget {
   const HomePlaceholderScreen({super.key});
 
   @override
+  State<HomePlaceholderScreen> createState() => _HomePlaceholderScreenState();
+}
+
+class _HomePlaceholderScreenState extends State<HomePlaceholderScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, AppRouter.homeScreen);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return ObsidianScaffold(
-      title: 'Home',
-      child: const Center(
-        child: GlassCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.home_rounded, size: 36),
-              SizedBox(height: 12),
-              Text('Core starter is ready.'),
-              SizedBox(height: 6),
-              Text('Next screens will continue from this architecture.'),
-            ],
-          ),
+    return const Scaffold(
+      backgroundColor: Color(0xFF0D0E13),
+      body: SafeArea(
+        child: Center(
+          child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
         ),
       ),
     );

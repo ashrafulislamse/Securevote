@@ -51,10 +51,7 @@ class ApiClient {
   static String get baseUrl => _baseUrl;
 
   /// Shortcut for calling out to the API and decoding a JSON body.
-  Future<dynamic> getApi(
-    String path, {
-    Map<String, dynamic>? query,
-  }) async {
+  Future<dynamic> getApi(String path, {Map<String, dynamic>? query}) async {
     final Response<dynamic> res = await _dio.get<dynamic>(
       path,
       queryParameters: query,
@@ -75,10 +72,7 @@ class ApiClient {
     return res.data;
   }
 
-  Future<dynamic> patchApi(
-    String path, {
-    Object? data,
-  }) async {
+  Future<dynamic> patchApi(String path, {Object? data}) async {
     final Response<dynamic> res = await _dio.patch<dynamic>(path, data: data);
     return res.data;
   }
@@ -127,8 +121,7 @@ class ApiClient {
 
       // Retry the original request once with the fresh token.
       try {
-        final newToken =
-            await SecureTokenStorage.instance.readAccessToken();
+        final newToken = await SecureTokenStorage.instance.readAccessToken();
         requestOptions.headers['Authorization'] = 'Bearer $newToken';
         final retryResponse = await _dio.fetch<dynamic>(requestOptions);
         handler.resolve(retryResponse);
@@ -236,20 +229,23 @@ class ApiClient {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return ApiException(
-          message: 'The request timed out. Please check your connection and '
+          message:
+              'The request timed out. Please check your connection and '
               'try again.',
           statusCode: statusCode,
           code: 'timeout',
         );
       case DioExceptionType.connectionError:
         return ApiException(
-          message: 'Could not reach the server. Please check your internet '
+          message:
+              'Could not reach the server. Please check your internet '
               'connection.',
           statusCode: statusCode,
           code: 'network',
         );
       case DioExceptionType.badResponse:
-        final message = serverMessage ??
+        final message =
+            serverMessage ??
             _messageForStatus(statusCode) ??
             'Something went wrong. Please try again.';
         return ApiException(
@@ -272,7 +268,8 @@ class ApiClient {
       case DioExceptionType.unknown:
       default:
         return ApiException(
-          message: serverMessage ??
+          message:
+              serverMessage ??
               'Something unexpected went wrong. Please try again.',
           statusCode: statusCode,
           code: 'unknown',
@@ -326,8 +323,8 @@ class ApiClient {
   }
 
   /// Re-exports the error mapping so callers can map stray DioExceptions.
-  static ApiException mapError(DioException error) => ApiClient.instance
-      ._mapError(error);
+  static ApiException mapError(DioException error) =>
+      ApiClient.instance._mapError(error);
 
   /// Convenience for parsing JSON bodies that are raw strings.
   static Map<String, dynamic> decodeMap(String source) =>

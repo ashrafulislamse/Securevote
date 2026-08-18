@@ -1,13 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
+import '../../../elections/data/elections_repository.dart';
+import '../../../voting/data/voting_repository.dart';
 
-class ProfileHubScreen extends StatelessWidget {
+class ProfileHubScreen extends StatefulWidget {
   const ProfileHubScreen({super.key});
+
+  @override
+  State<ProfileHubScreen> createState() => _ProfileHubScreenState();
+}
+
+class _ProfileHubScreenState extends State<ProfileHubScreen> {
+  final VotingRepository _votingRepository = VotingRepository();
+  final ElectionsRepository _electionsRepository = ElectionsRepository();
+
+  bool _statsLoading = true;
+  int _voteCount = 0;
+  int _electionCount = 0;
+
+  bool _notifMasterEnabled = true;
+  String _themeLabel = 'Dark Mode';
+  bool _hasLoadedPrefs = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadStats();
+    if (!_hasLoadedPrefs) {
+      _hasLoadedPrefs = true;
+      _loadPrefs();
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (!_statsLoading) {
+      setState(() => _statsLoading = true);
+    }
+    int votes = 0;
+    int elections = 0;
+    try {
+      final myVotes = await _votingRepository.getMyVotes();
+      votes = myVotes.length;
+    } catch (_) {
+      // Best-effort: keep 0 on failure.
+    }
+    try {
+      final all = await _electionsRepository.getElections();
+      elections = all.length;
+    } catch (_) {
+      // Best-effort: keep 0 on failure.
+    }
+    if (!mounted) return;
+    setState(() {
+      _voteCount = votes;
+      _electionCount = elections;
+      _statsLoading = false;
+    });
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final themeMode = prefs.getString('theme_mode') ?? 'dark';
+    setState(() {
+      _notifMasterEnabled = prefs.getBool('notif_master') ?? true;
+      _themeLabel = themeMode == 'system' ? 'System' : 'Dark Mode';
+    });
+  }
 
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
@@ -42,8 +107,6 @@ class ProfileHubScreen extends StatelessWidget {
     final userInitials = _getInitials(userName);
     final kycStatus = user?.kycStatus ?? KycStatus.notSubmitted;
     final isVerified = kycStatus == KycStatus.approved;
-    // There is no per-user vote count field on the backend yet, so show 0.
-    final voteCount = 0;
 
     final badge = _kycBadge(isVerified, kycStatus);
 
@@ -70,7 +133,10 @@ class ProfileHubScreen extends StatelessWidget {
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined, size: 24),
-                    onPressed: () {},
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRouter.notificationSettings,
+                    ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -159,11 +225,7 @@ class ProfileHubScreen extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Icon(
-                                Icons.circle,
-                                size: 8,
-                                color: badge.color,
-                              ),
+                              Icon(Icons.circle, size: 8, color: badge.color),
                               const SizedBox(width: 6),
                               Text(
                                 badge.label,
@@ -181,22 +243,25 @@ class ProfileHubScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget>[
-                            _buildStat(voteCount.toString(), 'Elections'),
-                            Container(
-                              width: 1,
-                              height: 40,
-                              color: const Color(0xFF2A2E3A),
+                            _buildStat(
+                              _statsLoading ? '-' : _electionCount.toString(),
+                              'Elections',
                             ),
-                            _buildStat(voteCount.toString(), 'Votes Cast'),
                             Container(
                               width: 1,
                               height: 40,
                               color: const Color(0xFF2A2E3A),
                             ),
                             _buildStat(
-                              isVerified ? '100%' : '0%',
-                              'Verified',
+                              _statsLoading ? '-' : _voteCount.toString(),
+                              'Votes Cast',
                             ),
+                            Container(
+                              width: 1,
+                              height: 40,
+                              color: const Color(0xFF2A2E3A),
+                            ),
+                            _buildStat(isVerified ? '100%' : '0%', 'Verified'),
                           ],
                         ),
                       ],
@@ -302,7 +367,7 @@ class ProfileHubScreen extends StatelessWidget {
                         _buildMenuItem(
                           icon: Icons.notifications_outlined,
                           title: 'Notifications',
-                          trailing: _buildToggle(true),
+                          trailing: _buildToggle(_notifMasterEnabled),
                           onTap: () => Navigator.pushNamed(
                             context,
                             AppRouter.notificationSettings,
@@ -321,7 +386,7 @@ class ProfileHubScreen extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
                               Text(
-                                'Dark Mode',
+                                _themeLabel,
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.4),
                                   fontSize: 14,

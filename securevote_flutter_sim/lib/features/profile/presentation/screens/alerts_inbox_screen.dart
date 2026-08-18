@@ -113,9 +113,9 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
       await provider.markAllRead();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to mark all read: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to mark all read: $e')));
     }
   }
 
@@ -280,7 +280,9 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                 builder: (context) {
                   if (isLoading) {
                     return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFFB9C3FF)),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFB9C3FF),
+                      ),
                     );
                   }
                   if (hasError) {
@@ -313,8 +315,8 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                   final filtered = _selectedFilter == 'All'
                       ? items
                       : items
-                          .where((n) => _categoryFor(n) == _selectedFilter)
-                          .toList();
+                            .where((n) => _categoryFor(n) == _selectedFilter)
+                            .toList();
                   if (filtered.isEmpty) {
                     return RefreshIndicator(
                       color: const Color(0xFFB9C3FF),
@@ -341,8 +343,9 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                                         : 'Nothing in this filter',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color:
-                                          Colors.white.withValues(alpha: 0.4),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.4,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -373,8 +376,9 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                       padding: const EdgeInsets.all(16),
                       itemCount: groups.keys.length,
                       itemBuilder: (context, sectionIndex) {
-                        final String section =
-                            groups.keys.elementAt(sectionIndex);
+                        final String section = groups.keys.elementAt(
+                          sectionIndex,
+                        );
                         final List<notif.AppNotification> sectionItems =
                             groups[section]!;
                         return Column(
@@ -402,7 +406,9 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                                   entry.value;
                               return Padding(
                                 padding: EdgeInsets.only(
-                                  bottom: idx < sectionItems.length - 1 ? 12 : 0,
+                                  bottom: idx < sectionItems.length - 1
+                                      ? 12
+                                      : 0,
                                 ),
                                 child: _buildPremiumNotificationCard(
                                   notification: notification,
@@ -483,9 +489,7 @@ class _AlertsInboxScreenState extends State<AlertsInboxScreen> {
                         iconColor.withValues(alpha: 0.1),
                       ],
                     ),
-                    border: Border.all(
-                      color: iconColor.withValues(alpha: 0.3),
-                    ),
+                    border: Border.all(color: iconColor.withValues(alpha: 0.3)),
                   ),
                   child: Icon(
                     _iconFor(notification),

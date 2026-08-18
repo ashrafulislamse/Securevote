@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/errors/api_exception.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/obsidian_scaffold.dart';
 import '../../data/auth_repository.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -13,7 +16,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
-  double _passwordStrength = 0.75;
+  double _passwordStrength = 0;
   bool _submitting = false;
 
   final TextEditingController _currentController = TextEditingController();
@@ -28,6 +31,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
+  bool get _lengthOk => _newController.text.length >= 8;
+  bool get _hasCase =>
+      RegExp(r'[A-Z]').hasMatch(_newController.text) &&
+      RegExp(r'[a-z]').hasMatch(_newController.text);
+  bool get _hasDigit => RegExp(r'\d').hasMatch(_newController.text);
+  bool get _hasSymbol => RegExp(r'[^A-Za-z0-9]').hasMatch(_newController.text);
+
   Future<void> _updatePassword() async {
     final current = _currentController.text;
     final newPassword = _newController.text;
@@ -39,6 +49,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
     if (newPassword != confirm) {
       _showSnack('New passwords do not match', isError: true);
+      return;
+    }
+    if (!_lengthOk || !_hasCase || !_hasDigit) {
+      _showSnack(
+        'New password must be at least 8 characters with uppercase, '
+        'lowercase, and a digit',
+        isError: true,
+      );
       return;
     }
 
@@ -53,6 +71,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
       if (!mounted) return;
       _showSnack('Password updated successfully.');
+      _currentController.clear();
+      _newController.clear();
+      _confirmController.clear();
+      setState(() {
+        _passwordStrength = 0;
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showSnack(e.message, isError: true);
     } catch (_) {
       if (!mounted) return;
       _showSnack('Could not update password. Please try again.', isError: true);
@@ -74,45 +101,32 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 
+  String get _strengthLabel => switch (_passwordStrength) {
+    0.0 => 'WEAK',
+    0.25 => 'WEAK',
+    0.5 => 'MEDIUM',
+    0.75 => 'GOOD',
+    _ => 'STRONG',
+  };
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF08090E),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0E13).withOpacity(0.8),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFFB9C3FF)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Security',
-          style: TextStyle(
-            color: Color(0xFFE3E1E9),
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Color(0xFFB9C3FF)),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+    return ObsidianScaffold(
+      title: 'Security',
+      showBack: true,
+      onBack: () => Navigator.pop(context),
+      child: SingleChildScrollView(
         child: Column(
-          children: [
+          children: <Widget>[
             // Security Shield Icon
             Container(
               width: 110,
               height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                boxShadow: [
+                boxShadow: <BoxShadow>[
                   BoxShadow(
-                    color: const Color(0xFFB9C3FF).withOpacity(0.2),
+                    color: AppColors.primary.withValues(alpha: 0.2),
                     blurRadius: 30,
                     spreadRadius: 10,
                   ),
@@ -122,19 +136,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D0E13).withOpacity(0.5),
-                  border: Border.all(color: const Color(0xFFB9C3FF), width: 2),
+                  color: AppColors.surfaceBase.withValues(alpha: 0.5),
+                  border: Border.all(color: AppColors.primary, width: 2),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Stack(
+                child: const Stack(
                   alignment: Alignment.center,
-                  children: const [
+                  children: <Widget>[
                     Icon(
                       Icons.shield_outlined,
-                      color: Color(0xFFB9C3FF),
+                      color: AppColors.primary,
                       size: 40,
                     ),
-                    Icon(Icons.lock, color: Color(0xFFB9C3FF), size: 20),
+                    Icon(Icons.lock, color: AppColors.primary, size: 20),
                   ],
                 ),
               ),
@@ -143,19 +157,15 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 40),
 
             // Heading
-            const Text(
+            Text(
               'Change Password',
-              style: TextStyle(
-                color: Color(0xFFE3E1E9),
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Update your credentials to maintain vault integrity.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFFC4C5D7), fontSize: 14),
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
 
             const SizedBox(height: 32),
@@ -173,7 +183,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             // New Password with Strength
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: <Widget>[
                 _buildPasswordField(
                   'New Password',
                   _obscureNew,
@@ -184,25 +194,25 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     _passwordStrength = len >= 12
                         ? 1.0
                         : len >= 8
-                            ? 0.75
-                            : len >= 4
-                                ? 0.5
-                                : 0.25;
+                        ? 0.75
+                        : len >= 4
+                        ? 0.5
+                        : 0.25;
                   }),
                 ),
                 const SizedBox(height: 12),
                 Row(
-                  children: [
+                  children: <Widget>[
                     Expanded(
                       child: Row(
-                        children: [
+                        children: <Widget>[
                           Expanded(
                             child: Container(
                               height: 6,
                               decoration: BoxDecoration(
                                 color: _passwordStrength >= 0.25
-                                    ? const Color(0xFF2ADEC0)
-                                    : const Color(0xFF2ADEC0).withOpacity(0.2),
+                                    ? AppColors.tertiary
+                                    : AppColors.tertiary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -213,8 +223,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               height: 6,
                               decoration: BoxDecoration(
                                 color: _passwordStrength >= 0.5
-                                    ? const Color(0xFF2ADEC0)
-                                    : const Color(0xFF2ADEC0).withOpacity(0.2),
+                                    ? AppColors.tertiary
+                                    : AppColors.tertiary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -225,8 +235,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               height: 6,
                               decoration: BoxDecoration(
                                 color: _passwordStrength >= 0.75
-                                    ? const Color(0xFF2ADEC0)
-                                    : const Color(0xFF2ADEC0).withOpacity(0.2),
+                                    ? AppColors.tertiary
+                                    : AppColors.tertiary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -237,8 +247,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               height: 6,
                               decoration: BoxDecoration(
                                 color: _passwordStrength >= 1.0
-                                    ? const Color(0xFF2ADEC0)
-                                    : const Color(0xFF2ADEC0).withOpacity(0.2),
+                                    ? AppColors.tertiary
+                                    : AppColors.tertiary.withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
@@ -253,27 +263,27 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2ADEC0).withOpacity(0.1),
+                        color: AppColors.tertiary.withValues(alpha: 0.1),
                         border: Border.all(
-                          color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                          color: AppColors.tertiary.withValues(alpha: 0.2),
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
-                        children: [
+                        children: <Widget>[
                           Container(
                             width: 6,
                             height: 6,
                             decoration: const BoxDecoration(
-                              color: Color(0xFF2ADEC0),
+                              color: AppColors.tertiary,
                               shape: BoxShape.circle,
                             ),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            'STRONG',
-                            style: TextStyle(
-                              color: Color(0xFF2ADEC0),
+                          Text(
+                            _strengthLabel,
+                            style: const TextStyle(
+                              color: AppColors.tertiary,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.2,
@@ -300,37 +310,37 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
             const SizedBox(height: 24),
 
-            // Security Checklist
+            // Security Checklist (dynamic — checks off as the user types)
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.03),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
+                color: Colors.white.withValues(alpha: 0.03),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: <Widget>[
                   Text(
                     'SECURITY CHECKLIST',
-                    style: TextStyle(
-                      color: Color(0xFFC4C5D7).withOpacity(0.7),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppColors.textMuted.withValues(alpha: 0.7),
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _buildChecklistItem('At least 12 characters long', true),
-                  const SizedBox(height: 12),
-                  _buildChecklistItem('Includes a unique symbol', true),
+                  _buildChecklistItem('At least 8 characters long', _lengthOk),
                   const SizedBox(height: 12),
                   _buildChecklistItem(
                     'Includes uppercase and lowercase',
-                    false,
+                    _hasCase,
                   ),
                   const SizedBox(height: 12),
-                  _buildChecklistItem('Not used in previous 3 months', true),
+                  _buildChecklistItem('Includes a digit', _hasDigit),
+                  const SizedBox(height: 12),
+                  _buildChecklistItem('Includes a symbol', _hasSymbol),
                 ],
               ),
             ),
@@ -344,28 +354,37 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               child: ElevatedButton(
                 onPressed: _submitting ? null : _updatePassword,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFB9C3FF),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: const Color(0xFF001D79),
                   elevation: 10,
-                  shadowColor: const Color(0xFFB9C3FF).withOpacity(0.3),
+                  shadowColor: AppColors.primary.withValues(alpha: 0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text(
-                      'Update Password',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                child: _submitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF001D79),
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Text(
+                            'Update Password',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, size: 20),
+                        ],
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 20),
-                  ],
-                ),
               ),
             ),
 
@@ -386,11 +405,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      children: <Widget>[
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            color: Color(0xFFC4C5D7),
+          style: TextStyle(
+            color: AppColors.textMuted,
             fontSize: 12,
             fontWeight: FontWeight.w500,
             letterSpacing: 1.2,
@@ -400,31 +419,31 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         Container(
           height: 56,
           decoration: BoxDecoration(
-            color: const Color(0xFF292A2F),
+            color: AppColors.surfaceHigh,
             borderRadius: BorderRadius.circular(12),
           ),
           child: TextField(
             controller: controller,
             onChanged: onChanged,
             obscureText: obscure,
-            style: const TextStyle(color: Color(0xFFE3E1E9)),
+            style: const TextStyle(color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: '••••••••••••',
               hintStyle: TextStyle(
-                color: const Color(0xFF8E90A0).withOpacity(0.4),
+                color: AppColors.textMuted.withValues(alpha: 0.4),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               suffixIcon: hasCheck
                   ? const Icon(
                       Icons.check_circle,
-                      color: Color(0xFF2ADEC0),
+                      color: AppColors.tertiary,
                       size: 20,
                     )
                   : IconButton(
                       icon: Icon(
                         obscure ? Icons.visibility_off : Icons.visibility,
-                        color: const Color(0xFF8E90A0).withOpacity(0.6),
+                        color: AppColors.textMuted.withValues(alpha: 0.6),
                       ),
                       onPressed: onToggle,
                     ),
@@ -437,21 +456,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   Widget _buildChecklistItem(String text, bool isChecked) {
     return Row(
-      children: [
+      children: <Widget>[
         Icon(
           isChecked ? Icons.check_circle : Icons.schedule,
           color: isChecked
-              ? const Color(0xFF2ADEC0)
-              : const Color(0xFF8E90A0).withOpacity(0.4),
+              ? AppColors.tertiary
+              : AppColors.textMuted.withValues(alpha: 0.4),
           size: 18,
         ),
         const SizedBox(width: 12),
         Text(
           text,
           style: TextStyle(
-            color: isChecked
-                ? const Color(0xFFE3E1E9)
-                : const Color(0xFFC4C5D7),
+            color: isChecked ? AppColors.textPrimary : AppColors.textMuted,
             fontSize: 14,
           ),
         ),

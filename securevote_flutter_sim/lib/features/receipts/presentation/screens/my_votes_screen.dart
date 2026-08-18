@@ -20,29 +20,47 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
   String _selectedFilter = 'All';
   final List<String> _filters = <String>['All', 'Completed', 'Pending'];
 
+  Future<List<Vote>>? _votesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _votesFuture = VotingRepository().getMyVotes();
+  }
+
+  Future<void> _refresh() {
+    setState(() {
+      _votesFuture = VotingRepository().getMyVotes();
+    });
+    return _votesFuture!;
+  }
+
   Map<String, dynamic> _voteToMap(Vote vote) {
+    final String status = _statusFor(vote);
+    final bool verified = vote.txHash != null && vote.blockNumber != null;
     return <String, dynamic>{
       'title': vote.electionTitle ?? 'Unknown Election',
-      'organization': 'SecureVote',
       'date': _formatDate(vote.createdAt),
-      'status': 'Completed',
-      'statusColor': const Color(0xFF2ADEC0),
+      'status': status,
+      'statusColor': verified
+          ? const Color(0xFF2ADEC0)
+          : const Color(0xFFD2BBFF),
       'receipt': vote.receiptId,
       'icon': Icons.how_to_vote,
-      'verified': true,
+      'verified': verified,
+      'electionId': vote.electionId,
+      'voteModel': vote,
     };
   }
 
   List<Vote> _filteredVotes(List<Vote> votes) {
     if (_selectedFilter == 'All') return votes;
-    return votes
-        .where((v) => _statusFor(v) == _selectedFilter)
-        .toList();
+    return votes.where((v) => _statusFor(v) == _selectedFilter).toList();
   }
 
   String _statusFor(Vote vote) {
     if (vote.txHash != null && vote.blockNumber != null) return 'Completed';
-    return 'Completed';
+    return 'Pending';
   }
 
   @override
@@ -74,7 +92,7 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
             // Content
             Expanded(
               child: FutureBuilder<List<Vote>>(
-                future: VotingRepository().getMyVotes(),
+                future: _votesFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
                     return const Center(
@@ -83,9 +101,38 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
                       ),
                     );
                   }
-                  final List<Vote> votes =
-                      snapshot.data ?? const <Vote>[];
-                  return _buildVotesList(votes);
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(
+                              Icons.error_outline,
+                              color: Color(0xFFFF8A80),
+                              size: 48,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Could not load your votes. Pull down to retry.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  final List<Vote> votes = snapshot.data ?? const <Vote>[];
+                  return RefreshIndicator(
+                    color: const Color(0xFFB9C3FF),
+                    onRefresh: _refresh,
+                    child: _buildVotesList(votes),
+                  );
                 },
               ),
             ),
@@ -104,10 +151,15 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
   Widget _buildVotesList(List<Vote> votes) {
     final List<Vote> filtered = _filteredVotes(votes);
     final int totalVotes = votes.length;
-    final int completedVotes = votes.length;
-    final int pendingVotes = 0;
+    final int completedVotes = votes
+        .where((v) => _statusFor(v) == 'Completed')
+        .length;
+    final int pendingVotes = votes
+        .where((v) => _statusFor(v) == 'Pending')
+        .length;
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: <Widget>[
         // Stats Cards
@@ -345,14 +397,6 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            vote['organization'] as String,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.6),
-                            ),
-                          ),
                         ],
                       ),
                     ),
@@ -544,8 +588,18 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
 
   String _formatDate(DateTime dt) {
     const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final DateTime local = dt.toLocal();
     return '${months[local.month - 1]} ${local.day}, ${local.year}';

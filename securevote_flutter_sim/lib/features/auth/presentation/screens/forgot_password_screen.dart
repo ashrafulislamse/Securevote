@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 import '../../../../shared/widgets/obsidian_scaffold.dart';
@@ -14,27 +16,86 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   String _method = 'email';
-  bool _sending = false;
+  final TextEditingController _emailController = TextEditingController();
 
-  Future<void> _send(BuildContext context) async {
-    setState(() {
-      _sending = true;
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 520));
-    if (!context.mounted) return;
-    setState(() {
-      _sending = false;
-    });
-    // TODO: forgot-password endpoint
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password reset is not yet available — contact admin'),
-      ),
-    );
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final email = _emailController.text.trim();
+
+    if (_method != 'email') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('SMS reset is not yet available. Please use email.'),
+        ),
+      );
+      return;
+    }
+
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email address')),
+      );
+      return;
+    }
+
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid email address')),
+      );
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
+    final result = await auth.forgotPassword(email);
+
+    if (!mounted) return;
+
+    if (result != null && result.ok) {
+      if (result.devResetToken != null && result.devResetToken!.isNotEmpty) {
+        // Dev mode: the backend returned a reset token directly.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Dev reset token: ${result.devResetToken}'),
+            duration: const Duration(seconds: 8),
+            backgroundColor: const Color(0xFF2ADEC0),
+          ),
+        );
+        Navigator.pushNamed(
+          context,
+          AppRouter.resetPassword,
+          arguments: result.devResetToken,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.message.isNotEmpty
+                  ? result.message
+                  : 'If the email exists, a reset link has been sent.',
+            ),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error ?? 'Could not send reset code. Please try again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return ObsidianScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -96,6 +157,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: TextField(
+              controller: _emailController,
               keyboardType: _method == 'email'
                   ? TextInputType.emailAddress
                   : TextInputType.phone,
@@ -112,11 +174,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          GradientButton(
-            label: _sending ? 'Sending...' : 'Send Reset Code',
-            icon: _sending ? Icons.hourglass_top_rounded : Icons.send_rounded,
-            onPressed: _sending ? () {} : () => _send(context),
-          ),
+          if (auth.isLoading)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: <Color>[AppColors.primary, AppColors.secondary],
+                ),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Color(0xFF0D0E13),
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            GradientButton(
+              label: 'Send Reset Code',
+              icon: Icons.send_rounded,
+              onPressed: _send,
+            ),
         ],
       ),
     );

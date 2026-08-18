@@ -265,10 +265,10 @@ class _KycLivenessCheckScreenState extends State<KycLivenessCheckScreen>
               onPressed: _submitting
                   ? null
                   : () => Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRouter.homeScreen,
-                        (Route<dynamic> route) => route.isFirst,
-                      ),
+                      context,
+                      AppRouter.homeScreen,
+                      (Route<dynamic> route) => route.isFirst,
+                    ),
               icon: const Icon(Icons.schedule_rounded),
               label: const Text('Verify later from profile'),
             ),

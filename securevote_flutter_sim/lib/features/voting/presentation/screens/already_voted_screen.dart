@@ -22,8 +22,7 @@ class AlreadyVotedScreen extends StatelessWidget {
       }
     }
 
-    final String displayReceipt =
-        vote?.receiptId ?? receiptId ?? '';
+    final String displayReceipt = vote?.receiptId ?? receiptId ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFF08090E),
@@ -95,7 +94,13 @@ class AlreadyVotedScreen extends StatelessWidget {
                       if (displayReceipt.isNotEmpty)
                         _buildInfoRow('Receipt ID', displayReceipt),
                       if (displayReceipt.isNotEmpty) const SizedBox(height: 12),
-                      _buildInfoRow('Status', 'Verified on Blockchain'),
+                      if (vote != null)
+                        _buildInfoRow(
+                          'Status',
+                          (vote.txHash != null && vote.blockNumber != null)
+                              ? 'Verified on Blockchain (Block #${vote.blockNumber})'
+                              : 'Vote recorded — pending blockchain confirmation',
+                        ),
                     ],
                   ),
                 ),
@@ -129,10 +134,7 @@ class AlreadyVotedScreen extends StatelessWidget {
                     displayReceipt.isNotEmpty
                         ? 'View Receipt'
                         : 'Verify Receipt',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFB9C3FF),
@@ -151,7 +153,13 @@ class AlreadyVotedScreen extends StatelessWidget {
                 height: 56,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    Navigator.pushNamed(context, AppRouter.electionResults);
+                    Navigator.pushNamed(
+                      context,
+                      AppRouter.electionResults,
+                      arguments: <String, dynamic>{
+                        if (vote != null) 'electionId': vote.electionId,
+                      },
+                    );
                   },
                   icon: const Icon(Icons.bar_chart, size: 20),
                   label: const Text(
@@ -215,8 +223,18 @@ class AlreadyVotedScreen extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final DateTime local = dt.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');

@@ -2,10 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/models/kyc_status.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../elections/data/elections_repository.dart';
+import '../../../voting/data/voting_repository.dart';
 
-class ProfileViewScreen extends StatelessWidget {
+class ProfileViewScreen extends StatefulWidget {
   const ProfileViewScreen({super.key});
+
+  @override
+  State<ProfileViewScreen> createState() => _ProfileViewScreenState();
+}
+
+class _ProfileViewScreenState extends State<ProfileViewScreen> {
+  final VotingRepository _votingRepository = VotingRepository();
+  final ElectionsRepository _electionsRepository = ElectionsRepository();
+
+  bool _statsLoading = true;
+  int _voteCount = 0;
+  int _electionCount = 0;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    int votes = 0;
+    int elections = 0;
+    try {
+      final myVotes = await _votingRepository.getMyVotes();
+      votes = myVotes.length;
+    } catch (_) {
+      // Best-effort: keep 0 on failure.
+    }
+    try {
+      final all = await _electionsRepository.getElections();
+      elections = all.length;
+    } catch (_) {
+      // Best-effort: keep 0 on failure.
+    }
+    if (!mounted) return;
+    setState(() {
+      _voteCount = votes;
+      _electionCount = elections;
+      _statsLoading = false;
+    });
+  }
 
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
@@ -15,6 +59,16 @@ class ProfileViewScreen extends StatelessWidget {
       return parts[0].substring(0, parts[0].length >= 2 ? 2 : 1).toUpperCase();
     }
     return 'U';
+  }
+
+  Future<void> _handleSignOut() async {
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRouter.welcome,
+      (route) => false,
+    );
   }
 
   @override
@@ -32,7 +86,7 @@ class ProfileViewScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0E13),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D0E13).withOpacity(0.8),
+        backgroundColor: const Color(0xFF0D0E13).withValues(alpha: 0.8),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFFB9C3FF)),
@@ -54,7 +108,8 @@ class ProfileViewScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications, color: Color(0xFFB9C3FF)),
-            onPressed: () {},
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRouter.notificationSettings),
           ),
         ],
       ),
@@ -66,8 +121,8 @@ class ProfileViewScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                color: Colors.white.withValues(alpha: 0.05),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
@@ -84,9 +139,9 @@ class ProfileViewScreen extends StatelessWidget {
                       Container(
                         width: 72,
                         height: 72,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             colors: [Color(0xFFB9C3FF), Color(0xFFD2BBFF)],
                           ),
                         ),
@@ -117,7 +172,7 @@ class ProfileViewScreen extends StatelessWidget {
                             color: const Color(0xFF34343A),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                           ),
                           child: const Icon(
@@ -132,7 +187,7 @@ class ProfileViewScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   Text(
                     fullName,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Color(0xFFE3E1E9),
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -146,9 +201,9 @@ class ProfileViewScreen extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2ADEC0).withOpacity(0.1),
+                        color: const Color(0xFF2ADEC0).withValues(alpha: 0.1),
                         border: Border.all(
-                          color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                          color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -183,9 +238,9 @@ class ProfileViewScreen extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFB6C8).withOpacity(0.1),
+                        color: const Color(0xFFFFB6C8).withValues(alpha: 0.1),
                         border: Border.all(
-                          color: const Color(0xFFFFB6C8).withOpacity(0.2),
+                          color: const Color(0xFFFFB6C8).withValues(alpha: 0.2),
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -218,24 +273,26 @@ class ProfileViewScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 24),
                     decoration: BoxDecoration(
                       border: Border(
-                        top: BorderSide(color: Colors.white.withOpacity(0.05)),
+                        top: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.05),
+                        ),
                       ),
                     ),
                     child: Row(
                       children: [
                         Expanded(
                           child: Column(
-                            children: const [
+                            children: [
                               Text(
-                                '3',
-                                style: TextStyle(
+                                _statsLoading ? '-' : _electionCount.toString(),
+                                style: const TextStyle(
                                   color: Color(0xFFE3E1E9),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
+                              const SizedBox(height: 4),
+                              const Text(
                                 'ELECTIONS',
                                 style: TextStyle(
                                   color: Color(0xFFC4C5D7),
@@ -250,21 +307,21 @@ class ProfileViewScreen extends StatelessWidget {
                         Container(
                           width: 1,
                           height: 40,
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                         Expanded(
                           child: Column(
                             children: [
                               Text(
-                                '0',
-                                style: TextStyle(
+                                _statsLoading ? '-' : _voteCount.toString(),
+                                style: const TextStyle(
                                   color: Color(0xFFE3E1E9),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
+                              const SizedBox(height: 4),
+                              const Text(
                                 'VOTES CAST',
                                 style: TextStyle(
                                   color: Color(0xFFC4C5D7),
@@ -279,21 +336,21 @@ class ProfileViewScreen extends StatelessWidget {
                         Container(
                           width: 1,
                           height: 40,
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                         ),
                         Expanded(
                           child: Column(
                             children: [
                               Text(
                                 isKycVerified ? '100%' : '0%',
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Color(0xFFE3E1E9),
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
+                              const SizedBox(height: 4),
+                              const Text(
                                 'VERIFIED',
                                 style: TextStyle(
                                   color: Color(0xFFC4C5D7),
@@ -325,11 +382,24 @@ class ProfileViewScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _buildDetailRow(Icons.mail_outline, 'Email', email),
-                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
+                  Divider(
+                    height: 24,
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
                   _buildDetailRow(Icons.phone_outlined, 'Phone', phone),
-                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
-                  _buildDetailRow(Icons.verified_user, 'KYC Status', _kycLabel(kycStatus)),
-                  Divider(height: 24, color: Colors.white.withValues(alpha: 0.05)),
+                  Divider(
+                    height: 24,
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
+                  _buildDetailRow(
+                    Icons.verified_user,
+                    'KYC Status',
+                    _kycLabel(kycStatus),
+                  ),
+                  Divider(
+                    height: 24,
+                    color: Colors.white.withValues(alpha: 0.05),
+                  ),
                   _buildDetailRow(Icons.person_outline, 'Role', role),
                 ],
               ),
@@ -343,28 +413,57 @@ class ProfileViewScreen extends StatelessWidget {
                 'Personal Information',
                 Icons.person,
                 const Color(0xFFB9C3FF),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRouter.editProfile),
               ),
               _buildSettingItem(
                 'Security & Privacy',
                 Icons.shield,
                 const Color(0xFFB9C3FF),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRouter.securitySettings),
+              ),
+              _buildSettingItem(
+                'Notification Settings',
+                Icons.notifications_active,
+                const Color(0xFFB9C3FF),
+                onTap: () => Navigator.pushNamed(
+                  context,
+                  AppRouter.notificationSettings,
+                ),
+              ),
+              _buildSettingItem(
+                'Privacy Settings',
+                Icons.lock,
+                const Color(0xFFB9C3FF),
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRouter.privacySettings),
               ),
             ]),
 
             const SizedBox(height: 32),
 
             _buildSection('PREFERENCES', [
-              _buildSettingItemWithToggle(
-                'Notifications',
-                Icons.notifications_active,
+              _buildSettingItem(
+                'Appearance',
+                Icons.palette,
                 const Color(0xFFB9C3FF),
-                true,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRouter.appearanceSettings),
               ),
               _buildSettingItemWithValue(
                 'Language',
                 Icons.language,
                 const Color(0xFFB9C3FF),
                 'English (US)',
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Language is not customizable in this version.',
+                    ),
+                    duration: Duration(seconds: 2),
+                  ),
+                ),
               ),
             ]),
 
@@ -376,11 +475,14 @@ class ProfileViewScreen extends StatelessWidget {
                 Icons.help,
                 const Color(0xFFB9C3FF),
                 trailing: Icons.open_in_new,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRouter.helpSupport),
               ),
               _buildSettingItem(
-                'Terms of Service',
-                Icons.policy,
+                'About SecureVote',
+                Icons.info,
                 const Color(0xFFB9C3FF),
+                onTap: () => Navigator.pushNamed(context, AppRouter.about),
               ),
             ]),
 
@@ -391,20 +493,22 @@ class ProfileViewScreen extends StatelessWidget {
               width: double.infinity,
               height: 56,
               child: OutlinedButton(
-                onPressed: () {},
+                onPressed: _handleSignOut,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFFF4757),
                   side: BorderSide(
-                    color: const Color(0xFFFF4757).withOpacity(0.2),
+                    color: const Color(0xFFFF4757).withValues(alpha: 0.2),
                   ),
-                  backgroundColor: const Color(0xFFFF4757).withOpacity(0.1),
+                  backgroundColor: const Color(
+                    0xFFFF4757,
+                  ).withValues(alpha: 0.1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(Icons.logout, size: 20),
                     SizedBox(width: 12),
                     Text(
@@ -494,6 +598,7 @@ class ProfileViewScreen extends StatelessWidget {
     IconData icon,
     Color iconColor, {
     IconData? trailing,
+    VoidCallback? onTap,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -503,91 +608,37 @@ class ProfileViewScreen extends StatelessWidget {
         color: const Color(0xFF1A1B21),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFE3E1E9),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Icon(trailing ?? Icons.chevron_right, color: const Color(0xFF8E90A0)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingItemWithToggle(
-    String title,
-    IconData icon,
-    Color iconColor,
-    bool value,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1B21),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFE3E1E9),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-          ),
-          Container(
-            width: 40,
-            height: 20,
-            decoration: BoxDecoration(
-              color: const Color(0xFFB9C3FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                width: 16,
-                height: 16,
-                margin: const EdgeInsets.only(right: 2),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFFE3E1E9),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
-          ),
-        ],
+            Icon(
+              trailing ?? Icons.chevron_right,
+              color: const Color(0xFF8E90A0),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -596,8 +647,9 @@ class ProfileViewScreen extends StatelessWidget {
     String title,
     IconData icon,
     Color iconColor,
-    String value,
-  ) {
+    String value, {
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       height: 56,
@@ -606,35 +658,39 @@ class ProfileViewScreen extends StatelessWidget {
         color: const Color(0xFF1A1B21),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
             ),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: Color(0xFFE3E1E9),
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFFE3E1E9),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(color: Color(0xFFC4C5D7), fontSize: 14),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right, color: Color(0xFF8E90A0)),
-        ],
+            Text(
+              value,
+              style: const TextStyle(color: Color(0xFFC4C5D7), fontSize: 14),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: Color(0xFF8E90A0)),
+          ],
+        ),
       ),
     );
   }

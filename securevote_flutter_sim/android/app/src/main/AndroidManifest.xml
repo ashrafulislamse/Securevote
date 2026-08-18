@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required to reach the SecureVote backend API over the internet. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Required by image_picker for camera-based ID/selfie capture. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature

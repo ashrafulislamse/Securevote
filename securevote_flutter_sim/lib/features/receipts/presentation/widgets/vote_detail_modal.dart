@@ -128,7 +128,9 @@ class VoteDetailModal extends StatelessWidget {
                   const SizedBox(height: 12),
                   _buildInfoCard(
                     'Verification',
-                    'Blockchain Confirmed',
+                    (vote['verified'] as bool)
+                        ? 'Blockchain Confirmed'
+                        : 'Pending Confirmation',
                     Icons.verified,
                   ),
                   const SizedBox(height: 24),
@@ -149,7 +151,16 @@ class VoteDetailModal extends StatelessWidget {
                     Icons.receipt_long,
                     () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRouter.voteReceipt);
+                      final dynamic voteModel = vote['voteModel'];
+                      Navigator.pushNamed(
+                        context,
+                        AppRouter.voteReceipt,
+                        arguments: voteModel != null
+                            ? <String, dynamic>{'vote': voteModel}
+                            : <String, dynamic>{
+                                'receiptId': vote['receipt'] as String,
+                              },
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -158,7 +169,13 @@ class VoteDetailModal extends StatelessWidget {
                     Icons.verified,
                     () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRouter.voteVerification);
+                      Navigator.pushNamed(
+                        context,
+                        AppRouter.voteVerification,
+                        arguments: <String, dynamic>{
+                          'receiptId': vote['receipt'] as String,
+                        },
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -167,7 +184,14 @@ class VoteDetailModal extends StatelessWidget {
                     Icons.bar_chart,
                     () {
                       Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRouter.electionResults);
+                      final Object? electionId = vote['electionId'];
+                      Navigator.pushNamed(
+                        context,
+                        AppRouter.electionResults,
+                        arguments: electionId != null
+                            ? <String, dynamic>{'electionId': electionId}
+                            : null,
+                      );
                     },
                   ),
                   const SizedBox(height: 40),

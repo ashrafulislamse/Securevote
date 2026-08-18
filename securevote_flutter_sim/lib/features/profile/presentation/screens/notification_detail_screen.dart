@@ -61,6 +61,25 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
     }
   }
 
+  String _footerFor(String type) {
+    switch (type) {
+      case 'kyc_approved':
+        return 'Your identity verification is complete. You can now participate in all eligible elections.';
+      case 'kyc_rejected':
+        return 'Your identity verification was not approved. Please review your documents and resubmit from the KYC section.';
+      case 'vote_recorded':
+        return 'Your vote was recorded and is protected by cryptographic proofs. Use your receipt ID to verify it on the blockchain.';
+      case 'election_opened':
+        return 'Polls are now open for this election. Visit the Home screen to cast your vote before it closes.';
+      case 'election_closed':
+        return 'Voting has closed for this election. Results will be published once the tally is finalized.';
+      case 'election_published':
+        return 'The official results are now available. Open the election to view the final tallies.';
+      default:
+        return 'Your account activity is protected by cryptographic proofs. Open the SecureVote app for the full context.';
+    }
+  }
+
   String _fullTimestamp(DateTime ts) {
     final now = DateTime.now();
     final diff = now.difference(ts);
@@ -228,8 +247,7 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Your account activity is protected by cryptographic proofs. '
-                          'Open the SecureVote portal for the full context.',
+                          _footerFor(notification.type),
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.white.withValues(alpha: 0.7),
@@ -260,9 +278,9 @@ class _NotificationDetailScreenState extends State<NotificationDetailScreen> {
                         backgroundColor: const Color(0xFFB9C3FF),
                         foregroundColor: const Color(0xFF001257),
                         elevation: 8,
-                        shadowColor: const Color(0xFFB9C3FF).withValues(
-                          alpha: 0.3,
-                        ),
+                        shadowColor: const Color(
+                          0xFFB9C3FF,
+                        ).withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

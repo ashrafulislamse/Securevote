@@ -27,9 +27,11 @@ class _KycSuccessScreenState extends State<KycSuccessScreen>
     // Sync the user's KYC status with the backend now that verification is
     // approved. KYC state lives on the server/User model, not in storage.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().refreshProfile().then<void>((_) {}).catchError(
-        (Object _) {},
-      );
+      context
+          .read<AuthProvider>()
+          .refreshProfile()
+          .then<void>((_) {})
+          .catchError((Object _) {});
     });
   }
 

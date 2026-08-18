@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/models/election.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 
 class ElectionRulesScreen extends StatefulWidget {
@@ -13,18 +14,34 @@ class ElectionRulesScreen extends StatefulWidget {
 class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
   final List<bool> _expanded = <bool>[true, false, false, false];
 
-  String? get _electionTitle {
+  static const List<String> _months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  Election? get _election {
     final Object? args = ModalRoute.of(context)?.settings.arguments;
-    if (args is Election) {
-      return args.title;
-    }
+    if (args is Election) return args;
     if (args is Map) {
       final Object? e = args['election'];
-      if (e is Election) {
-        return e.title;
-      }
+      if (e is Election) return e;
     }
     return null;
+  }
+
+  static String _formatDate(DateTime d) {
+    final List<String> months = _months;
+    return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 
   @override
@@ -109,36 +126,34 @@ class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
                     _buildRuleCard(
                       0,
                       '01',
-                      'Voting Eligibility',
-                      'To participate in this election, you must meet the following cryptographic verification requirements:',
-                      <String>[
-                        'Verified biometric identity profile',
-                        'Registered residency within the voting jurisdiction',
-                        'Active SecureVote wallet with unique hardware key',
-                      ],
+                      'One Vote Per Person',
+                      'Each verified voter may cast a single ballot in this election. Once your vote is submitted it cannot be changed.',
+                      <String>[],
                     ),
                     const SizedBox(height: 16),
-                    _buildRuleCard(1, '02', 'How to Cast Your Vote', null, <
-                      String
-                    >[
-                      'Navigate to the active election from your dashboard and select your preferred candidate or choice.',
-                      'Perform a biometric scan or enter your hardware security key to authorize the transaction.',
-                      'Wait for the blockchain confirmation receipt. Do not close the app until the "Vote Secured" message appears.',
-                    ], numbered: true),
+                    _buildRuleCard(
+                      1,
+                      '02',
+                      'KYC Verification Required',
+                      'You must complete identity (KYC) verification before you can vote. Votes from unverified accounts are not accepted.',
+                      <String>[],
+                    ),
                     const SizedBox(height: 16),
                     _buildRuleCard(
                       2,
                       '03',
-                      'Vote Privacy',
-                      'Your vote is anonymized using zero-knowledge proofs (ZKPs). While the ledger confirms a vote was cast from your identity, the specific choice remains encrypted and inaccessible to election officials.',
+                      'Voting Period',
+                      _election != null
+                          ? 'Voting is open from ${_formatDate(_election!.startsAt)} to ${_formatDate(_election!.endsAt)}. Ballots submitted outside this window are not counted.'
+                          : 'Ballots may only be submitted during the official voting window for this election.',
                       <String>[],
                     ),
                     const SizedBox(height: 16),
                     _buildRuleCard(
                       3,
                       '04',
-                      'Verified Results',
-                      'Results are published after cryptographic validation and audit.',
+                      'Results & Verification',
+                      'Results are published after the voting period closes. Every ballot is recorded on an immutable ledger and can be independently verified without revealing your choice.',
                       <String>[],
                     ),
                     const SizedBox(height: 32),
@@ -196,9 +211,9 @@ class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                if (_electionTitle != null) ...<Widget>[
+                if (_election != null) ...<Widget>[
                   Text(
-                    _electionTitle!,
+                    _election!.title,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -421,39 +436,43 @@ class _ElectionRulesScreenState extends State<ElectionRulesScreen> {
     return Center(
       child: Column(
         children: <Widget>[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: const Color(0xFF292A2F).withValues(alpha: 0.5),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                const Icon(
-                  Icons.support_agent,
-                  size: 16,
-                  color: Color(0xFF2ADEC0),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Still have questions?',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withValues(alpha: 0.7),
+          InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => Navigator.pushNamed(context, AppRouter.helpSupport),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: const Color(0xFF292A2F).withValues(alpha: 0.5),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Icon(
+                    Icons.support_agent,
+                    size: 16,
+                    color: Color(0xFF2ADEC0),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Contact Support',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFFB9C3FF),
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Still have questions?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Contact Support',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFB9C3FF),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 48),

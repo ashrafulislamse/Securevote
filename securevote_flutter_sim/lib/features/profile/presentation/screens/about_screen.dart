@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
-// static settings screen.
+import '../../../../core/navigation/app_router.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +64,7 @@ class AboutScreen extends StatelessWidget {
                 ),
                 SizedBox(height: 8),
                 Text(
-                  'Version 4.2.0 (Build 142)',
+                  'SecureVote v2.0.0',
                   style: TextStyle(fontSize: 14, color: Color(0xFF8E90A0)),
                 ),
               ],
@@ -68,23 +74,61 @@ class AboutScreen extends StatelessWidget {
 
           // Info Section
           _buildSection('Information', [
-            _buildItem('Terms of Service', () {}),
-            _buildItem('Privacy Policy', () {}),
-            _buildItem('Open Source Licenses', () {}),
+            _buildItem(
+              'Terms of Service',
+              () => _showSnackBar(
+                context,
+                'Terms of Service are not available offline in this version.',
+              ),
+            ),
+            _buildItem(
+              'Privacy Policy',
+              () => _showSnackBar(
+                context,
+                'Privacy Policy is not available offline in this version.',
+              ),
+            ),
+            _buildItem(
+              'Open Source Licenses',
+              () => _showSnackBar(
+                context,
+                'This app uses Flutter, Provider, Dio, and Freezed among other open-source packages.',
+              ),
+            ),
           ]),
           const SizedBox(height: 24),
 
           _buildSection('Support', [
-            _buildItem('Help Center', () {}),
-            _buildItem('Contact Us', () {}),
-            _buildItem('Report a Bug', () {}),
+            _buildItem(
+              'Help Center',
+              () => Navigator.pushNamed(context, AppRouter.helpSupport),
+            ),
+            _buildItem(
+              'Contact Us',
+              () =>
+                  _showSnackBar(context, 'Email us at support@securevote.io.'),
+            ),
+            _buildItem(
+              'Report a Bug',
+              () => _showSnackBar(
+                context,
+                'To report a bug, email support@securevote.io with details.',
+              ),
+            ),
+            _buildItem(
+              'Rate SecureVote',
+              () => _showSnackBar(
+                context,
+                'Thank you! Rating is not available in this version.',
+              ),
+            ),
           ]),
           const SizedBox(height: 40),
 
           // Copyright
           Center(
             child: Text(
-              '© 2025 SecureVote. All rights reserved.',
+              '© 2026 SecureVote. All rights reserved.',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.white.withValues(alpha: 0.5),

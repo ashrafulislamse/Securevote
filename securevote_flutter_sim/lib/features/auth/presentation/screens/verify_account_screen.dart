@@ -19,26 +19,34 @@ class VerifyAccountScreen extends StatefulWidget {
 }
 
 class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
-  int _secondsLeft = 30;
+  int _totalSeconds = 600;
+  int _secondsLeft = 600;
   Timer? _timer;
+  bool _resending = false;
   final TextEditingController _otpController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    final expiresInSeconds =
+        context.read<AuthProvider>().lastRegister?.expiresInSeconds ?? 600;
+    _totalSeconds = expiresInSeconds;
+    _secondsLeft = expiresInSeconds;
     _startCountdown();
-    // Show the dev OTP (from the API if available, else the dev hardcode).
+    // Show the dev OTP if the API returned one (dev mode). In production the
+    // user receives the OTP via email, so we don't show anything then.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final devOtp =
-          context.read<AuthProvider>().lastRegister?.devOtp ?? '123456';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Dev OTP: $devOtp'),
-          duration: const Duration(seconds: 5),
-          backgroundColor: const Color(0xFF2ADEC0),
-        ),
-      );
+      final devOtp = context.read<AuthProvider>().lastRegister?.devOtp;
+      if (devOtp != null && devOtp.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Your verification code: $devOtp'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: const Color(0xFF2ADEC0),
+          ),
+        );
+      }
     });
   }
 
@@ -50,7 +58,7 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
   void _startCountdown() {
     _timer?.cancel();
-    _secondsLeft = 30;
+    _secondsLeft = _totalSeconds;
     _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
       if (!mounted) return;
       if (_secondsLeft == 0) {
@@ -63,6 +71,69 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
     });
   }
 
+  String get _countdownText {
+    final minutes = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_secondsLeft % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  Future<void> _resendOtp() async {
+    final email = _email;
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Registration email is missing. Please register again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _resending = true;
+    });
+
+    final auth = context.read<AuthProvider>();
+    final result = await auth.resendOtp(email);
+
+    if (!mounted) return;
+    setState(() {
+      _resending = false;
+    });
+
+    if (result.ok) {
+      _startCountdown();
+      if (result.devOtp != null && result.devOtp!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Your new verification code: ${result.devOtp}'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: const Color(0xFF2ADEC0),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'A new verification code has been sent to your email.',
+            ),
+          ),
+        );
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            auth.error ?? 'Could not resend OTP. Please try again.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -72,6 +143,7 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     return ObsidianScaffold(
       child: SingleChildScrollView(
         child: Column(
@@ -130,78 +202,107 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
               children: <Widget>[
                 Text(
                   _secondsLeft > 0
-                      ? 'Resend in ${_secondsLeft}s'
-                      : 'Didn\'t get code?',
+                      ? 'Code expires in $_countdownText'
+                      : 'Code expired',
                   style: Theme.of(context).textTheme.labelMedium,
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: _secondsLeft > 0 ? null : _startCountdown,
-                  child: const Text('Resend'),
+                  onPressed: (_secondsLeft > 0 || _resending)
+                      ? null
+                      : _resendOtp,
+                  child: _resending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Resend OTP'),
                 ),
               ],
             ),
             const SizedBox(height: 10),
-            GradientButton(
-              label: 'Verify & Continue',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () async {
-                final otp = _otpController.text.trim();
-                final email = _email;
-
-                if (email == null || email.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Registration email is missing. Please register again.',
+            if (auth.isLoading)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    colors: <Color>[AppColors.primary, AppColors.secondary],
+                  ),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF0D0E13),
+                        strokeWidth: 2,
                       ),
-                      backgroundColor: Colors.red,
                     ),
-                  );
-                  return;
-                }
+                  ),
+                ),
+              )
+            else
+              GradientButton(
+                label: 'Verify & Continue',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: () async {
+                  final otp = _otpController.text.trim();
+                  final email = _email;
 
-                if (otp.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter OTP')),
-                  );
-                  return;
-                }
-
-                final auth = context.read<AuthProvider>();
-                if (auth.isLoading) return;
-
-                try {
-                  await auth.verifyOtp(email: email, otp: otp);
-                  if (!mounted) return;
-
-                  // Route by KYC status
-                  if (auth.user?.kycStatus != KycStatus.approved) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRouter.kycStep1,
-                      (Route<dynamic> route) => false,
+                  if (email == null || email.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Registration email is missing. Please register again.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
-                  } else {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRouter.homeScreen,
-                      (Route<dynamic> route) => false,
+                    return;
+                  }
+
+                  if (otp.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please enter OTP')),
+                    );
+                    return;
+                  }
+
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    await auth.verifyOtp(email: email, otp: otp);
+                    if (!mounted) return;
+
+                    // Route by KYC status
+                    if (auth.user?.kycStatus != KycStatus.approved) {
+                      navigator.pushNamedAndRemoveUntil(
+                        AppRouter.kycStep1,
+                        (Route<dynamic> route) => false,
+                      );
+                    } else {
+                      navigator.pushNamedAndRemoveUntil(
+                        AppRouter.homeScreen,
+                        (Route<dynamic> route) => false,
+                      );
+                    }
+                  } catch (_) {
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          auth.error ??
+                              'Verification failed. Please try again.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
-                } catch (_) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        auth.error ?? 'Verification failed. Please try again.',
-                      ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-            ),
+                },
+              ),
             const SizedBox(height: 14),
             Row(
               children: <Widget>[

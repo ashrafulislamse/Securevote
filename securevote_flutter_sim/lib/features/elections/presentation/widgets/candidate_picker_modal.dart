@@ -29,13 +29,14 @@ class _CandidatePickerState extends State<CandidatePicker> {
   ];
 
   List<Map<String, dynamic>> get _allCandidates => widget.candidates
-      .map((Candidate c) => <String, dynamic>{
-            'name': c.name,
-            'party': c.party ?? 'Independent',
-            'color':
-                _candidateColors[(c.ballotOrder) % _candidateColors.length],
-            'position': 'Candidate',
-          })
+      .map(
+        (Candidate c) => <String, dynamic>{
+          'name': c.name,
+          'party': c.party ?? 'Independent',
+          'color': _candidateColors[(c.ballotOrder) % _candidateColors.length],
+          'position': 'Candidate',
+        },
+      )
       .toList();
 
   List<Map<String, dynamic>> get _filteredCandidates {

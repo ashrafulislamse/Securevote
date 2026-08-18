@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import 'core/navigation/app_router.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/elections_provider.dart';
 import 'core/providers/notifications_provider.dart';
+import 'core/providers/voting_provider.dart';
 import 'core/services/storage_service.dart';
 import 'core/theme/app_theme.dart';
 
@@ -34,13 +36,15 @@ class SecureVoteApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: <ChangeNotifierProvider<ChangeNotifier>>[
+      providers: [
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider()..init(),
         ),
         ChangeNotifierProvider<NotificationsProvider>(
           create: (_) => NotificationsProvider(),
         ),
+        electionsRepositoryProvider,
+        votingRepositoryProvider,
       ],
       child: MaterialApp(
         title: 'SecureVote',

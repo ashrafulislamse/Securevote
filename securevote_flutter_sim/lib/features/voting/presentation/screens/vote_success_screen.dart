@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:math' as math;
 
 import '../../../../core/errors/api_exception.dart';
@@ -50,9 +51,9 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
     final List<Map<String, String>> selections = _selections;
     try {
       final vote = await VotingRepository().castVote(
-            electionId: electionId,
-            selections: selections,
-          );
+        electionId: electionId,
+        selections: selections,
+      );
       if (!mounted) return;
       setState(() {
         _vote = vote;
@@ -124,8 +125,8 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
             margin: const EdgeInsets.only(right: 20),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
+              color: Colors.white.withValues(alpha: 0.05),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
@@ -243,14 +244,14 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
           Container(
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.03),
+              color: Colors.white.withValues(alpha: 0.03),
               borderRadius: BorderRadius.circular(32),
               border: Border(
-                top: BorderSide(color: Colors.white.withOpacity(0.1)),
+                top: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   blurRadius: 80,
                   offset: const Offset(0, 40),
                 ),
@@ -294,11 +295,11 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                               decoration: BoxDecoration(
                                 color: const Color(
                                   0xFF2ADEC0,
-                                ).withOpacity(0.1),
+                                ).withValues(alpha: 0.1),
                                 border: Border.all(
                                   color: const Color(
                                     0xFF2ADEC0,
-                                  ).withOpacity(0.2),
+                                  ).withValues(alpha: 0.2),
                                 ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -328,18 +329,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.qr_code,
-                        size: 64,
-                        color: Colors.black,
-                      ),
-                    ),
+                    _buildQrLikeSquare(vote.receiptId),
                   ],
                 ),
                 const SizedBox(height: 32),
@@ -355,7 +345,9 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                   padding: const EdgeInsets.only(top: 16),
                   decoration: BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: Colors.white.withOpacity(0.05)),
+                      top: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.05),
+                      ),
                     ),
                   ),
                   child: Row(
@@ -428,7 +420,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                 backgroundColor: const Color(0xFFB9C3FF),
                 foregroundColor: const Color(0xFF001D79),
                 elevation: 8,
-                shadowColor: const Color(0xFFB9C3FF).withOpacity(0.3),
+                shadowColor: const Color(0xFFB9C3FF).withValues(alpha: 0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -458,7 +450,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF2ADEC0),
                       side: BorderSide(
-                        color: const Color(0xFF2ADEC0).withOpacity(0.4),
+                        color: const Color(0xFF2ADEC0).withValues(alpha: 0.4),
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -472,7 +464,38 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                 child: SizedBox(
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      final String receipt = vote.receiptId;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Receipt ID: $receipt',
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 12,
+                            ),
+                          ),
+                          duration: const Duration(seconds: 5),
+                          action: SnackBarAction(
+                            label: 'Copy',
+                            textColor: const Color(0xFFB9C3FF),
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(
+                                  text: 'My SecureVote receipt: $receipt',
+                                ),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Receipt copied to clipboard'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.share, size: 18),
                     label: const Text('Share Receipt'),
                     style: ElevatedButton.styleFrom(
@@ -528,7 +551,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                      color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
                       width: 1.5,
                     ),
                   ),
@@ -547,7 +570,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: const Color(0xFF2ADEC0).withOpacity(0.4),
+                      color: const Color(0xFF2ADEC0).withValues(alpha: 0.4),
                       width: 0.5,
                       style: BorderStyle.solid,
                     ),
@@ -562,10 +585,10 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
             height: 128,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF2ADEC0).withOpacity(0.1),
+              color: const Color(0xFF2ADEC0).withValues(alpha: 0.1),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                  color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
                   blurRadius: 80,
                   spreadRadius: 10,
                 ),
@@ -575,7 +598,7 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
               margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF2ADEC0).withOpacity(0.2),
+                color: const Color(0xFF2ADEC0).withValues(alpha: 0.2),
               ),
               child: const Icon(
                 Icons.check,
@@ -585,6 +608,42 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQrLikeSquare(String data) {
+    // Deterministic pseudo-QR pattern derived from the receipt ID.
+    final List<int> chars = data.isNotEmpty ? data.codeUnits : <int>[0];
+    const int size = 7;
+    return Container(
+      width: 88,
+      height: 88,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: GridView.count(
+          crossAxisCount: size,
+          mainAxisSpacing: 1,
+          crossAxisSpacing: 1,
+          physics: const NeverScrollableScrollPhysics(),
+          children: List.generate(size * size, (i) {
+            final int row = i ~/ size;
+            final int col = i % size;
+            // Corner finder patterns mimic real QR codes.
+            final bool isCorner =
+                (row < 2 && col < 2) ||
+                (row < 2 && col >= size - 2) ||
+                (row >= size - 2 && col < 2);
+            final bool filled =
+                isCorner || (chars[(row * size + col) % chars.length] % 2 == 0);
+            return Container(color: filled ? Colors.black : Colors.white);
+          }),
+        ),
       ),
     );
   }
@@ -608,12 +667,12 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isTertiary
-                ? const Color(0xFF2ADEC0).withOpacity(0.05)
-                : const Color(0xFF34343A).withOpacity(0.5),
+                ? const Color(0xFF2ADEC0).withValues(alpha: 0.05)
+                : const Color(0xFF34343A).withValues(alpha: 0.5),
             border: Border.all(
               color: isTertiary
-                  ? const Color(0xFF2ADEC0).withOpacity(0.1)
-                  : Colors.white.withOpacity(0.05),
+                  ? const Color(0xFF2ADEC0).withValues(alpha: 0.1)
+                  : Colors.white.withValues(alpha: 0.05),
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -635,8 +694,18 @@ class _VoteSuccessScreenState extends State<VoteSuccessScreen>
 
   String _formatTimestamp(DateTime dt) {
     const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final DateTime local = dt.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');

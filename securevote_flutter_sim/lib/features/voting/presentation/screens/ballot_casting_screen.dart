@@ -64,8 +64,8 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
         id = elections.first.id;
       }
       _electionId = id;
-      final (election, candidates) =
-          await electionsRepo.getElectionWithCandidates(id);
+      final (election, candidates) = await electionsRepo
+          .getElectionWithCandidates(id);
       setState(() {
         _election = election;
         _candidates = candidates;
@@ -249,9 +249,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
             ),
 
             // Content
-            Expanded(
-              child: _buildContent(),
-            ),
+            Expanded(child: _buildContent()),
           ],
         ),
       ),
@@ -322,12 +320,13 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'SECUREVOTE BLOCKCHAIN PROTOCOL V4.2.0',
+                'Select your candidate below. Your vote is encrypted and anonymous.',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 11,
                   color: Colors.white.withValues(alpha: 0.4),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
                 ),
               ),
             ],
@@ -350,7 +349,11 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Icon(Icons.error_outline, color: Color(0xFFFF8A80), size: 48),
+              const Icon(
+                Icons.error_outline,
+                color: Color(0xFFFF8A80),
+                size: 48,
+              ),
               const SizedBox(height: 16),
               Text(
                 _error!,
@@ -418,7 +421,8 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            _election?.description ?? 'Select one candidate to represent your choice.',
+            _election?.description ??
+                'Select one candidate to represent your choice.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
@@ -455,17 +459,11 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               color: const Color(0xFF1A1B21).withValues(alpha: 0.5),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
             ),
             child: Row(
               children: <Widget>[
-                const Icon(
-                  Icons.lock,
-                  color: Color(0xFF2ADEC0),
-                  size: 20,
-                ),
+                const Icon(Icons.lock, color: Color(0xFF2ADEC0), size: 20),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -489,8 +487,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
   Widget _buildCandidateCard(int index) {
     final Candidate candidate = _candidates[index];
     final bool isSelected = _selectedIndex == index;
-    final Color partyColor =
-        _partyColors[index % _partyColors.length];
+    final Color partyColor = _partyColors[index % _partyColors.length];
 
     return GestureDetector(
       onTap: () {
@@ -544,7 +541,8 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                   color: isSelected
                       ? partyColor.withValues(alpha: 0.2)
                       : Colors.white.withValues(alpha: 0.05),
-                  child: candidate.photoUrl != null &&
+                  child:
+                      candidate.photoUrl != null &&
                           candidate.photoUrl!.isNotEmpty
                       ? Image.network(
                           candidate.photoUrl!,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// static settings screen.
+import '../../../../core/providers/providers.dart';
 
 class PrivacySettingsScreen extends StatefulWidget {
   const PrivacySettingsScreen({super.key});
@@ -14,6 +16,162 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
   bool _analytics = true;
   bool _profileVisibility = true;
   bool _voteHistory = false;
+
+  static const String _kDataSharing = 'privacy_data_sharing';
+  static const String _kAnalytics = 'privacy_analytics';
+  static const String _kProfileVisibility = 'privacy_profile_visibility';
+  static const String _kVoteHistory = 'privacy_vote_history';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _dataSharing = prefs.getBool(_kDataSharing) ?? false;
+      _analytics = prefs.getBool(_kAnalytics) ?? true;
+      _profileVisibility = prefs.getBool(_kProfileVisibility) ?? true;
+      _voteHistory = prefs.getBool(_kVoteHistory) ?? false;
+    });
+  }
+
+  Future<void> _persist(String key, bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, value);
+  }
+
+  void _toggle(void Function(bool) write, String key, bool val) {
+    setState(() => write(val));
+    _persist(key, val);
+  }
+
+  String _kycLabel(String status) {
+    switch (status) {
+      case 'approved':
+        return 'Verified';
+      case 'pending':
+        return 'Pending';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Not Submitted';
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Not available';
+    final d = date.toLocal();
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  void _showDownloadDataDialog() {
+    final user = context.read<AuthProvider>().user;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1D28),
+          title: const Text('Your Data', style: TextStyle(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dataRow('Full Name', user?.fullName ?? 'Not set'),
+                _dataRow('Email', user?.email ?? 'Not set'),
+                _dataRow('Phone', user?.phone ?? 'Not provided'),
+                _dataRow('Role', user?.role ?? 'voter'),
+                _dataRow('KYC Status', _kycLabel(user?.kycStatus.name ?? '')),
+                _dataRow('Account Created', _formatDate(user?.createdAt)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Color(0xFFB9C3FF)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _dataRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.6),
+              fontSize: 14,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1D28),
+          title: const Text(
+            'Delete Account?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'This will permanently delete your account and all associated data. This action cannot be undone.',
+            style: TextStyle(color: Color(0xFFC4C5D7)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFFB9C3FF)),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Please contact support@securevote.io to delete your account.',
+                    ),
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              },
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Color(0xFFFF6B6B)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,13 +197,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               'Share Usage Data',
               'Help improve SecureVote by sharing anonymous usage data',
               _dataSharing,
-              (value) => setState(() => _dataSharing = value),
+              (value) => _toggle((v) => _dataSharing = v, _kDataSharing, value),
             ),
             _buildToggleItem(
               'Analytics',
               'Allow analytics to improve your experience',
               _analytics,
-              (value) => setState(() => _analytics = value),
+              (value) => _toggle((v) => _analytics = v, _kAnalytics, value),
             ),
           ]),
           const SizedBox(height: 24),
@@ -54,13 +212,17 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               'Public Profile',
               'Make your profile visible to other users',
               _profileVisibility,
-              (value) => setState(() => _profileVisibility = value),
+              (value) => _toggle(
+                (v) => _profileVisibility = v,
+                _kProfileVisibility,
+                value,
+              ),
             ),
             _buildToggleItem(
               'Show Vote History',
               'Display your voting participation publicly',
               _voteHistory,
-              (value) => setState(() => _voteHistory = value),
+              (value) => _toggle((v) => _voteHistory = v, _kVoteHistory, value),
             ),
           ]),
           const SizedBox(height: 24),
@@ -69,13 +231,13 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               Icons.download,
               'Download My Data',
               'Get a copy of your personal data',
-              () {},
+              _showDownloadDataDialog,
             ),
             _buildActionItem(
               Icons.delete_forever,
               'Delete Account',
               'Permanently delete your account and data',
-              () {},
+              _showDeleteConfirmation,
               isDestructive: true,
             ),
           ]),
@@ -147,7 +309,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFFB9C3FF),
+            activeThumbColor: const Color(0xFFB9C3FF),
           ),
         ],
       ),

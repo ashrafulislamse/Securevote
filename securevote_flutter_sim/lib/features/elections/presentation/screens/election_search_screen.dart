@@ -5,6 +5,7 @@ import '../../../../core/models/election.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/notifications_provider.dart';
 import '../../../../shared/widgets/premium_bottom_nav.dart';
+import '../../data/elections_repository.dart';
 
 class ElectionSearchScreen extends StatefulWidget {
   const ElectionSearchScreen({super.key});
@@ -22,6 +23,47 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
   final List<String> _filters = <String>['All', 'Active', 'Upcoming', 'Past'];
 
   final List<String> _sortOptions = <String>['Newest', 'Oldest', 'Popular'];
+
+  List<Election> _elections = const <Election>[];
+  bool _loading = true;
+  String? _error;
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_started) {
+      _started = true;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final List<Election> elections = await context
+          .read<ElectionsRepository>()
+          .getElections();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _elections = elections;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _error = 'Could not load elections.';
+      });
+    }
+  }
 
   static bool _isActive(Election e) => e.status == 'active';
   static bool _isUpcoming(Election e) =>
@@ -43,7 +85,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
   }
 
   List<Election> get _filteredElections {
-    final List<Election> all = context.read<List<Election>>();
+    final List<Election> all = _elections;
     List<Election> filtered = all
         .where((Election e) => _matchesFilter(e, _selectedFilter))
         .toList();
@@ -363,44 +405,82 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
             // Elections List
             Expanded(
-              child: elections.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No elections found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white.withValues(alpha: 0.4),
+              child: RefreshIndicator(
+                color: const Color(0xFFB9C3FF),
+                onRefresh: _load,
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFB9C3FF),
+                        ),
+                      )
+                    : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Icon(
+                              Icons.cloud_off_rounded,
+                              size: 64,
+                              color: Colors.white.withValues(alpha: 0.2),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Try adjusting your filters',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.3),
+                            const SizedBox(height: 16),
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.5),
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: _load,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : elections.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.white.withValues(alpha: 0.2),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No elections found',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try adjusting your filters',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(16),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: elections.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 24),
+                        itemBuilder: (context, index) {
+                          return _buildElectionCard(elections[index]);
+                        },
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: elections.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 24),
-                      itemBuilder: (context, index) {
-                        return _buildElectionCard(elections[index]);
-                      },
-                    ),
+              ),
             ),
           ],
         ),
@@ -483,7 +563,11 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
         : isUpcoming
         ? const Color(0xFFB9C3FF)
         : const Color(0xFF8E90A0);
-    final String statusLabel = isActive ? 'Active' : isUpcoming ? 'Upcoming' : 'Past';
+    final String statusLabel = isActive
+        ? 'Active'
+        : isUpcoming
+        ? 'Upcoming'
+        : 'Past';
     final IconData statusIcon = isActive
         ? Icons.how_to_vote_rounded
         : isUpcoming
@@ -491,8 +575,9 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
         : Icons.verified_rounded;
 
     final int participants = election.candidateCount ?? 0;
-    final String participantsText =
-        participants <= 0 ? '0' : participants.toString();
+    final String participantsText = participants <= 0
+        ? '0'
+        : participants.toString();
 
     final String meta = isActive
         ? 'Ends ${_formatDate(election.endsAt)}'
@@ -626,11 +711,7 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
                         borderRadius: BorderRadius.circular(24),
                         color: const Color(0xFF292A2F),
                       ),
-                      child: Icon(
-                        statusIcon,
-                        color: statusColor,
-                        size: 24,
-                      ),
+                      child: Icon(statusIcon, color: statusColor, size: 24),
                     ),
                   ],
                 ),
@@ -737,8 +818,18 @@ class _ElectionSearchScreenState extends State<ElectionSearchScreen> {
 
   static String _formatDate(DateTime d) {
     const List<String> months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }

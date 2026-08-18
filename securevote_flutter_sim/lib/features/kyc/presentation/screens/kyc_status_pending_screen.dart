@@ -143,10 +143,8 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: _status == KycStatus.rejected
-                              ? const Color(0xFFFF5252)
-                                  .withValues(alpha: 0.66)
-                              : const Color(0xFFFFBF00)
-                                  .withValues(alpha: 0.66),
+                              ? const Color(0xFFFF5252).withValues(alpha: 0.66)
+                              : const Color(0xFFFFBF00).withValues(alpha: 0.66),
                           width: 3,
                         ),
                       ),
@@ -157,10 +155,12 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: _status == KycStatus.rejected
-                                ? const Color(0xFFFF5252)
-                                    .withValues(alpha: 0.10)
-                                : const Color(0xFFFFBF00)
-                                    .withValues(alpha: 0.10),
+                                ? const Color(
+                                    0xFFFF5252,
+                                  ).withValues(alpha: 0.10)
+                                : const Color(
+                                    0xFFFFBF00,
+                                  ).withValues(alpha: 0.10),
                             boxShadow: <BoxShadow>[
                               BoxShadow(
                                 color: _status == KycStatus.rejected
@@ -192,8 +192,8 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
               _status == KycStatus.rejected
                   ? 'Verification Rejected'
                   : _status == KycStatus.notSubmitted
-                      ? 'Verification Required'
-                      : 'Under Review',
+                  ? 'Verification Required'
+                  : 'Under Review',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.displayLarge,
             ),
@@ -202,8 +202,8 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
               _status == KycStatus.rejected
                   ? 'Your identity documents could not be verified. Please review and resubmit.'
                   : _status == KycStatus.notSubmitted
-                      ? 'Submit your identity documents to unlock voting access.'
-                      : 'Our security team is validating your biometric credentials.',
+                  ? 'Submit your identity documents to unlock voting access.'
+                  : 'Our security team is validating your biometric credentials.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -250,8 +250,8 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                 _errorMessage!,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: const Color(0xFFFF8A80),
-                    ),
+                  color: const Color(0xFFFF8A80),
+                ),
               ),
             ],
             const SizedBox(height: 20),
@@ -261,7 +261,9 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,7 +291,9 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.07),
+                  ),
                   boxShadow: const <BoxShadow>[
                     BoxShadow(color: Color(0x32000000), blurRadius: 16),
                   ],
@@ -334,7 +338,9 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   color: Colors.white.withValues(alpha: 0.05),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,8 +457,8 @@ class _TimelineRow extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: highlight ? const Color(0xFFFFBF00) : null,
-                    ),
+                  color: highlight ? const Color(0xFFFFBF00) : null,
+                ),
               ),
               const SizedBox(height: 2),
               Text(subtitle, style: Theme.of(context).textTheme.labelMedium),

@@ -11,8 +11,8 @@ import '../../auth/data/auth_repository.dart';
 /// (e.g. photos, preferences) once the backend adds them.
 class ProfileRepository implements ProfileRepositoryInterface {
   ProfileRepository({AuthRepository? authRepository, ApiClient? api})
-      : _auth = authRepository ?? AuthRepository(),
-        _api = api ?? ApiClient.instance;
+    : _auth = authRepository ?? AuthRepository(),
+      _api = api ?? ApiClient.instance;
 
   final AuthRepository _auth;
   final ApiClient _api;
@@ -57,5 +57,13 @@ class ProfileRepository implements ProfileRepositoryInterface {
         await _api.postApi('/api/notifications/read-all')
             as Map<String, dynamic>;
     return (data['updated'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Deletes a single notification.
+  ///
+  /// Backend: `DELETE /api/notifications/:id`. Uses the raw [Dio] instance
+  /// directly because [ApiClient] does not expose a delete helper.
+  Future<void> deleteNotification(String id) async {
+    await _api.dio.delete('/api/notifications/$id');
   }
 }

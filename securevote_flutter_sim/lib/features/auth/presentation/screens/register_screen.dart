@@ -48,8 +48,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return score;
   }
 
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(value);
+  }
+
+  bool _passwordMeetsRequirements(String value) {
+    return value.length >= 8 &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'[a-z]').hasMatch(value) &&
+        RegExp(r'\d').hasMatch(value);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     final int score = _passwordScore(_passwordController.text);
 
     return ObsidianScaffold(
@@ -171,82 +183,137 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            GradientButton(
-              label: 'Continue to Verify',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: () async {
-                if (!_acceptTerms) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please accept terms first.')),
-                  );
-                  return;
-                }
-
-                // Validate fields (phone is optional)
-                if (_fullNameController.text.trim().isEmpty ||
-                    _emailController.text.trim().isEmpty ||
-                    _passwordController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill all fields')),
-                  );
-                  return;
-                }
-
-                if (_passwordController.text !=
-                    _confirmPasswordController.text) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Passwords do not match')),
-                  );
-                  return;
-                }
-
-                final auth = context.read<AuthProvider>();
-                if (auth.isLoading) return;
-
-                final email = _emailController.text.trim();
-                final phone = _phoneController.text.trim();
-
-                try {
-                  await auth.register(
-                    email: email,
-                    password: _passwordController.text,
-                    fullName: _fullNameController.text.trim(),
-                    phone: phone.isEmpty ? null : phone,
-                  );
-                  if (!mounted) return;
-
-                  // In dev the code is returned by the API; show it to the user.
-                  final devOtp = auth.lastRegister?.devOtp;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        devOtp != null && devOtp.isNotEmpty
-                            ? 'Your verification code: $devOtp'
-                            : 'Verification code sent. Check your email.',
+            if (auth.isLoading)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: const LinearGradient(
+                    colors: <Color>[AppColors.primary, AppColors.secondary],
+                  ),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF0D0E13),
+                        strokeWidth: 2,
                       ),
-                      backgroundColor: const Color(0xFF2ADEC0),
-                      duration: const Duration(seconds: 5),
                     ),
-                  );
-
-                  Navigator.pushNamed(
-                    context,
-                    AppRouter.verifyAccount,
-                    arguments: email,
-                  );
-                } catch (_) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        auth.error ?? 'Registration failed. Please try again.',
+                  ),
+                ),
+              )
+            else
+              GradientButton(
+                label: 'Continue to Verify',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: () async {
+                  if (!_acceptTerms) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please accept terms first.'),
                       ),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-            ),
+                    );
+                    return;
+                  }
+
+                  final fullName = _fullNameController.text.trim();
+                  final email = _emailController.text.trim();
+                  final password = _passwordController.text;
+                  final phone = _phoneController.text.trim();
+
+                  // Validate fields (phone is optional)
+                  if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please fill all fields')),
+                    );
+                    return;
+                  }
+
+                  if (fullName.length < 2) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Full name must be at least 2 characters',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (!_isValidEmail(email)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid email address'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (!_passwordMeetsRequirements(password)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Password must be at least 8 characters with '
+                          'uppercase, lowercase, and a digit',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (password != _confirmPasswordController.text) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Passwords do not match')),
+                    );
+                    return;
+                  }
+
+                  final navigator = Navigator.of(context);
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    await auth.register(
+                      email: email,
+                      password: password,
+                      fullName: fullName,
+                      phone: phone.isEmpty ? null : phone,
+                    );
+                    if (!mounted) return;
+
+                    // In dev the code is returned by the API; show it to the user.
+                    final devOtp = auth.lastRegister?.devOtp;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          devOtp != null && devOtp.isNotEmpty
+                              ? 'Your verification code: $devOtp'
+                              : 'Verification code sent. Check your email.',
+                        ),
+                        backgroundColor: const Color(0xFF2ADEC0),
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+
+                    navigator.pushNamed(
+                      AppRouter.verifyAccount,
+                      arguments: email,
+                    );
+                  } catch (_) {
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          auth.error ??
+                              'Registration failed. Please try again.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
@@ -254,7 +321,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
                 backgroundColor: Colors.white.withValues(alpha: 0.06),
               ),
-              onPressed: () {},
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Google sign-up coming soon')),
+                );
+              },
               icon: const FaIcon(
                 FontAwesomeIcons.google,
                 size: 16,
