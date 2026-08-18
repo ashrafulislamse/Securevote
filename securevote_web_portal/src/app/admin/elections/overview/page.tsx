@@ -37,24 +37,48 @@ function ElectionOverviewContent() {
   const [error, setError] = useState<string | null>(null);
   const [election, setElection] = useState<api.Election | null>(null);
   const [candidateCount, setCandidateCount] = useState<number>(0);
+  const [alerts, setAlerts] = useState<api.Alert[]>([]);
+  const [ballotBlocks, setBallotBlocks] = useState<api.BallotBlock[]>([]);
+  const [totalVotes, setTotalVotes] = useState<number>(0);
+  const [approvedVoters, setApprovedVoters] = useState<number>(0);
   const [updating, setUpdating] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      let focus: api.Election | null;
+      let candidates: api.Candidate[] = [];
       if (requestedId) {
         const data = await api.getElection(requestedId);
-        setElection(data.election);
-        setCandidateCount(data.candidates.length);
+        focus = data.election;
+        candidates = data.candidates;
       } else {
         const elections = await api.listElections();
         const sorted = [...elections].sort((a, b) => b.startsAt - a.startsAt);
-        const focus = sorted.find((e) => e.status === "active") ?? sorted[0] ?? null;
-        setElection(focus);
-        setCandidateCount(focus?.candidateCount ?? 0);
+        focus = sorted.find((e) => e.status === "active") ?? sorted[0] ?? null;
       }
+      if (!focus) {
+        setElection(null);
+        setLoading(false);
+        return;
+      }
+      setElection(focus);
+      setCandidateCount(candidates.length);
+
+      const [allAlerts, blocks, results, stats] = await Promise.all([
+        api.getAlerts().catch(() => [] as api.Alert[]),
+        api.listBallotBlocks(focus.id).catch(() => [] as api.BallotBlock[]),
+        api.getResults(focus.id).catch(() => ({ electionId: focus!.id, totalVotes: 0, results: [] })),
+        api.getAdminStats().catch(() => null),
+      ]);
+      setAlerts(allAlerts.filter((a) => a.target === focus!.id));
+      setBallotBlocks(blocks);
+      setTotalVotes(results.totalVotes);
+      if (stats) setApprovedVoters(stats.approvedVoters);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load election");
     } finally {
@@ -80,6 +104,64 @@ function ElectionOverviewContent() {
       setToast(err instanceof Error ? err.message : "Failed to update status");
     } finally {
       setUpdating(false);
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const exportLiveFeed = async () => {
+    if (!election) return;
+    setExporting(true);
+    setToast(null);
+    try {
+      const [candidates, blocks, results] = await Promise.all([
+        api.getElection(election.id).then((d) => d.candidates).catch(() => []),
+        api.listBallotBlocks(election.id).catch(() => []),
+        api.getResults(election.id).catch(() => ({ electionId: election.id, totalVotes: 0, results: [] })),
+      ]);
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        election,
+        candidates,
+        ballotBlocks: blocks,
+        results,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `election-${election.id}-export.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setToast("Live feed exported.");
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const broadcastNotice = async () => {
+    if (!election) return;
+    setBroadcasting(true);
+    setToast(null);
+    try {
+      const voters = await api.listVoters({ kycStatus: "approved" });
+      const ids = voters.map((v) => v.id);
+      if (ids.length === 0) {
+        setToast("No approved voters to notify.");
+        return;
+      }
+      await api.notifyVoters(
+        ids,
+        `Notice: ${election.title}`,
+        `An update has been posted for the election "${election.title}". Current status: ${STATUS_LABELS[election.status]}.`,
+      );
+      setToast(`Notice broadcast to ${ids.length} approved voter${ids.length === 1 ? "" : "s"}.`);
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "Broadcast failed");
+    } finally {
+      setBroadcasting(false);
       setTimeout(() => setToast(null), 4000);
     }
   };
@@ -111,6 +193,7 @@ function ElectionOverviewContent() {
   }
 
   const typeName = election.type === "single" ? "Single Choice" : election.type === "multi" ? "Multi Choice" : "Ranked Choice";
+  const anomalyCount = alerts.filter((a) => a.status !== "resolved").length;
 
   return (
     <AdminShell active="elections">
@@ -128,7 +211,13 @@ function ElectionOverviewContent() {
             >
               {election.status === "active" ? "Suspend" : "Activate"}
             </button>
-            <button className="brand-gradient rounded-lg px-5 py-2 text-sm font-semibold text-white">Export Live Feed</button>
+            <button
+              onClick={exportLiveFeed}
+              disabled={exporting}
+              className="brand-gradient rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {exporting ? "Exporting..." : "Export Live Feed"}
+            </button>
           </div>
         </div>
 
@@ -140,8 +229,8 @@ function ElectionOverviewContent() {
           <Card title="Status" value={STATUS_LABELS[election.status]} tone="text-[var(--primary)]" />
           <Card title="Type" value={typeName} tone="text-[var(--secondary)]" />
           <Card title="Candidates" value={String(candidateCount)} tone="text-white" />
-          <Card title="Eligible Voters" value="—" tone="text-[var(--text-muted)]" />
-          <Card title="Anomalies" value="—" tone="text-rose-300" />
+          <Card title="Eligible Voters" value={approvedVoters.toLocaleString()} tone="text-[var(--text-muted)]" />
+          <Card title="Anomalies" value={String(anomalyCount)} tone={anomalyCount > 0 ? "text-rose-300" : "text-emerald-300"} />
           <Card title="Time Left" value={formatTimeLeft(election.endsAt)} tone="text-amber-300" />
         </div>
 
@@ -177,36 +266,44 @@ function ElectionOverviewContent() {
 
           <div className="space-y-5 xl:col-span-6">
             <section className="rounded-xl bg-[var(--surface-container)] p-6">
-              <h3 className="text-lg font-semibold">Voting Momentum</h3>
-              <p className="text-xs text-[var(--text-muted)]">Real-time vote ingestion speed</p>
-              <div className="mt-4 h-40 rounded-lg bg-[var(--surface-container-high)]/20 p-4">
-                <div className="flex h-full items-end gap-1">
-                  {[20, 30, 35, 50, 62, 70, 84, 95, 88, 98].map((h, idx) => (
-                    <div key={idx} className="h-full flex-1 rounded-t-sm bg-[var(--primary)]/20">
-                      <div className="w-full rounded-t-sm bg-[var(--primary)]" style={{ height: `${h}%`, marginTop: `${100 - h}%` }} />
-                    </div>
-                  ))}
+              <div className="mb-5 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Vote Count</h3>
+                  <p className="text-xs text-[var(--text-muted)]">Total ballots cast in this election</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="shrink-0 text-center">
+                  <p className="text-5xl font-bold text-[var(--primary)]">{totalVotes.toLocaleString()}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">Votes cast</p>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <TurnoutBar label="Turnout (vs approved)" value={totalVotes} max={approvedVoters} />
                 </div>
               </div>
             </section>
 
             <section className="rounded-xl bg-[var(--surface-container)] p-6">
-              <h3 className="text-lg font-semibold">Mobile Ballot Preview</h3>
+              <h3 className="text-lg font-semibold">Ballot Preview</h3>
               <div className="mt-4 space-y-3">
-                {election.description ? (
+                {ballotBlocks.length > 0 ? (
+                  ballotBlocks
+                    .sort((a, b) => a.orderIndex - b.orderIndex)
+                    .map((block) => (
+                      <div key={block.id} className="flex items-center gap-3 rounded-lg bg-[var(--surface-container-low)] p-3">
+                        <div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--surface-container-high)] text-[var(--primary)]">
+                          <span className="material-symbols-outlined">ballot</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{block.title}</p>
+                          <p className="text-xs text-[var(--text-muted)]">{block.kind === "position" ? "Select candidates" : block.kind === "yesNo" ? "Yes / No" : "Informational"}</p>
+                        </div>
+                      </div>
+                    ))
+                ) : election.description ? (
                   <div className="rounded-lg bg-[var(--surface-container-low)] p-3 text-sm">{election.description}</div>
                 ) : (
-                  ["Position 1: President", "Position 2: Secretary", "Position 3: Treasurer"].map((p) => (
-                    <div key={p} className="flex items-center gap-3 rounded-lg bg-[var(--surface-container-low)] p-3">
-                      <div className="grid h-10 w-10 place-items-center rounded-lg bg-[var(--surface-container-high)] text-[var(--primary)]">
-                        <span className="material-symbols-outlined">person</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold">{p}</p>
-                        <p className="text-xs text-[var(--text-muted)]">Select 1 candidate</p>
-                      </div>
-                    </div>
-                  ))
+                  <p className="rounded-lg bg-[var(--surface-container-low)] p-3 text-sm text-[var(--text-muted)]">No ballot blocks configured for this election yet.</p>
                 )}
               </div>
             </section>
@@ -216,10 +313,18 @@ function ElectionOverviewContent() {
             <section className="rounded-xl bg-[var(--surface-container)] p-5">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Live Alerts</h3>
-                <span className="rounded-full bg-rose-500/15 px-2 py-0.5 text-[10px] font-bold text-rose-300">—</span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${anomalyCount > 0 ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}`}>
+                  {anomalyCount}
+                </span>
               </div>
               <div className="space-y-3">
-                <Alert text="No live alerts available for this election." />
+                {alerts.length > 0 ? (
+                  alerts.map((alert) => (
+                    <AlertItem key={alert.id} title={alert.title ?? alert.type} body={alert.body ?? alert.severity} status={alert.status ?? "open"} />
+                  ))
+                ) : (
+                  <Alert text="No live alerts for this election." />
+                )}
               </div>
             </section>
             <section className="rounded-xl bg-[var(--surface-container)] p-5">
@@ -232,7 +337,13 @@ function ElectionOverviewContent() {
                 >
                   Pause Election
                 </button>
-                <button className="w-full rounded-lg bg-[var(--surface-container-high)] px-3 py-2 text-left text-sm">Broadcast Notice</button>
+                <button
+                  onClick={broadcastNotice}
+                  disabled={broadcasting}
+                  className="w-full rounded-lg bg-[var(--surface-container-high)] px-3 py-2 text-left text-sm disabled:opacity-50"
+                >
+                  {broadcasting ? "Broadcasting..." : "Broadcast Notice"}
+                </button>
                 <button
                   onClick={() => changeStatus("closed")}
                   disabled={updating}
@@ -265,6 +376,21 @@ function formatSchedule(startsAt: number, endsAt: number): string {
   return `${fmt(start)} - ${fmt(end)}`;
 }
 
+function TurnoutBar({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-[var(--text-muted)]">{label}</span>
+        <span className="font-mono">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--surface-container-high)]">
+        <div className="brand-gradient h-2 rounded-full" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 function Card({ title, value, tone }: { title: string; value: string; tone: string }) {
   return (
     <article className="top-accent rounded-xl bg-[var(--surface-container)] p-4">
@@ -284,5 +410,15 @@ function Field({ label, value, mono = false }: { label: string; value: string; m
 }
 
 function Alert({ text }: { text: string }) {
-  return <div className="rounded-lg border-l-2 border-rose-400 bg-rose-500/8 p-3 text-xs">{text}</div>;
+  return <div className="rounded-lg border-l-2 border-emerald-400 bg-emerald-500/8 p-3 text-xs">{text}</div>;
+}
+
+function AlertItem({ title, body, status }: { title: string; body: string; status: string }) {
+  const tone = status === "resolved" ? "border-emerald-400 bg-emerald-500/8" : status === "investigating" ? "border-amber-400 bg-amber-500/8" : "border-rose-400 bg-rose-500/8";
+  return (
+    <div className={`rounded-lg border-l-2 p-3 ${tone}`}>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">{body}</p>
+    </div>
+  );
 }

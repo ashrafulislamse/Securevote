@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { getAuditLog, type AuditLogEntry } from "@/lib/api-client";
+import { createAlert, getAuditLog, verifyAuditChain, type AuditLogEntry } from "@/lib/api-client";
 
 type FeedItem = {
   id: string;
@@ -37,6 +37,8 @@ export default function LiveMonitoringPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionToast, setActionToast] = useState<{ text: string; tone: "ok" | "err" } | null>(null);
   const mounted = useRef(true);
 
   const load = useCallback(async () => {
@@ -75,6 +77,64 @@ export default function LiveMonitoringPage() {
     const distinctActions = new Set(feed.map((item) => item.action)).size;
     return { totalEvents, uniqueActors, distinctActions };
   }, [feed]);
+
+  const runAction = async (key: string, fn: () => Promise<string>) => {
+    setActionLoading(key);
+    setActionToast(null);
+    try {
+      const msg = await fn();
+      setActionToast({ text: msg, tone: "ok" });
+    } catch (err) {
+      setActionToast({ text: err instanceof Error ? err.message : "Action failed", tone: "err" });
+    } finally {
+      setActionLoading(null);
+      setTimeout(() => setActionToast(null), 5000);
+    }
+  };
+
+  const openIncidentBridge = () =>
+    runAction("incident", async () => {
+      await createAlert({
+        type: "incident",
+        severity: "high",
+        title: "Incident bridge opened",
+        body: "Coordinated response initiated from Live Monitoring.",
+        target: "live-monitoring",
+      });
+      return "Incident bridge opened — alert created.";
+    });
+
+  const requestRegionLock = () =>
+    runAction("lock", async () => {
+      await createAlert({
+        type: "region_lock",
+        severity: "critical",
+        title: "Region lock requested",
+        body: "Suspicious cluster throttling requested from Live Monitoring.",
+        target: "live-monitoring",
+      });
+      return "Region lock request submitted — critical alert created.";
+    });
+
+  const runIntegritySnapshot = () =>
+    runAction("snapshot", async () => {
+      const chain = await verifyAuditChain();
+      return chain.ok
+        ? `Audit chain healthy — ${chain.totalEntries} entries verified.`
+        : `Chain BROKEN at entry ${chain.brokenAt}.`;
+    });
+
+  const notifyOversight = () =>
+    runAction("oversight", async () => {
+      await createAlert({
+        type: "oversight_notice",
+        severity: "high",
+        title: "Oversight team notified",
+        body: "Signed update dispatched to oversight team from Live Monitoring.",
+        target: "live-monitoring",
+      });
+      return "Oversight team notification dispatched — alert created.";
+    });
 
   return (
     <AdminShell active="elections">
@@ -147,11 +207,16 @@ export default function LiveMonitoringPage() {
 
             <article className="rounded-xl bg-[var(--surface-container)] p-5">
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Control Actions</p>
+              {actionToast ? (
+                <div className={`mb-3 rounded-lg px-3 py-2 text-xs font-semibold ${actionToast.tone === "ok" ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>
+                  {actionToast.text}
+                </div>
+              ) : null}
               <div className="mt-4 space-y-3">
-                <ActionButton label="Open Incident Bridge" subtitle="Start coordinated response" />
-                <ActionButton label="Request Region Lock" subtitle="Throttle suspicious cluster" />
-                <ActionButton label="Run Integrity Snapshot" subtitle="Recompute vote hash chain" />
-                <ActionButton label="Notify Oversight Team" subtitle="Dispatch signed update" />
+                <ActionButton label="Open Incident Bridge" subtitle="Start coordinated response" loading={actionLoading === "incident"} onClick={openIncidentBridge} />
+                <ActionButton label="Request Region Lock" subtitle="Throttle suspicious cluster" loading={actionLoading === "lock"} onClick={requestRegionLock} />
+                <ActionButton label="Run Integrity Snapshot" subtitle="Recompute vote hash chain" loading={actionLoading === "snapshot"} onClick={runIntegritySnapshot} />
+                <ActionButton label="Notify Oversight Team" subtitle="Dispatch signed update" loading={actionLoading === "oversight"} onClick={notifyOversight} />
               </div>
 
               <div className="mt-6 rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4">
@@ -186,10 +251,10 @@ function MiniStat({ label, value, tone = "neutral" }: { label: string; value: st
   );
 }
 
-function ActionButton({ label, subtitle }: { label: string; subtitle: string }) {
+function ActionButton({ label, subtitle, loading, onClick }: { label: string; subtitle: string; loading?: boolean; onClick?: () => void }) {
   return (
-    <button className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-left transition hover:bg-[var(--surface-container-high)]">
-      <p className="text-sm font-semibold">{label}</p>
+    <button type="button" onClick={onClick} disabled={loading} className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-left transition hover:bg-[var(--surface-container-high)] disabled:opacity-50">
+      <p className="text-sm font-semibold">{loading ? "Working..." : label}</p>
       <p className="text-xs text-[var(--text-muted)]">{subtitle}</p>
     </button>
   );

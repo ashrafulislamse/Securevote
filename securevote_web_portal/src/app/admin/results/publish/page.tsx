@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { listElections, setElectionStatus } from "@/lib/api-client";
+import { listElections, publishElection } from "@/lib/api-client";
 import type { Election } from "@/lib/api-client";
 
 type Visibility = "public" | "participants" | "internal";
@@ -51,7 +51,11 @@ export default function PublishResultsPage() {
     setPublishing(true);
     setError(null);
     try {
-      await setElectionStatus(election.id, "published");
+      const selectedChannels: Array<"portal" | "email" | "apiWebhook"> = [];
+      if (channels.portal) selectedChannels.push("portal");
+      if (channels.email) selectedChannels.push("email");
+      if (channels.apiWebhook) selectedChannels.push("apiWebhook");
+      await publishElection(election.id, { visibility, channels: selectedChannels });
       setPublished(true);
       // Refresh the local election so its status reflects the change.
       const items = await listElections();
@@ -143,8 +147,6 @@ export default function PublishResultsPage() {
                     onChange={(next) => setChannels((prev) => ({ ...prev, apiWebhook: next }))}
                   />
                 </div>
-                {/* TODO: publish channels endpoint — the backend only exposes election status,
-                    not per-channel distribution. Channel selection is stored client-side for now. */}
               </section>
             </article>
 

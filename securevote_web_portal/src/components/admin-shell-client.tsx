@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   CheckCircle2,
   ChevronDown,
-  Bell,
   Bot,
   Building2,
   PanelLeftClose,
@@ -42,8 +41,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NotificationBell } from "@/components/notification-bell";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -432,34 +431,8 @@ export function AdminShellClient({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="relative hidden w-[260px] xl:block">
-                <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-2 text-[16px] text-[var(--text-muted)]">search</span>
-                <Input className="pl-8" placeholder="Search elections, voters, logs..." />
-              </div>
               <ThemeToggle />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Open notifications menu">
-                    <Bell className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>
-                    <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-400" />
-                    KYC batch approved
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <FileWarning className="mr-2 h-4 w-4 text-amber-400" />
-                    2 anomaly alerts need review
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Gauge className="mr-2 h-4 w-4 text-[var(--tertiary)]" />
-                    Turnout crossed 64%
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <NotificationBell />
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

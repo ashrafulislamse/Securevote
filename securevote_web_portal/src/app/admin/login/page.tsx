@@ -8,15 +8,13 @@ import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
 
-// Pre-filled with the real seeded admin account for convenience.
 const DEFAULT_ADMIN_EMAIL = "admin@securevote.io";
-const DEFAULT_ADMIN_PASSWORD = "SecureVote@2026";
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState(DEFAULT_ADMIN_EMAIL);
-  const [password, setPassword] = useState(DEFAULT_ADMIN_PASSWORD);
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -160,15 +158,8 @@ export default function AdminLoginPage() {
           <p className="mt-8 text-center text-[10px] leading-relaxed text-white/45 reveal-up reveal-fast reveal-delay-2">
             Protected by enterprise-grade security. By continuing, you agree to SecureVote system terms and data integrity protocols.
           </p>
-          <p className="mt-3 flex items-center justify-center gap-2 text-[11px] text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-3">
-            <span>Demo credentials</span>
-            <span className="glass-panel ghost-border inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[11px] text-[var(--text-primary)]">
-              admin@securevote.io
-            </span>
-            <span className="text-white/40">/</span>
-            <span className="glass-panel ghost-border inline-flex items-center rounded-full px-2.5 py-1 font-mono text-[11px] text-[var(--text-primary)]">
-              SecureVote@2026
-            </span>
+          <p className="mt-3 text-center text-[11px] text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-3">
+            Contact your system administrator for credentials.
           </p>
         </div>
       </section>

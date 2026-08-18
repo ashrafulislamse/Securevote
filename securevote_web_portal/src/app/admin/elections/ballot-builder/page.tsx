@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import * as api from "@/lib/api-client";
 
 type BlockType = "position" | "yesNo" | "info";
 
+// UI block: backend-persisted fields (id/title/type/orderIndex) plus a
+// client-only description shown in the inspector (the ballot_blocks table has
+// no description column, so description stays local to the builder session).
 type BallotBlock = {
   id: string;
   title: string;
   description: string;
   type: BlockType;
+  orderIndex: number;
   selection: "Single" | "Multi" | "N/A";
 };
+
+function selectionFor(type: BlockType, electionType: api.ElectionType): "Single" | "Multi" | "N/A" {
+  if (type === "info") return "N/A";
+  return electionType === "single" ? "Single" : "Multi";
+}
 
 export default function BallotBuilderPage() {
   const [loading, setLoading] = useState(true);
@@ -26,10 +35,34 @@ export default function BallotBuilderPage() {
   const [selectedId, setSelectedId] = useState("");
   const [showCandidatePhotos, setShowCandidatePhotos] = useState(true);
   const [randomizeOrder, setRandomizeOrder] = useState(false);
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
+  const [publishing, setPublishing] = useState(false);
 
-  // TODO: ballot_blocks endpoint — Phase 5.
-  // The backend has no ballot-blocks endpoint yet, so the positional blocks below
-  // are built locally from the election's real candidates and edited in local state.
+  // --- Data loading ---
+
+  const loadBlocks = useCallback(async (id: string, elect: api.Election) => {
+    try {
+      const remote = await api.listBallotBlocks(id);
+      setBlocks(
+        remote.map((b) => ({
+          id: b.id,
+          title: b.title,
+          description: "",
+          type: b.kind as BlockType,
+          orderIndex: b.orderIndex,
+          selection: selectionFor(b.kind as BlockType, elect.type),
+        })),
+      );
+      setSelectedId(remote[0]?.id ?? "");
+    } catch {
+      setBlocks([]);
+      setSelectedId("");
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -69,28 +102,7 @@ export default function BallotBuilderPage() {
         if (!active) return;
         setElection(data.election);
         setCandidates(data.candidates);
-        const position = data.election.type === "multi" ? "Multi" : data.election.type === "ranked" ? "Multi" : "Single";
-        setBlocks(
-          data.candidates.length > 0
-            ? [
-                {
-                  id: "position-1",
-                  title: data.election.title,
-                  description: `Vote for candidates in ${data.election.title}.`,
-                  type: "position",
-                  selection: position,
-                },
-                {
-                  id: "info-conduct",
-                  title: "Election Conduct Notice",
-                  description: "Campaigning near voting booths is prohibited during active voting period.",
-                  type: "info",
-                  selection: "N/A",
-                },
-              ]
-            : [],
-        );
-        setSelectedId("");
+        await loadBlocks(electionId, data.election);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Failed to load election");
       } finally {
@@ -100,11 +112,26 @@ export default function BallotBuilderPage() {
     return () => {
       active = false;
     };
-  }, [electionId]);
+  }, [electionId, loadBlocks]);
 
   const selected = useMemo(() => blocks.find((b) => b.id === selectedId) ?? null, [blocks, selectedId]);
 
+  // --- Mutations: persist to the backend, then reload so order/ids stay in sync ---
+
+  const runMutation = async (fn: () => Promise<unknown>, successMsg: string, errMsg: string) => {
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await fn();
+      if (election) await loadBlocks(electionId, election);
+      setAction({ busy: false, error: null, success: successMsg });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : errMsg, success: null });
+    }
+  };
+
   const moveBlock = (id: string, direction: -1 | 1) => {
+    // Reorder locally first for snappy UI, then persist the new orderIndex.
+    const reordered: BallotBlock[] = [];
     setBlocks((current) => {
       const index = current.findIndex((item) => item.id === id);
       if (index === -1) return current;
@@ -113,39 +140,71 @@ export default function BallotBuilderPage() {
       const clone = [...current];
       const [moved] = clone.splice(index, 1);
       clone.splice(nextIndex, 0, moved);
-      return clone;
+      reordered.push(...clone.map((b, i) => ({ ...b, orderIndex: i })));
+      return reordered;
     });
+    if (reordered.length && election) {
+      void Promise.all(
+        reordered.map((b) => api.updateBallotBlock(electionId, b.id, { orderIndex: b.orderIndex })),
+      ).catch(() => {
+        /* best-effort; reload on next interaction */
+      });
+    }
   };
 
   const addBlock = (type: BlockType) => {
-    const seed = Math.random().toString(36).slice(2, 6).toUpperCase();
-    const block: BallotBlock =
-      type === "position"
-        ? {
-            id: `position-${seed}`,
-            title: "New Position",
-            description: "Add candidates and set selection limits.",
-            type,
-            selection: "Single",
-          }
-        : type === "yesNo"
-          ? {
-              id: `yesno-${seed}`,
-              title: "Policy Approval",
-              description: "Should this policy be adopted for next term?",
-              type,
-              selection: "Single",
-            }
-          : {
-              id: `info-${seed}`,
-              title: "Information Block",
-              description: "Non-voting informational section.",
-              type,
-              selection: "N/A",
-            };
+    if (!election) return;
+    const title = type === "position" ? "New Position" : type === "yesNo" ? "Policy Approval" : "Information Block";
+    void runMutation(
+      () =>
+        api.createBallotBlock(electionId, {
+          title,
+          kind: type,
+          orderIndex: blocks.length,
+        }),
+      "Block added.",
+      "Failed to add block",
+    );
+  };
 
-    setBlocks((prev) => [...prev, block]);
-    setSelectedId(block.id);
+  const saveSelected = () => {
+    if (!selected) return;
+    void runMutation(
+      () =>
+        api.updateBallotBlock(electionId, selected.id, {
+          title: selected.title,
+          kind: selected.type,
+        }),
+      "Block updated.",
+      "Failed to update block",
+    );
+  };
+
+  const removeBlock = () => {
+    if (!selected) return;
+    void runMutation(
+      () => api.deleteBallotBlock(electionId, selected.id),
+      "Block removed.",
+      "Failed to remove block",
+    );
+  };
+
+  const publishBallot = async () => {
+    if (!election) return;
+    if (election.status !== "draft" && election.status !== "scheduled") {
+      setAction({ busy: false, error: "Ballot can only be published while the election is draft/scheduled.", success: null });
+      return;
+    }
+    setPublishing(true);
+    try {
+      // "Publish" the ballot by scheduling the election (status -> scheduled).
+      await api.setElectionStatus(electionId, "scheduled");
+      setAction({ busy: false, error: null, success: "Ballot published. Election is now scheduled." });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : "Failed to publish ballot", success: null });
+    } finally {
+      setPublishing(false);
+    }
   };
 
   return (
@@ -169,9 +228,18 @@ export default function BallotBuilderPage() {
               ))}
             </select>
             <button className="rounded-lg bg-[var(--surface-container)] px-4 py-2 text-sm">Preview Ballot</button>
-            <button className="brand-gradient rounded-lg px-5 py-2 text-sm font-semibold text-white">Publish Ballot</button>
+            <button
+              onClick={publishBallot}
+              disabled={publishing || !election}
+              className="brand-gradient rounded-lg px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {publishing ? "Publishing..." : "Publish Ballot"}
+            </button>
           </div>
         </div>
+
+        {action.error ? <p className="text-sm text-rose-300">{action.error}</p> : null}
+        {action.success ? <p className="text-sm text-emerald-300">{action.success}</p> : null}
 
         <div className="grid gap-6 xl:grid-cols-[300px,1fr,320px]">
           <aside className="rounded-xl bg-[var(--surface-container)] p-5">
@@ -252,7 +320,28 @@ export default function BallotBuilderPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[var(--text-muted)]">Description</label>
+                  <label className="text-xs text-[var(--text-muted)]">Type</label>
+                  <select
+                    value={selected.type}
+                    onChange={(e) => {
+                      const nextType = e.target.value as BlockType;
+                      setBlocks((prev) =>
+                        prev.map((item) =>
+                          item.id === selected.id
+                            ? { ...item, type: nextType, selection: selectionFor(nextType, election?.type ?? "single") }
+                            : item,
+                        ),
+                      );
+                    }}
+                    className="mt-1 w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
+                  >
+                    <option value="position">Position / Role</option>
+                    <option value="yesNo">Yes / No</option>
+                    <option value="info">Information</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-[var(--text-muted)]">Description (preview only)</label>
                   <textarea
                     value={selected.description}
                     onChange={(e) => {
@@ -262,15 +351,22 @@ export default function BallotBuilderPage() {
                     className="mt-1 min-h-24 w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
                   />
                 </div>
-                <button
-                  onClick={() => {
-                    setBlocks((prev) => prev.filter((item) => item.id !== selected.id));
-                    setSelectedId((prev) => (prev === selected.id ? "" : prev));
-                  }}
-                  className="w-full rounded-lg bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-300"
-                >
-                  Remove Block
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={saveSelected}
+                    disabled={action.busy}
+                    className="brand-gradient flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {action.busy ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={removeBlock}
+                    disabled={action.busy}
+                    className="rounded-lg bg-rose-500/15 px-4 py-2 text-sm font-semibold text-rose-300 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ) : (
               <p className="mt-4 text-sm text-[var(--text-muted)]">Select a canvas block to edit settings.</p>

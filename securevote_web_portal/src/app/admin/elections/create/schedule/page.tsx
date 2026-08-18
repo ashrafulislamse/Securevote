@@ -14,6 +14,7 @@ function toDateTimeLocal(ms: number): string {
 
 export default function CreateElectionSchedulePage() {
   const [draft, setDraft] = useState(loadDraft);
+  const [toast, setToast] = useState<string | null>(null);
 
   const startValue = toDateTimeLocal(draft.startsAt);
   const endValue = toDateTimeLocal(draft.endsAt);
@@ -36,6 +37,12 @@ export default function CreateElectionSchedulePage() {
     });
   };
 
+  const saveAndToast = () => {
+    saveDraft(draft);
+    setToast("Draft saved.");
+    setTimeout(() => setToast(null), 2000);
+  };
+
   const durationHours =
     draft.startsAt && draft.endsAt && draft.endsAt > draft.startsAt
       ? Math.round((draft.endsAt - draft.startsAt) / 3_600_000)
@@ -51,47 +58,30 @@ export default function CreateElectionSchedulePage() {
 
         <Stepper step={2} />
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <section className="top-accent rounded-xl bg-[var(--surface-container)] p-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Voting Period</h2>
-            <div className="mt-5 space-y-4">
-              <label className="block">
-                <span className="mb-2 block text-sm text-[var(--text-muted)]">Start Date & Time</span>
-                <input
-                  type="datetime-local"
-                  value={startValue}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm text-white"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm text-[var(--text-muted)]">End Date & Time</span>
-                <input
-                  type="datetime-local"
-                  value={endValue}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm text-white"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-2 block text-sm text-[var(--text-muted)]">Timezone</span>
-                <select className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-3 text-sm">
-                  <option>(UTC-05:00) Eastern Time</option>
-                  <option>(UTC+00:00) Universal Coordinated Time</option>
-                </select>
-              </label>
-            </div>
-          </section>
-
-          <section className="rounded-xl bg-[var(--surface-container)] p-6">
-            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Reminders</h2>
-            <div className="mt-5 space-y-3">
-              <Reminder title="Opening Reminder" value="30m before" on />
-              <Reminder title="Midpoint Check" value="24h mark" />
-              <Reminder title="Closing Alert" value="2h before" on />
-            </div>
-          </section>
-        </div>
+        <section className="top-accent rounded-xl bg-[var(--surface-container)] p-6">
+          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Voting Period</h2>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">All times are in your local timezone.</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="mb-2 block text-sm text-[var(--text-muted)]">Start Date & Time</span>
+              <input
+                type="datetime-local"
+                value={startValue}
+                onChange={(e) => setStart(e.target.value)}
+                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-white"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm text-[var(--text-muted)]">End Date & Time</span>
+              <input
+                type="datetime-local"
+                value={endValue}
+                onChange={(e) => setEnd(e.target.value)}
+                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-white"
+              />
+            </label>
+          </div>
+        </section>
 
         <section className="rounded-xl bg-[var(--surface-container)] p-6">
           <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Schedule Preview</h2>
@@ -113,10 +103,14 @@ export default function CreateElectionSchedulePage() {
           </div>
         </section>
 
+        {toast ? (
+          <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
+        ) : null}
+
         <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/basic-info" className="text-sm text-[var(--text-muted)]">Back to Basic Info</Link>
           <div className="flex items-center gap-3">
-            <button className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
+            <button onClick={saveAndToast} className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
             <Link href="/admin/elections/create/eligibility" className="brand-gradient rounded-lg px-6 py-2.5 text-sm font-semibold text-white">Continue to Eligibility</Link>
           </div>
         </footer>
@@ -144,20 +138,6 @@ function Stepper({ step }: { step: number }) {
             </div>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function Reminder({ title, value, on = false }: { title: string; value: string; on?: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-[var(--surface-container-low)] p-3">
-      <p className="text-sm font-medium">{title}</p>
-      <div className="flex items-center gap-3">
-        <span className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-[10px]">{value}</span>
-        <span className={`relative h-5 w-10 rounded-full ${on ? "bg-[var(--primary)]/25" : "bg-white/12"}`}>
-          <span className={`absolute top-1 h-3 w-3 rounded-full ${on ? "right-1 bg-[var(--primary)]" : "left-1 bg-white/40"}`} />
-        </span>
       </div>
     </div>
   );

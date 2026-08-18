@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import type { ElectionType } from "@/lib/api-client";
-import { loadDraft, saveDraft } from "../draft";
+import { clearDraft, loadDraft, saveDraft } from "../draft";
 
 const TYPE_OPTIONS: { value: ElectionType; title: string; desc: string }[] = [
   { value: "single", title: "Single Choice", desc: "One vote per position" },
@@ -14,6 +15,8 @@ const TYPE_OPTIONS: { value: ElectionType; title: string; desc: string }[] = [
 
 export default function CreateElectionBasicInfoPage() {
   const [draft, setDraftState] = useState(loadDraft);
+  const [toast, setToast] = useState<string | null>(null);
+  const router = useRouter();
 
   const setField = (patch: Partial<typeof draft>) => {
     setDraftState((prev) => {
@@ -23,12 +26,23 @@ export default function CreateElectionBasicInfoPage() {
     });
   };
 
+  const saveAndToast = () => {
+    saveDraft(draft);
+    setToast("Draft saved.");
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const cancel = () => {
+    clearDraft();
+    router.push("/admin/elections");
+  };
+
   return (
     <AdminShell active="elections">
       <section className="mx-auto max-w-5xl space-y-7 pb-24">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">New Election Setup</h1>
-          <p className="mt-1 font-mono text-xs text-white/45 uppercase tracking-[0.12em]">Election #SV-2025-NEW</p>
+          <p className="mt-1 font-mono text-xs text-white/45 uppercase tracking-[0.12em]">New Election (Draft)</p>
         </div>
 
         <Stepper step={1} />
@@ -90,23 +104,6 @@ export default function CreateElectionBasicInfoPage() {
 
             <div className="space-y-6">
               <div>
-                <p className="mb-3 text-xs font-semibold text-[var(--text-muted)]">Visibility Settings</p>
-                <div className="space-y-2">
-                  <Option title="After Close" text="Results are released after voting ends." active />
-                  <Option title="Live Results" text="Live tally visible during election." />
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="mb-2 block text-xs font-semibold text-[var(--text-muted)]">Tags</span>
-                <div className="flex min-h-10 flex-wrap items-center gap-2 rounded-lg bg-[var(--surface-container-low)] px-3 py-2">
-                  <Tag text="2025" />
-                  <Tag text="High School" />
-                  <input className="min-w-20 flex-1 bg-transparent text-xs outline-none" placeholder="Add tag..." />
-                </div>
-              </label>
-
-              <div>
                 <p className="mb-3 text-xs font-semibold text-[var(--text-muted)]">Voter Preview</p>
                 <article className="top-accent rounded-xl bg-[var(--surface-container-low)] p-5">
                   <div className="mb-3 flex items-center justify-between">
@@ -117,16 +114,23 @@ export default function CreateElectionBasicInfoPage() {
                   </div>
                   <h4 className="text-sm font-bold">{draft.title || "Untitled Election"}</h4>
                   <p className="mt-1 text-xs text-[var(--text-muted)]">{draft.organization || "—"}</p>
+                  {draft.description ? (
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">{draft.description}</p>
+                  ) : null}
                 </article>
               </div>
             </div>
           </div>
         </section>
 
+        {toast ? (
+          <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
+        ) : null}
+
         <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
-          <button className="rounded-lg border border-white/10 px-5 py-2.5 text-sm text-[var(--text-muted)]">Save Draft</button>
+          <button onClick={saveAndToast} className="rounded-lg border border-white/10 px-5 py-2.5 text-sm text-[var(--text-muted)]">Save Draft</button>
           <div className="flex items-center gap-3">
-            <button className="text-sm text-[var(--text-muted)]">Cancel</button>
+            <button onClick={cancel} className="text-sm text-[var(--text-muted)]">Cancel</button>
             <Link href="/admin/elections/create/schedule" className="brand-gradient rounded-lg px-6 py-2.5 text-sm font-semibold text-white">
               Continue to Schedule
             </Link>
@@ -159,17 +163,4 @@ function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
       </div>
     </div>
   );
-}
-
-function Option({ title, text, active = false }: { title: string; text: string; active?: boolean }) {
-  return (
-    <label className={`block rounded-lg p-3 ${active ? "border border-[var(--primary)]/35 bg-[var(--primary)]/8" : "bg-[var(--surface-container-low)]"}`}>
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="text-xs text-[var(--text-muted)]">{text}</p>
-    </label>
-  );
-}
-
-function Tag({ text }: { text: string }) {
-  return <span className="rounded-full bg-[var(--primary)]/12 px-2 py-1 text-[10px] font-semibold text-[var(--primary)]">{text}</span>;
 }

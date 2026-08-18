@@ -191,6 +191,37 @@ export async function updateProfile(patch: {
   return data.user;
 }
 
+/** Request a password reset link. Always returns ok (does not leak email existence). */
+export async function forgotPassword(email: string): Promise<{
+  ok: boolean;
+  message: string;
+  devResetToken?: string;
+}> {
+  return apiRequest(
+    "/api/auth/forgot-password",
+    {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    },
+    false,
+  );
+}
+
+/** Submit a new password using a reset token (from the emailed link's ?token=). */
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<{ ok: boolean }> {
+  return apiRequest(
+    "/api/auth/reset-password",
+    {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    },
+    false,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Domain types (mirror the backend responses)
 // ---------------------------------------------------------------------------
@@ -226,6 +257,8 @@ export type Candidate = {
   manifesto?: string | null;
   photoUrl?: string | null;
   ballotOrder: number;
+  visible?: boolean;
+  verified?: boolean;
 };
 
 export type Voter = {
@@ -235,6 +268,8 @@ export type Voter = {
   phone?: string | null;
   role: Role;
   kycStatus: string;
+  status?: string;
+  notes?: string | null;
   createdAt: number;
 };
 
@@ -265,8 +300,13 @@ export type Alert = {
   type: string;
   severity: string;
   target?: string | null;
+  title?: string | null;
+  body?: string | null;
+  status?: string | null;
+  assignedTo?: string | null;
   count?: number;
   createdAt: number;
+  resolvedAt?: number | null;
 };
 
 export type ResultCandidate = {
@@ -363,6 +403,95 @@ export async function getResults(
   electionId: string,
 ): Promise<{ electionId: string; totalVotes: number; results: ResultCandidate[] }> {
   return apiRequest(`/api/elections/${electionId}/results`);
+}
+
+export async function updateCandidate(
+  electionId: string,
+  candidateId: string,
+  patch: Partial<{
+    name: string;
+    party: string | null;
+    bio: string | null;
+    manifesto: string | null;
+    ballotOrder: number;
+    visible: boolean;
+    verified: boolean;
+  }>,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/elections/${electionId}/candidates/${candidateId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteCandidate(
+  electionId: string,
+  candidateId: string,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/elections/${electionId}/candidates/${candidateId}`, {
+    method: "DELETE",
+  });
+}
+
+// Ballot blocks (ballot sections / questions)
+
+export type BallotBlockKind = "position" | "yesNo" | "info";
+
+export type BallotBlock = {
+  id: string;
+  electionId: string;
+  title: string;
+  kind: BallotBlockKind;
+  orderIndex: number;
+};
+
+export async function listBallotBlocks(electionId: string): Promise<BallotBlock[]> {
+  const data = await apiRequest<{ ballotBlocks: BallotBlock[] }>(
+    `/api/elections/${electionId}/ballot-blocks`,
+  );
+  return data.ballotBlocks;
+}
+
+export async function createBallotBlock(
+  electionId: string,
+  input: { title: string; kind?: BallotBlockKind; orderIndex?: number },
+): Promise<{ ok: boolean; ballotBlock: BallotBlock }> {
+  return apiRequest(`/api/elections/${electionId}/ballot-blocks`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateBallotBlock(
+  electionId: string,
+  blockId: string,
+  patch: Partial<{ title: string; kind: BallotBlockKind; orderIndex: number }>,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/elections/${electionId}/ballot-blocks/${blockId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteBallotBlock(
+  electionId: string,
+  blockId: string,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/elections/${electionId}/ballot-blocks/${blockId}`, {
+    method: "DELETE",
+  });
+}
+
+// Publish an election (status -> published + distribution metadata)
+
+export async function publishElection(
+  electionId: string,
+  input: { visibility?: "public" | "participants" | "internal"; channels?: Array<"portal" | "email" | "apiWebhook"> },
+): Promise<{ ok: boolean; status: string; visibility: string; channels: string[] }> {
+  return apiRequest(`/api/elections/${electionId}/publish`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -504,17 +633,19 @@ export async function getAdminStats(): Promise<AdminStats> {
 export async function listVoters(params?: {
   q?: string;
   status?: string;
+  kycStatus?: string;
 }): Promise<Voter[]> {
   const qs = new URLSearchParams();
   if (params?.q) qs.set("q", params.q);
   if (params?.status) qs.set("status", params.status);
+  if (params?.kycStatus) qs.set("kycStatus", params.kycStatus);
   const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const data = await apiRequest<{ voters: Voter[] }>(`/api/admin/voters${suffix}`);
   return data.voters;
 }
 
 export async function getVoter(id: string): Promise<{
-  voter: Voter & { vote_count?: number };
+  voter: Voter & { vote_count?: number; status?: string; notes?: string | null };
   votes: (MyVote & { election_title?: string })[];
 }> {
   return apiRequest(`/api/admin/voters/${id}`);
@@ -560,6 +691,160 @@ export async function getAlerts(): Promise<Alert[]> {
 export async function getRecentElections(): Promise<Election[]> {
   const data = await apiRequest<{ elections: Election[] }>("/api/admin/recent-elections");
   return data.elections;
+}
+
+// ---------------------------------------------------------------------------
+// Admin — organizations
+// ---------------------------------------------------------------------------
+
+export type Organization = {
+  id: string;
+  name: string;
+  plan: "Starter" | "Professional" | "Enterprise";
+  members: number;
+  status: "active" | "paused";
+  createdAt: number;
+};
+
+export async function listOrganizations(): Promise<Organization[]> {
+  const data = await apiRequest<{ organizations: Organization[] }>(
+    "/api/admin/organizations",
+  );
+  return data.organizations;
+}
+
+export async function createOrganization(input: {
+  name: string;
+  plan?: Organization["plan"];
+  members?: number;
+  status?: Organization["status"];
+}): Promise<{ ok: boolean; organization: Organization }> {
+  return apiRequest("/api/admin/organizations", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateOrganization(
+  id: string,
+  patch: Partial<{
+    name: string;
+    plan: Organization["plan"];
+    members: number;
+    status: Organization["status"];
+  }>,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/admin/organizations/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteOrganization(id: string): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/admin/organizations/${id}`, { method: "DELETE" });
+}
+
+// ---------------------------------------------------------------------------
+// Admin — alerts (create / resolve / assign)
+// ---------------------------------------------------------------------------
+
+export type AlertSeverity = "low" | "medium" | "high" | "critical";
+export type AlertStatus = "open" | "investigating" | "resolved";
+
+export async function createAlert(input: {
+  type: string;
+  severity?: AlertSeverity;
+  target?: string;
+  title: string;
+  body?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<{ ok: boolean; alert: Alert }> {
+  return apiRequest("/api/admin/alerts", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resolveAlert(
+  id: string,
+  status: AlertStatus,
+  assignedTo?: string,
+): Promise<{ ok: boolean; status: string }> {
+  return apiRequest(`/api/admin/alerts/${id}/resolve`, {
+    method: "POST",
+    body: JSON.stringify({ status, assignedTo }),
+  });
+}
+
+export async function assignAlert(id: string): Promise<{
+  ok: boolean;
+  status: string;
+  assignedTo: string;
+}> {
+  return apiRequest(`/api/admin/alerts/${id}/assign`, { method: "POST" });
+}
+
+// ---------------------------------------------------------------------------
+// Admin — voter registry actions (bulk status + notify)
+// ---------------------------------------------------------------------------
+
+export async function bulkUpdateVoterStatus(
+  ids: string[],
+  kycStatus: "pending" | "approved" | "rejected",
+): Promise<{ ok: boolean; updated: number }> {
+  return apiRequest("/api/admin/voters/bulk-status", {
+    method: "POST",
+    body: JSON.stringify({ ids, kycStatus }),
+  });
+}
+
+export async function notifyVoters(
+  ids: string[],
+  title: string,
+  body?: string,
+): Promise<{ ok: boolean; inserted: number }> {
+  return apiRequest("/api/admin/voters/notify", {
+    method: "POST",
+    body: JSON.stringify({ ids, title, body }),
+  });
+}
+
+export async function updateVoter(
+  id: string,
+  input: {
+    fullName?: string;
+    phone?: string | null;
+    status?: "active" | "suspended";
+    notes?: string | null;
+  },
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/api/admin/voters/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function importVoters(
+  voters: { email: string; fullName: string; phone?: string }[],
+): Promise<{ ok: boolean; created: number; skipped: string[] }> {
+  return apiRequest("/api/admin/voters/import", {
+    method: "POST",
+    body: JSON.stringify({ voters }),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Admin — AI assistant (Workers AI, with template fallback)
+// ---------------------------------------------------------------------------
+
+export async function askAssistant(
+  prompt: string,
+  model?: string,
+): Promise<{ reply: string; model: string; grounded: boolean; error?: string }> {
+  return apiRequest("/api/admin/ai-assistant", {
+    method: "POST",
+    body: JSON.stringify({ prompt, model }),
+  });
 }
 
 // ---------------------------------------------------------------------------

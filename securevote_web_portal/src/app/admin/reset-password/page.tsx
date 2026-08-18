@@ -1,20 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useMemo, useState } from "react";
 
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { resetPassword } from "@/lib/api-client";
 
 const STRENGTH_LABELS = ["Very Weak", "Weak", "Medium", "Strong", "Excellent"] as const;
 const STRENGTH_COLORS = ["bg-rose-400", "bg-rose-400", "bg-amber-400", "bg-emerald-400", "bg-[var(--teal)]"];
 
 export default function ResetPasswordPage() {
-  const [password, setPassword] = useState("SecureVote@2026");
-  const [confirmPassword, setConfirmPassword] = useState("SecureVote@2026");
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const strength = useMemo(() => {
     let score = 0;
@@ -25,10 +38,15 @@ export default function ResetPasswordPage() {
     return score;
   }, [password]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (password.length < 10) {
-      setError("Password must be at least 10 characters.");
+    if (!token) {
+      setError("Reset link is missing a token. Use the link from your reset email.");
+      setStatus(null);
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters and include upper, lower, and a digit.");
       setStatus(null);
       return;
     }
@@ -37,10 +55,18 @@ export default function ResetPasswordPage() {
       setStatus(null);
       return;
     }
-    // TODO: forgot-password endpoint — password reset is not yet implemented
-    // on the backend. Show a clear notice instead of faking a reset.
+    setSubmitting(true);
     setError(null);
-    setStatus("Password reset is not yet available. Contact your administrator to reset your account.");
+    try {
+      await resetPassword(token, password);
+      setStatus("Your password has been reset. All other sessions were signed out — please log in again.");
+      setPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reset password. The link may have expired.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -162,23 +188,23 @@ export default function ResetPasswordPage() {
               ) : null}
 
               {status ? (
-                <div className="check-pop rounded-xl border border-[var(--border-amber)] bg-[var(--amber-surface)] p-4">
+                <div className="check-pop rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--amber)]/15">
-                      <span className="material-symbols-outlined text-[var(--amber)]" style={{ fontVariationSettings: '"FILL" 1' }}>
-                        info
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
+                      <span className="material-symbols-outlined text-emerald-300" style={{ fontVariationSettings: '"FILL" 1' }}>
+                        check_circle
                       </span>
                     </div>
                     <div>
-                      <p className="text-sm font-bold tracking-tight text-[var(--amber)]">Reset not yet available</p>
-                      <p className="mt-1 text-sm leading-relaxed text-[var(--text-muted)]">{status}</p>
+                      <p className="text-sm font-bold tracking-tight text-emerald-300">Password reset</p>
+                      <p className="text-sm leading-relaxed text-[var(--text-muted)]">{status}</p>
                     </div>
                   </div>
                 </div>
               ) : null}
 
-              <button type="submit" className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110">
-                Update Password
+              <button type="submit" disabled={submitting} className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50">
+                {submitting ? "Resetting..." : "Update Password"}
               </button>
             </form>
           </div>

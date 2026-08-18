@@ -8,10 +8,10 @@ import { createElection } from "@/lib/api-client";
 import { clearDraft, loadDraft } from "../draft";
 
 const checklistItems = [
-  "Voter list integrity check",
-  "Ballot logic validation",
-  "Network signature keys synced",
-  "Outreach notifications scheduled",
+  "I have verified the voter list",
+  "I have reviewed the ballot configuration",
+  "I confirm the voting schedule is correct",
+  "I have notified stakeholders of the upcoming election",
 ];
 
 const TYPE_LABELS: Record<string, string> = {
@@ -96,7 +96,7 @@ export default function CreateElectionReviewPage() {
 
             <section className="rounded-xl bg-[var(--surface-container)] p-6">
               <div className="mb-4 flex items-center justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Pre-Publish Checklist</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Operator Attestation</p>
                 <button
                   type="button"
                   onClick={() => setDone(checklistItems)}
@@ -158,8 +158,7 @@ export default function CreateElectionReviewPage() {
         <footer className="fixed bottom-0 left-60 right-0 flex h-[76px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/eligibility" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
-            <button className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
-            <button onClick={publish} disabled={publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Generate Final Package</button>
+            <button onClick={publish} disabled={publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Publish Election</button>
           </div>
         </footer>
       </section>
@@ -168,7 +167,7 @@ export default function CreateElectionReviewPage() {
 }
 
 function Stepper({ step }: { step: number }) {
-  const labels = ["General", "Ballot", "Eligibility", "Review"];
+  const labels = ["Basic Info", "Schedule", "Eligibility", "Review"];
   return (
     <div className="rounded-xl bg-[var(--surface-container)] p-5">
       <div className="flex items-center gap-2">

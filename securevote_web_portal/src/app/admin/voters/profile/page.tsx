@@ -7,6 +7,7 @@ import {
   getKycDocument,
   getVoter,
   listKycDocumentsForUser,
+  updateVoter,
 } from "@/lib/api-client";
 import type { KycDocument, MyVote, Voter } from "@/lib/api-client";
 
@@ -43,9 +44,8 @@ function VoterProfileContent() {
   const [tab, setTab] = useState<"overview" | "history" | "security" | "kyc">(
     "overview",
   );
-  const [suspended, setSuspended] = useState(false);
 
-  const [voter, setVoter] = useState<(Voter & { vote_count?: number }) | null>(null);
+  const [voter, setVoter] = useState<(Voter & { vote_count?: number; status?: string; notes?: string | null }) | null>(null);
   const [votes, setVotes] = useState<(MyVote & { election_title?: string })[]>([]);
   const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,15 @@ function VoterProfileContent() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
+
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: "", phone: "", notes: "" });
 
   const load = useCallback(async () => {
     if (!id) {
@@ -71,7 +80,6 @@ function VoterProfileContent() {
         const docs = await listKycDocumentsForUser(id);
         setDocuments(docs);
       } catch {
-        // Non-fatal: the profile can still render without the doc list.
         setDocuments([]);
       }
     } catch (err) {
@@ -88,9 +96,21 @@ function VoterProfileContent() {
     load();
   }, [load]);
 
-  // Risk score and suspend are local only.
-  // TODO: risk model + suspend endpoint
-  const riskScore = useMemo(() => (suspended ? 62 : 18), [suspended]);
+  const isSuspended = voter?.status === "suspended";
+
+  // Risk score computed from real signals: suspension, KYC rejection,
+  // and account age relative to vote count.
+  const riskScore = useMemo(() => {
+    if (!voter) return 0;
+    let score = 0;
+    if (isSuspended) score += 40;
+    if (voter.kycStatus === "rejected") score += 25;
+    const accountAgeDays = (Date.now() - voter.createdAt) / (1000 * 60 * 60 * 24);
+    if (accountAgeDays < 1 && votes.length > 0) score += 20;
+    return Math.min(score, 100);
+  }, [voter, isSuspended, votes.length]);
+
+  const riskLabel = riskScore > 50 ? "High" : riskScore > 25 ? "Elevated" : "Low";
 
   const timeline = useMemo<TimelineEvent[]>(
     () =>
@@ -132,6 +152,46 @@ function VoterProfileContent() {
     };
   }, [previewUrl]);
 
+  const toggleSuspend = async () => {
+    if (!voter) return;
+    setAction({ busy: true, error: null, success: null });
+    try {
+      const nextStatus = isSuspended ? "active" : "suspended";
+      await updateVoter(voter.id, { status: nextStatus });
+      await load();
+      setAction({ busy: false, error: null, success: `Voter ${isSuspended ? "reinstated" : "suspended"}.` });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : "Failed to update voter", success: null });
+    }
+  };
+
+  const startEdit = () => {
+    if (!voter) return;
+    setEditForm({
+      fullName: voter.fullName,
+      phone: voter.phone ?? "",
+      notes: voter.notes ?? "",
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    if (!voter) return;
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await updateVoter(voter.id, {
+        fullName: editForm.fullName,
+        phone: editForm.phone || null,
+        notes: editForm.notes || null,
+      });
+      await load();
+      setEditing(false);
+      setAction({ busy: false, error: null, success: "Profile updated." });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : "Failed to update profile", success: null });
+    }
+  };
+
   const initials = voter?.fullName
     .split(" ")
     .map((part) => part[0])
@@ -149,18 +209,37 @@ function VoterProfileContent() {
             <p className="mt-1 text-sm text-[var(--text-muted)]">Identity, activity, and security posture for a single voter account.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="rounded-md bg-[var(--surface-container)] px-4 py-2 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={startEdit}
+              disabled={action.busy || !voter}
+              className="rounded-md bg-[var(--surface-container)] px-4 py-2 text-xs font-semibold disabled:opacity-50"
+            >
               Edit Profile
             </button>
             <button
               type="button"
-              onClick={() => setSuspended((prev) => !prev)}
-              className={`rounded-md px-4 py-2 text-xs font-semibold ${suspended ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}
+              onClick={toggleSuspend}
+              disabled={action.busy || !voter}
+              className={`rounded-md px-4 py-2 text-xs font-semibold disabled:opacity-50 ${isSuspended ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"}`}
             >
-              {suspended ? "Reinstate" : "Suspend"}
+              {action.busy ? "..." : isSuspended ? "Reinstate" : "Suspend"}
             </button>
           </div>
         </div>
+
+        {action.error ? (
+          <p className="flex items-center gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            <span className="material-symbols-outlined text-sm">error</span>
+            {action.error}
+          </p>
+        ) : null}
+        {action.success ? (
+          <p className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+            <span className="material-symbols-outlined text-sm">check_circle</span>
+            {action.success}
+          </p>
+        ) : null}
 
         {loading ? (
           <p className="rounded-xl bg-[var(--surface-container)] px-5 py-10 text-center text-sm text-[var(--text-muted)]">Loading voter profile...</p>
@@ -186,20 +265,32 @@ function VoterProfileContent() {
                   value={voter.kycStatus}
                   toneClass={kycTone(voter.kycStatus)}
                 />
+                <Row
+                  label="Account Status"
+                  value={isSuspended ? "Suspended" : "Active"}
+                  toneClass={isSuspended ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}
+                />
                 <Row label="Joined" value={formatDate(voter.createdAt)} />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <Stat title="Votes Cast" value={String(voter.vote_count ?? votes.length)} />
                 <Stat title="Receipts" value={String(votes.length)} />
-                <Stat title="Devices" value="—" />
+                <Stat title="Account Status" value={isSuspended ? "Suspended" : "Active"} />
               </div>
 
               <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Risk Score</p>
-                <p className={`mt-2 text-2xl font-bold ${riskScore > 40 ? "text-amber-300" : "text-emerald-300"}`}>{riskScore}</p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">Based on login posture, device change requests, and challenge history.</p>
+                <p className={`mt-2 text-2xl font-bold ${riskScore > 40 ? "text-amber-300" : "text-emerald-300"}`}>{riskScore} — {riskLabel}</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Computed from account status, KYC outcome, and vote-timing signals.</p>
               </div>
+
+              {voter.notes ? (
+                <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Admin Notes</p>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">{voter.notes}</p>
+                </div>
+              ) : null}
             </article>
 
             <article className="rounded-xl bg-[var(--surface-container)] p-5">
@@ -219,6 +310,7 @@ function VoterProfileContent() {
                   />
                   <InfoCard title="Registered" text={formatDate(voter.createdAt)} />
                   <InfoCard title="Participation" text={`${votes.length} confirmed vote${votes.length === 1 ? "" : "s"} on record.`} />
+                  <InfoCard title="Account Status" text={isSuspended ? "Suspended — this voter cannot log in or cast votes." : "Active — this voter can log in and participate."} />
                 </div>
               ) : null}
 
@@ -243,9 +335,13 @@ function VoterProfileContent() {
 
               {tab === "security" ? (
                 <div className="space-y-3 text-sm">
-                  <InfoCard title="Bound Device" text="Not available in this data model." />
-                  <InfoCard title="Last Challenge" text="Not available in this data model." />
-                  <InfoCard title="Session Pattern" text="No impossible travel patterns detected in the last 30 days." />
+                  <InfoCard
+                    title="Account Status"
+                    text={isSuspended ? "Suspended — login and voting are blocked." : "Active — no restrictions."}
+                    toneClass={isSuspended ? "bg-rose-500/15 text-rose-300" : "bg-emerald-500/15 text-emerald-300"}
+                  />
+                  <InfoCard title="Risk Score" text={`${riskScore} (${riskLabel}) — based on account status, KYC outcome, and vote-timing patterns.`} />
+                  <InfoCard title="Admin Notes" text={voter.notes ?? "No notes recorded."} />
                 </div>
               ) : null}
 
@@ -296,6 +392,52 @@ function VoterProfileContent() {
           </div>
         ) : null}
       </section>
+
+      {editing ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6" onClick={() => setEditing(false)}>
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-auto rounded-xl bg-[var(--surface-container)] p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">Edit Voter Profile</p>
+              <button type="button" onClick={() => setEditing(false)} className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold">Cancel</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Full Name</label>
+                <input
+                  value={editForm.fullName}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, fullName: e.target.value }))}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Phone</label>
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, phone: e.target.value }))}
+                  className="w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Admin Notes</label>
+                <textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, notes: e.target.value }))}
+                  className="min-h-24 w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
+                  placeholder="Internal notes about this voter (not visible to the voter)..."
+                />
+              </div>
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={action.busy}
+                className="brand-gradient w-full rounded-lg py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {action.busy ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {previewUrl ? (
         <div

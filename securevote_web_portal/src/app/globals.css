@@ -184,7 +184,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--brand) 75%, var(--brand-2) 25%) var(--surface-low);
+  scrollbar-color: color-mix(in srgb, var(--text-tertiary) 55%, transparent) var(--surface-low);
 }
 
 *::-webkit-scrollbar {
@@ -198,13 +198,13 @@ body {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 90%, white 10%), color-mix(in srgb, var(--brand-2) 90%, white 10%));
+  background: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
   border-radius: 999px;
   border: 2px solid var(--surface-low);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--brand) 100%, white 20%), color-mix(in srgb, var(--brand-2) 100%, white 20%));
+  background: color-mix(in srgb, var(--text-tertiary) 75%, transparent);
 }
 
 .material-symbols-outlined {
@@ -258,6 +258,27 @@ body {
   border: 1px solid var(--border-default);
 }
 
+/* Soft, premium card depth: subtle shadow + inner hairline highlight.
+   Reads as refined in both light and dark modes. */
+.card-soft {
+  background: var(--surface-container);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, black 4%, transparent),
+    0 12px 28px -16px color-mix(in srgb, black 14%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 5%, transparent);
+}
+
+/* Slightly stronger variant for auth panels — maintains light/dark polish. */
+.card-glow {
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  box-shadow:
+    0 1px 3px color-mix(in srgb, black 5%, transparent),
+    0 24px 56px -20px color-mix(in srgb, black 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
 .top-accent {
   position: relative;
   overflow: hidden;
@@ -267,10 +288,10 @@ body {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--brand-gradient);
+  left: 22px;
+  right: 22px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-primary) 16%, transparent), transparent);
 }
 
 /* --- Admin auth utilities --- */

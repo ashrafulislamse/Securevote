@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { listVoters } from "@/lib/api-client";
+import { bulkUpdateVoterStatus, listVoters, notifyVoters } from "@/lib/api-client";
 import type { Voter } from "@/lib/api-client";
 
 type StatusFilter = "All" | "approved" | "pending" | "rejected";
@@ -31,6 +31,11 @@ export default function VoterListPage() {
   const [voters, setVoters] = useState<Voter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -38,7 +43,7 @@ export default function VoterListPage() {
     try {
       const data = await listVoters({
         q: query.trim() || undefined,
-        status: status === "All" ? undefined : status,
+        kycStatus: status === "All" ? undefined : status,
       });
       setVoters(data);
     } catch (err) {
@@ -53,14 +58,29 @@ export default function VoterListPage() {
     load();
   }, [load]);
 
-  const applyBulk = (decision: "approved" | "rejected") => {
-    // TODO: bulk voter status endpoint
-    setVoters((prev) =>
-      prev.map((voter) =>
-        selected.includes(voter.id) ? { ...voter, kycStatus: decision } : voter,
-      ),
-    );
-    setSelected([]);
+  const applyBulk = async (decision: "approved" | "rejected") => {
+    if (selected.length === 0) return;
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await bulkUpdateVoterStatus(selected, decision);
+      setSelected([]);
+      await load();
+      setAction({ busy: false, error: null, success: `${selected.length} voter(s) marked ${decision}.` });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : "Failed to update voters", success: null });
+    }
+  };
+
+  const notifySelected = async () => {
+    if (selected.length === 0) return;
+    setAction({ busy: true, error: null, success: null });
+    try {
+      const res = await notifyVoters(selected, "SecureVote update", "You have an update from the election administrator.");
+      setSelected([]);
+      setAction({ busy: false, error: null, success: `${res.inserted} notification(s) sent.` });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : "Failed to notify voters", success: null });
+    }
   };
 
   const counts = useMemo(() => {
@@ -115,12 +135,14 @@ export default function VoterListPage() {
 
         <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
           {selected.length > 0 ? (
-            <div className="flex items-center justify-between border-b border-white/8 bg-[var(--primary)]/8 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 bg-[var(--primary)]/8 px-5 py-3">
               <p className="text-sm">{selected.length} selected</p>
-              <div className="flex gap-2">
-                <button onClick={() => applyBulk("approved")} className="rounded-md bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">Approve</button>
-                <button onClick={() => applyBulk("rejected")} className="rounded-md bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300">Reject</button>
-                <button className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold">Notify</button>
+              <div className="flex flex-wrap items-center gap-2">
+                {action.error ? <span className="text-xs text-rose-300">{action.error}</span> : null}
+                {action.success ? <span className="text-xs text-emerald-300">{action.success}</span> : null}
+                <button onClick={() => applyBulk("approved")} disabled={action.busy} className="rounded-md bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300 disabled:opacity-50">Approve</button>
+                <button onClick={() => applyBulk("rejected")} disabled={action.busy} className="rounded-md bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300 disabled:opacity-50">Reject</button>
+                <button onClick={notifySelected} disabled={action.busy} className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold disabled:opacity-50">Notify</button>
               </div>
             </div>
           ) : null}

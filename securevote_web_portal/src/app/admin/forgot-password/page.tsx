@@ -5,23 +5,32 @@ import { FormEvent, useState } from "react";
 
 import { AuthBrandPanel } from "@/components/auth-brand-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { forgotPassword } from "@/lib/api-client";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("admin@securevote.io");
+  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.includes("@")) {
       setError("Enter a valid admin email.");
       setStatus(null);
       return;
     }
-    // TODO: forgot-password endpoint — password reset is not yet implemented
-    // on the backend. Show a clear notice instead of faking a reset.
     setError(null);
-    setStatus("Password reset is not yet available. Contact your administrator to reset your account.");
+    setStatus(null);
+    setSubmitting(true);
+    try {
+      await forgotPassword(email);
+      setStatus("If that email matches an admin account, a reset link has been sent. The link expires in 15 minutes.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not request a reset link. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -96,8 +105,8 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
               </div>
-              <button type="submit" className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110">
-                Send Reset Link
+              <button type="submit" disabled={submitting} className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-60">
+                {submitting ? "Sending..." : "Send Reset Link"}
               </button>
             </form>
 
@@ -109,15 +118,15 @@ export default function ForgotPasswordPage() {
             ) : null}
 
             {status ? (
-              <div className="check-pop mt-5 rounded-xl border border-[var(--border-amber)] bg-[var(--amber-surface)] p-4">
+              <div className="check-pop mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--amber)]/15">
-                    <span className="material-symbols-outlined text-[var(--amber)]" style={{ fontVariationSettings: '"FILL" 1' }}>
-                      info
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
+                    <span className="material-symbols-outlined text-emerald-300" style={{ fontVariationSettings: '"FILL" 1' }}>
+                      check_circle
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-bold tracking-tight text-[var(--amber)]">Reset not yet available</p>
+                    <p className="text-sm font-bold tracking-tight text-emerald-300">Reset link sent</p>
                     <p className="mt-1 text-sm leading-relaxed text-[var(--text-muted)]">{status}</p>
                   </div>
                 </div>

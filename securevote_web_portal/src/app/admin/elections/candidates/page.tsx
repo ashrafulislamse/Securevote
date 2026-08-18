@@ -24,6 +24,12 @@ export default function CandidateManagementPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", party: "", bio: "", manifesto: "", ballotOrder: "" });
 
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
+
   const loadElections = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -54,8 +60,8 @@ export default function CandidateManagementPage() {
       const data = await api.getElection(id);
       const mapped: CandidateWithMeta[] = data.candidates.map((c) => ({
         ...c,
-        visible: true,
-        verified: true,
+        visible: c.visible ?? true,
+        verified: c.verified ?? false,
       }));
       setCandidates(mapped);
       setSelectedId(mapped[0]?.id ?? "");
@@ -81,19 +87,59 @@ export default function CandidateManagementPage() {
 
   const selected = filtered.find((c) => c.id === selectedId) ?? filtered[0] ?? null;
 
-  const toggleVisibility = (id: string) => {
-    // TODO: candidate update/delete endpoint
-    setCandidates((prev) => prev.map((item) => (item.id === id ? { ...item, visible: !item.visible } : item)));
+  // --- Candidate mutations: PATCH/DELETE via the real backend, then refresh. ---
+
+  const runMutation = async (
+    fn: () => Promise<unknown>,
+    successMsg: string,
+    errMsg: string,
+  ) => {
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await fn();
+      setAction({ busy: false, error: null, success: successMsg });
+      await loadCandidates(electionId);
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : errMsg, success: null });
+    }
   };
 
-  const updateSelected = (patch: Partial<CandidateWithMeta>) => {
-    // TODO: candidate update/delete endpoint
-    setCandidates((prev) => prev.map((item) => (item.id === selected?.id ? { ...item, ...patch } : item)));
+  const toggleVisibility = (id: string) => {
+    const target = candidates.find((c) => c.id === id);
+    if (!target) return;
+    void runMutation(
+      () => api.updateCandidate(electionId, id, { visible: !target.visible }),
+      `${target.name} is now ${target.visible ? "hidden" : "visible"}.`,
+      "Failed to update visibility",
+    );
+  };
+
+  const saveManifesto = () => {
+    if (!selected) return;
+    void runMutation(
+      () => api.updateCandidate(electionId, selected.id, { manifesto: selected.manifesto ?? null }),
+      "Manifesto saved.",
+      "Failed to save manifesto",
+    );
   };
 
   const approveCandidate = () => {
-    // TODO: candidate update/delete endpoint
-    setCandidates((prev) => prev.map((item) => (item.id === selected?.id ? { ...item, verified: true, visible: true } : item)));
+    if (!selected) return;
+    void runMutation(
+      () => api.updateCandidate(electionId, selected.id, { verified: true, visible: true }),
+      `${selected.name} approved.`,
+      "Failed to approve candidate",
+    );
+  };
+
+  const deleteCandidate = () => {
+    if (!selected) return;
+    if (!window.confirm(`Delete ${selected.name}? This cannot be undone.`)) return;
+    void runMutation(
+      () => api.deleteCandidate(electionId, selected.id),
+      `${selected.name} deleted.`,
+      "Failed to delete candidate (the election may be active or already have votes)",
+    );
   };
 
   const addCandidate = async () => {
@@ -290,19 +336,35 @@ export default function CandidateManagementPage() {
                     <DetailRow label="Visibility" value={selected.visible ? "Public" : "Hidden"} />
                   </div>
 
+                  {action.error ? <p className="mt-4 text-sm text-rose-300">{action.error}</p> : null}
+                  {action.success ? <p className="mt-4 text-sm text-emerald-300">{action.success}</p> : null}
+
                   <div className="mt-6">
                     <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Manifesto</p>
                     <textarea
                       value={selected.manifesto ?? ""}
-                      onChange={(e) => updateSelected({ manifesto: e.target.value })}
+                      onChange={(e) =>
+                        setCandidates((prev) =>
+                          prev.map((item) =>
+                            item.id === selected.id ? { ...item, manifesto: e.target.value } : item,
+                          ),
+                        )
+                      }
                       className="min-h-28 w-full rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-sm"
                     />
+                    <button
+                      onClick={saveManifesto}
+                      disabled={action.busy}
+                      className="mt-2 rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-xs font-semibold disabled:opacity-50"
+                    >
+                      {action.busy ? "Saving..." : "Save Manifesto"}
+                    </button>
                   </div>
 
                   <div className="mt-6 grid grid-cols-2 gap-3">
                     <button
                       onClick={approveCandidate}
-                      disabled={selected.verified}
+                      disabled={selected.verified || action.busy}
                       className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm disabled:opacity-40"
                     >
                       {selected.verified ? "Verified" : "Approve"}
@@ -310,11 +372,21 @@ export default function CandidateManagementPage() {
                     <button
                       type="button"
                       onClick={() => toggleVisibility(selected.id)}
-                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                      disabled={action.busy}
+                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       {selected.visible ? "Hide" : "Show"}
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={deleteCandidate}
+                    disabled={action.busy}
+                    className="mt-3 w-full rounded-lg border border-rose-500/40 px-4 py-2 text-xs font-semibold text-rose-300 disabled:opacity-50"
+                  >
+                    Delete Candidate
+                  </button>
                 </>
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">No candidate matches the current filter.</p>

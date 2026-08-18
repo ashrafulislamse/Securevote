@@ -120,7 +120,6 @@ export default function ElectionListPage() {
         <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
           <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
             <p className="text-sm text-[var(--text-muted)]">{filtered.length} elections found</p>
-            <button className="text-xs font-semibold text-[var(--primary)]">Columns</button>
           </div>
 
           {loading ? (

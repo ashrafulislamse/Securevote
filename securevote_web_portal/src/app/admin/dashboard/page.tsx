@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import {
@@ -130,6 +131,10 @@ export default function AdminDashboardPage() {
   const totalByStatus =
     statusCounts.active + statusCounts.upcoming + statusCounts.closed + statusCounts.draft;
 
+  const turnoutPct = stats && stats.approvedVoters > 0
+    ? Math.round((stats.totalVotes / stats.approvedVoters) * 100)
+    : 0;
+
   const donutSegments = (["active", "upcoming", "closed", "draft"] as const).reduce<
     { key: 'active' | 'upcoming' | 'closed' | 'draft'; dasharray: string; dashoffset: string; length: number }[]
   >((segments, key) => {
@@ -153,8 +158,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="flex items-center gap-3">
             <ChainBadge chain={chain} error={chainError} />
-            <button className="rounded-md bg-[var(--surface-container)] px-4 py-2 text-sm">Last 7 days</button>
-            <button className="brand-gradient rounded-md px-5 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,110,247,0.3)]">New Election</button>
+            <Link href="/admin/elections/create/basic-info" className="brand-gradient rounded-md px-5 py-2 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,110,247,0.3)]">New Election</Link>
           </div>
         </div>
 
@@ -170,7 +174,7 @@ export default function AdminDashboardPage() {
           <>
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
               {kpis.map((kpi) => (
-                <article key={kpi.title} className="top-accent rounded-xl bg-[var(--surface-container)] p-5">
+                <article key={kpi.title} className="card-soft rounded-2xl p-5 transition-shadow duration-300 hover:shadow-[0_18px_40px_-18px_color-mix(in_srgb,var(--brand)_30%,transparent)]">
                   <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">{kpi.title}</p>
                   <div className="mt-3 flex items-end justify-between">
                     <h2 className="text-4xl font-bold leading-none">{kpi.value}</h2>
@@ -185,25 +189,19 @@ export default function AdminDashboardPage() {
                 <div className="mb-5 flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-semibold">Voter Turnout</h3>
-                    <p className="text-xs text-[var(--text-muted)]">Weekly participation trends</p>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm brand-gradient" />This Week</span>
-                    <span className="inline-flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-sm bg-[var(--tertiary)]" />Previous Week</span>
+                    <p className="text-xs text-[var(--text-muted)]">Aggregate participation across all elections</p>
                   </div>
                 </div>
-                <div className="relative h-64 overflow-hidden rounded-lg bg-[var(--surface-container-high)]/30">
-                  <svg className="h-full w-full" viewBox="0 0 1000 260" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4F6EF7" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#4F6EF7" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path d="M0,200 Q150,145 300,175 T600,105 T1000,125 L1000,260 L0,260 Z" fill="url(#g1)" />
-                    <path d="M0,200 Q150,145 300,175 T600,105 T1000,125" fill="none" stroke="#4F6EF7" strokeWidth="3" />
-                    <path d="M0,228 Q150,190 300,205 T600,165 T1000,182" fill="none" stroke="#4CD7F6" strokeWidth="2" strokeDasharray="5 7" />
-                  </svg>
+                <div className="flex items-center gap-8">
+                  <div className="shrink-0 text-center">
+                    <p className="text-5xl font-bold text-[var(--primary)]">{turnoutPct}%</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">Turnout rate</p>
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <TurnoutBar label="Votes cast" value={stats?.totalVotes ?? 0} max={stats?.approvedVoters ?? 0} />
+                    <TurnoutBar label="Approved voters" value={stats?.approvedVoters ?? 0} max={stats?.approvedVoters ?? 0} />
+                    <TurnoutBar label="Total registered" value={stats?.totalVoters ?? 0} max={stats?.totalVoters ?? 0} />
+                  </div>
                 </div>
               </article>
 
@@ -246,7 +244,7 @@ export default function AdminDashboardPage() {
               <article className="overflow-hidden rounded-xl bg-[var(--surface-container)] xl:col-span-6">
                 <div className="flex items-center justify-between bg-[var(--surface-container-low)] px-6 py-4">
                   <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-muted)]">Recent Elections</h4>
-                  <button className="text-xs font-semibold text-[var(--primary)]">View All</button>
+                  <Link href="/admin/elections" className="text-xs font-semibold text-[var(--primary)]">View All</Link>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[640px] text-left">
@@ -255,7 +253,7 @@ export default function AdminDashboardPage() {
                         <th className="px-6 py-3">ID</th>
                         <th className="px-6 py-3">Election Name</th>
                         <th className="px-6 py-3">Status</th>
-                        <th className="px-6 py-3">Turnout</th>
+                        <th className="px-6 py-3">Candidates</th>
                         <th className="px-6 py-3">Action</th>
                       </tr>
                     </thead>
@@ -276,15 +274,12 @@ export default function AdminDashboardPage() {
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${statusClass}`}>{statusLabel}</span>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="h-1.5 w-24 rounded-full bg-[var(--surface-container-high)]">
-                                <div
-                                  className="brand-gradient h-1.5 rounded-full"
-                                  style={{ width: row.status === "active" ? "65%" : row.status === "closed" ? "100%" : "0%" }}
-                                />
-                              </div>
+                              <span className="rounded-full bg-white/8 px-2 py-0.5 text-xs font-bold">{row.candidateCount ?? 0}</span>
                             </td>
-                            <td className="px-6 py-4 text-xs font-semibold text-[var(--primary)]">
-                              {row.status === "active" ? "Monitor" : row.status === "closed" ? "Audit" : "Setup"}
+                            <td className="px-6 py-4">
+                              <Link href={`/admin/elections/overview?id=${row.id}`} className="text-xs font-semibold text-[var(--primary)] hover:underline">
+                                {row.status === "active" ? "Monitor" : row.status === "closed" ? "Audit" : "Setup"}
+                              </Link>
                             </td>
                           </tr>
                         );
@@ -329,6 +324,21 @@ export default function AdminDashboardPage() {
         )}
       </section>
     </AdminShell>
+  );
+}
+
+function TurnoutBar({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-xs">
+        <span className="text-[var(--text-muted)]">{label}</span>
+        <span className="font-mono">{value.toLocaleString()}</span>
+      </div>
+      <div className="h-2 rounded-full bg-[var(--surface-container-high)]">
+        <div className="brand-gradient h-2 rounded-full" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }
 

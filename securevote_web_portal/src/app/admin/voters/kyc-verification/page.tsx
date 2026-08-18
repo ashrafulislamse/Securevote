@@ -11,10 +11,17 @@ function formatDate(ts?: number) {
     year: "numeric",
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
   });
 }
+
+const CHECKLIST_ITEMS = [
+  "Name matches legal ID",
+  "Document expiry valid",
+  "Document photo legible",
+  "Information consistent",
+];
 
 export default function KycVerificationPage() {
   const [queue, setQueue] = useState<KycQueueItem[]>([]);
@@ -25,6 +32,7 @@ export default function KycVerificationPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [checklist, setChecklist] = useState<string[]>([]);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -103,6 +111,11 @@ export default function KycVerificationPage() {
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    setChecklist([]);
+    setNotes("");
+  }, [selectedId]);
+
   return (
     <AdminShell active="voters">
       <section className="space-y-6">
@@ -170,8 +183,6 @@ export default function KycVerificationPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <DocCard title="Document Type" subtitle={selected.doc_type} status={selected.status} />
                   <DocCard title="Submitted" subtitle={formatDate(selected.created_at)} status="On file" />
-                  <DocCard title="Reviewer" subtitle="Awaiting decision" status="Pending" />
-                  <DocCard title="Watchlist" subtitle="Automated screening" status="Clear" />
                 </div>
 
                 <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
@@ -222,14 +233,22 @@ export default function KycVerificationPage() {
           <aside className="space-y-5 rounded-xl bg-[var(--surface-container)] p-5">
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Decision Panel</p>
             <div className="space-y-3">
-              <Checklist label="Name matches legal ID" checked={!!selected} />
-              <Checklist label="Document expiry valid" checked={!!selected} />
-              <Checklist label="Liveness test verified" checked={!!selected} />
-              <Checklist label="Watchlist screening clear" checked={!!selected} />
+              {CHECKLIST_ITEMS.map((item) => (
+                <Checklist
+                  key={item}
+                  label={item}
+                  checked={checklist.includes(item)}
+                  onToggle={() =>
+                    setChecklist((prev) =>
+                      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item],
+                    )
+                  }
+                />
+              ))}
             </div>
 
             <div className="rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4 text-xs text-[var(--text-muted)]">
-              Actions here map to the blueprint KYC review flow: approve/reject with audit trail and reviewer note.
+              Review each item above, add notes, then approve or reject. Decisions are audit-logged.
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -295,14 +314,14 @@ function StatusPill({ status }: { status: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${tone}`}>{status}</span>;
 }
 
-function Checklist({ label, checked }: { label: string; checked?: boolean }) {
+function Checklist({ label, checked, onToggle }: { label: string; checked?: boolean; onToggle?: () => void }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-[var(--surface-container-low)] px-3 py-2">
+    <button type="button" onClick={onToggle} className="flex w-full items-center justify-between rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-left">
       <span className="text-sm">{label}</span>
       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${checked ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
         {checked ? "Done" : "Pending"}
       </span>
-    </div>
+    </button>
   );
 }
 

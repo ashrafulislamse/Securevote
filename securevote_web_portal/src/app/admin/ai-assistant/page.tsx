@@ -2,7 +2,7 @@
 
 import { FormEvent, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { getAdminStats, getAuditLog, getRecentElections, type AuditLogEntry } from "@/lib/api-client";
+import { askAssistant } from "@/lib/api-client";
 
 type Message = {
   id: string;
@@ -17,15 +17,11 @@ const suggestedPrompts = [
   "Predict final turnout by 8 PM",
 ];
 
-function summarizeStats(logs: AuditLogEntry[]): string {
-  const actionCounts = new Map<string, number>();
-  for (const log of logs) {
-    const action = log.action || "unknown";
-    actionCounts.set(action, (actionCounts.get(action) ?? 0) + 1);
-  }
-  const topAction = Array.from(actionCounts.entries()).sort((a, b) => b[1] - a[1])[0];
-  return topAction ? `${topAction[0]} (${topAction[1]})` : "n/a";
-}
+const MODEL_OPTIONS = [
+  { label: "Llama 3.1 8B Instruct", value: "@cf/meta/llama-3.1-8b-instruct" },
+  { label: "Llama 3.3 70B Instruct", value: "@cf/meta/llama-3.3-70b-instruct-fp8-fast" },
+  { label: "Mistral 7B Instruct", value: "@cf/mistral/mistral-7b-instruct-v0.2" },
+];
 
 export default function AiAssistantPage() {
   const [input, setInput] = useState("");
@@ -33,10 +29,10 @@ export default function AiAssistantPage() {
     {
       id: "m-1",
       role: "assistant",
-      text: "Groq intelligence engine online. Ask for anomaly summaries, turnout forecasts, or audit drafting.",
+      text: "AI assistant online. Ask for anomaly summaries, turnout forecasts, or audit drafting. Responses are grounded in live dashboard data.",
     },
   ]);
-  const [model, setModel] = useState("Groq LPU Fast");
+  const [model, setModel] = useState(MODEL_OPTIONS[0].value);
   const [sending, setSending] = useState(false);
   const idCounter = useRef(2);
 
@@ -55,33 +51,12 @@ export default function AiAssistantPage() {
     setSending(true);
 
     try {
-      const [stats, recent, logs] = await Promise.all([
-        getAdminStats(),
-        getRecentElections(),
-        getAuditLog({ limit: 10 }),
-      ]);
-
-      const recentSummary =
-        recent.length > 0
-          ? recent
-              .slice(0, 5)
-              .map((e) => `- ${e.title} (${e.status})`)
-              .join("\n")
-          : "- none found";
-
+      const result = await askAssistant(text, model);
       idCounter.current += 1;
       const assistantMessage: Message = {
         id: `a-${idCounter.current}`,
         role: "assistant",
-        text: `Analysis ready (live data):
-- Elections: ${stats.totalElections}
-- Voters: ${stats.totalVoters.toLocaleString()} (${stats.approvedVoters.toLocaleString()} approved)
-- Votes cast: ${stats.totalVotes.toLocaleString()}
-
-Recent elections:
-${recentSummary}
-
-Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length} logged events.`,
+        text: result.reply,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch {
@@ -89,7 +64,7 @@ Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length
       const assistantMessage: Message = {
         id: `a-${idCounter.current}`,
         role: "assistant",
-        text: "Could not reach the backend to generate a live analysis. Please try again in a moment.",
+        text: "Could not reach the AI assistant backend. Please try again in a moment.",
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } finally {
@@ -114,9 +89,9 @@ Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length
           <div className="flex items-center gap-3 rounded-lg bg-[var(--surface-container)] px-3 py-2 text-xs">
             <span className="h-2 w-2 rounded-full bg-emerald-400" />
             <select value={model} onChange={(event) => setModel(event.target.value)} className="bg-transparent font-semibold">
-              <option>Groq LPU Fast</option>
-              <option>Groq Forensics</option>
-              <option>Groq Forecast Mode</option>
+              {MODEL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -137,7 +112,7 @@ Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length
               ))}
             </div>
             <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
-              Responses are generated from live dashboard data. {/* TODO: real LLM endpoint (Workers AI) — Phase 5 */}
+              Responses are grounded in live dashboard data via Workers AI.
             </div>
           </aside>
 
@@ -157,7 +132,7 @@ Recent audit activity (top action): ${summarizeStats(logs)} across ${logs.length
               {sending ? (
                 <div className="max-w-[88%] rounded-lg bg-[var(--surface-container-high)] px-3 py-2 text-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">assistant</p>
-                  <p className="mt-1 leading-relaxed text-[var(--text-muted)]">Fetching live data...</p>
+                  <p className="mt-1 leading-relaxed text-[var(--text-muted)]">Thinking...</p>
                 </div>
               ) : null}
             </div>

@@ -1,13 +1,49 @@
-import Link from "next/link";
-import { AdminShell } from "@/components/admin-shell";
+"use client";
 
-// Eligibility rules are not persisted to the backend yet (no corresponding field
-// on the election create API). This step is captured locally within the wizard
-// and is intentionally left as-is pending a backend eligibility model.
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { AdminShell } from "@/components/admin-shell";
+import { listVoters, type Voter } from "@/lib/api-client";
+import { saveDraft, loadDraft } from "../draft";
+
 export default function CreateElectionEligibilityPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [approvedVoters, setApprovedVoters] = useState<Voter[]>([]);
+  const [totalVoters, setTotalVoters] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const draft = useState(loadDraft)[0];
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [approved, all] = await Promise.all([
+        listVoters({ kycStatus: "approved" }),
+        listVoters(),
+      ]);
+      setApprovedVoters(approved);
+      setTotalVoters(all.length);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load voter data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const saveAndToast = () => {
+    saveDraft(draft);
+    setToast("Draft saved.");
+    setTimeout(() => setToast(null), 2000);
+  };
+
   return (
     <AdminShell active="elections">
-      <section className="mx-auto max-w-6xl space-y-8 pb-28">
+      <section className="mx-auto max-w-5xl space-y-8 pb-28">
         <div>
           <p className="text-xs text-[var(--text-muted)]">Step 3 of 4</p>
           <h1 className="mt-2 text-4xl font-bold tracking-tight">Voter Eligibility</h1>
@@ -15,71 +51,90 @@ export default function CreateElectionEligibilityPage() {
 
         <Stepper step={3} />
 
-        <div className="grid gap-6 xl:grid-cols-12">
-          <div className="space-y-6 xl:col-span-8">
-            <section>
-              <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Select Voter Base</p>
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card title="All Verified" text="Include all verified members" value="2,847 voters" active />
-                <Card title="Specific Segment" text="Rule based eligibility" value="Rule Based" />
-                <Card title="Manual List" text="CSV or paste voter IDs" value="Batch Upload" />
-              </div>
-            </section>
+        {error ? (
+          <div className="rounded-lg bg-rose-500/15 px-4 py-3 text-sm text-rose-300">{error}</div>
+        ) : null}
 
-            <section className="rounded-xl bg-[var(--surface-container)] p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Segment Rules</p>
-                <button className="text-xs font-semibold text-[var(--primary)]">Add New Rule</button>
-              </div>
-              <div className="space-y-3">
-                <RuleRow />
-                <div className="flex items-center justify-between rounded-lg border border-[var(--primary)]/25 bg-[var(--primary)]/8 p-4">
-                  <div>
-                    <p className="text-sm font-semibold">Live Match Result</p>
-                    <p className="text-xs text-[var(--text-muted)]">Rules currently match Engineering faculty voters.</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono text-3xl font-bold text-[var(--primary)]">847</p>
-                    <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Eligible</p>
-                  </div>
-                </div>
-              </div>
-            </section>
+        <section className="rounded-xl bg-[var(--surface-container)] p-6">
+          <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Eligibility Model</h2>
+          <p className="mt-3 text-sm text-[var(--text-muted)]">
+            Voter eligibility in SecureVote is determined by KYC verification status. Only voters with
+            approved KYC status can cast ballots in elections. Manage individual voter eligibility through
+            the KYC Verification queue and Voter Registry.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <StatCard
+              label="Approved Voters"
+              value={loading ? "—" : approvedVoters.length.toLocaleString()}
+              hint="Eligible to vote"
+            />
+            <StatCard
+              label="Total Registered"
+              value={loading ? "—" : totalVoters.toLocaleString()}
+              hint="All accounts"
+            />
+            <StatCard
+              label="Pending / Rejected"
+              value={loading ? "—" : (totalVoters - approvedVoters.length).toLocaleString()}
+              hint="Not yet eligible"
+            />
           </div>
+        </section>
 
-          <aside className="space-y-6 xl:col-span-4">
-            <section className="rounded-xl bg-[var(--surface-container)] p-6">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Verification Requirements</p>
-              <div className="mt-5 space-y-4">
-                <Toggle title="Identity KYC" note="Government-issued ID required" on />
-                <Toggle title="Email Verification" note="OTP challenge" on />
-                <Toggle title="Device Binding" note="One trusted device" />
-              </div>
-            </section>
+        <section className="rounded-xl bg-[var(--surface-container)] p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Approved Voter Preview</h2>
+            <Link href="/admin/voters/kyc-verification" className="text-xs font-semibold text-[var(--primary)]">
+              Manage KYC Queue
+            </Link>
+          </div>
+          <div className="mt-4 overflow-x-auto rounded-lg border border-white/8">
+            <table className="w-full min-w-[400px] text-left text-sm">
+              <thead className="bg-[var(--surface-container-low)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
+                <tr>
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">KYC Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">Loading voters...</td>
+                  </tr>
+                ) : approvedVoters.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-6 text-center text-sm text-[var(--text-muted)]">No approved voters yet.</td>
+                  </tr>
+                ) : (
+                  approvedVoters.slice(0, 10).map((voter) => (
+                    <tr key={voter.id} className="border-t border-white/8">
+                      <td className="px-4 py-3 font-semibold">{voter.fullName}</td>
+                      <td className="px-4 py-3 text-[var(--text-muted)]">{voter.email}</td>
+                      <td className="px-4 py-3">
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-300">
+                          {voter.kycStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {approvedVoters.length > 10 ? (
+            <p className="mt-2 text-xs text-[var(--text-muted)]">Showing first 10 of {approvedVoters.length} approved voters.</p>
+          ) : null}
+        </section>
 
-            <section className="rounded-xl bg-[var(--surface-container)] p-6">
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Quorum and Turnout</p>
-              <div className="mt-5 space-y-5">
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span>Min Turnout Threshold</span>
-                    <span className="font-mono text-[var(--primary)]">30%</span>
-                  </div>
-                  <input type="range" defaultValue={30} className="w-full accent-[var(--primary)]" />
-                </div>
-                <div>
-                  <p className="mb-2 text-xs">Max Votes Per Position</p>
-                  <input type="number" defaultValue={1} className="w-24 rounded-lg bg-[var(--surface-container-low)] px-3 py-2 font-mono text-sm" />
-                </div>
-              </div>
-            </section>
-          </aside>
-        </div>
+        {toast ? (
+          <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
+        ) : null}
 
-        <footer className="fixed bottom-0 left-60 right-0 flex h-[76px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
+        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/schedule" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
-            <button className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
+            <button onClick={saveAndToast} className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
             <Link href="/admin/elections/create/review" className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white">Continue</Link>
           </div>
         </footer>
@@ -89,7 +144,7 @@ export default function CreateElectionEligibilityPage() {
 }
 
 function Stepper({ step }: { step: number }) {
-  const labels = ["General", "Ballot", "Eligibility", "Review"];
+  const labels = ["Basic Info", "Schedule", "Eligibility", "Review"];
   return (
     <div className="rounded-xl bg-[var(--surface-container)] p-5">
       <div className="flex items-center gap-2">
@@ -112,37 +167,12 @@ function Stepper({ step }: { step: number }) {
   );
 }
 
-function Card({ title, text, value, active = false }: { title: string; text: string; value: string; active?: boolean }) {
+function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <article className={`rounded-xl p-5 ${active ? "border border-[var(--primary)]/40 bg-[var(--primary)]/8" : "bg-[var(--surface-container)]"}`}>
-      <h3 className="text-sm font-bold">{title}</h3>
-      <p className="mt-1 text-xs text-[var(--text-muted)]">{text}</p>
-      <p className="mt-4 text-xs font-mono uppercase tracking-[0.08em] text-[var(--primary)]">{value}</p>
+    <article className="rounded-xl bg-[var(--surface-container-low)] p-5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-muted)]">{label}</p>
+      <p className="mt-2 text-3xl font-bold text-[var(--primary)]">{value}</p>
+      <p className="mt-1 text-xs text-[var(--text-muted)]">{hint}</p>
     </article>
-  );
-}
-
-function RuleRow() {
-  return (
-    <div className="grid gap-3 rounded-lg bg-[var(--surface-container-low)] p-3 md:grid-cols-[1fr,1fr,2fr,auto]">
-      <select className="rounded bg-[var(--surface-container-high)] px-3 py-2 text-sm"><option>Faculty</option></select>
-      <select className="rounded bg-[var(--surface-container-high)] px-3 py-2 text-sm"><option>Equals</option></select>
-      <input className="rounded bg-[var(--surface-container-high)] px-3 py-2 text-sm" defaultValue="Engineering" />
-      <button className="rounded px-3 py-2 text-rose-300">Delete</button>
-    </div>
-  );
-}
-
-function Toggle({ title, note, on = false }: { title: string; note: string; on?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-[var(--text-muted)]">{note}</p>
-      </div>
-      <span className={`relative h-5 w-10 rounded-full ${on ? "bg-[var(--primary)]/25" : "bg-white/12"}`}>
-        <span className={`absolute top-1 h-3 w-3 rounded-full ${on ? "right-1 bg-[var(--primary)]" : "left-1 bg-white/45"}`} />
-      </span>
-    </div>
   );
 }

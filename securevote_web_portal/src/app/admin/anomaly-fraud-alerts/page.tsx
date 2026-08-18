@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { getAlerts } from "@/lib/api-client";
+import * as api from "@/lib/api-client";
 import type { Alert } from "@/lib/api-client";
 
 type Severity = "critical" | "high" | "medium" | "low";
@@ -20,22 +20,26 @@ type FraudAlert = {
 };
 
 const API_SEVERITY: Severity[] = ["critical", "high", "medium", "low"];
+const API_STATUS: AlertStatus[] = ["open", "investigating", "resolved"];
 
 function toFraudAlert(alert: Alert): FraudAlert {
   const severity: Severity = API_SEVERITY.includes(alert.severity as Severity)
     ? (alert.severity as Severity)
     : "medium";
+  const status: AlertStatus = API_STATUS.includes(alert.status as AlertStatus)
+    ? (alert.status as AlertStatus)
+    : "open";
   const detectedAt = formatDetectedAt(alert.createdAt);
-  const target = alert.target ?? "Unknown election";
+  const target = alert.target ?? alert.title ?? "Unknown election";
   return {
     id: alert.id,
     election: target,
     rule: alert.type,
     severity,
     score: alert.count ?? 50,
-    status: "open",
+    status,
     detectedAt,
-    signal: `Flagged by ${alert.type} rule${alert.count ? ` (${alert.count} signals)` : ""}. Target: ${target}.`,
+    signal: alert.body ?? `Flagged by ${alert.type} rule${alert.count ? ` (${alert.count} signals)` : ""}. Target: ${target}.`,
   };
 }
 
@@ -58,27 +62,31 @@ export default function AnomalyFraudAlertsPage() {
   const [severityFilter, setSeverityFilter] = useState<"all" | Severity>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | AlertStatus>("all");
   const [selected, setSelected] = useState("");
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
 
-  // Load alerts from the backend on mount.
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const items = await getAlerts();
-        if (!active) return;
-        const mapped = items.map(toFraudAlert);
-        setAlerts(mapped);
-        setSelected(mapped[0]?.id ?? "");
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : "Failed to load alerts");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await api.getAlerts();
+      const mapped = items.map(toFraudAlert);
+      setAlerts(mapped);
+      setSelected((prev) => (prev && mapped.some((a) => a.id === prev) ? prev : mapped[0]?.id ?? ""));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load alerts");
+      setAlerts([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     return alerts.filter((alert) => {
@@ -91,6 +99,50 @@ export default function AnomalyFraudAlertsPage() {
   const active = filtered.find((item) => item.id === selected) ?? filtered[0] ?? null;
   const openCount = alerts.filter((item) => item.status === "open").length;
   const criticalCount = alerts.filter((item) => item.severity === "critical" && item.status !== "resolved").length;
+
+  const runMutation = async (fn: () => Promise<unknown>, successMsg: string, errMsg: string) => {
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await fn();
+      await load();
+      setAction({ busy: false, error: null, success: successMsg });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : errMsg, success: null });
+    }
+  };
+
+  const simulateAlert = () => {
+    void runMutation(
+      () =>
+        api.createAlert({
+          type: "UNUSUAL_BROWSER_PATTERN",
+          severity: "medium",
+          target: "Student Council 2026",
+          title: "Browser fingerprint variance",
+          body: "Automated fingerprint variance crossed threshold.",
+        }),
+      "Alert created.",
+      "Failed to create alert",
+    );
+  };
+
+  const assignAnalyst = () => {
+    if (!active) return;
+    void runMutation(
+      () => api.assignAlert(active.id),
+      "Alert assigned to you.",
+      "Failed to assign alert",
+    );
+  };
+
+  const markResolved = () => {
+    if (!active) return;
+    void runMutation(
+      () => api.resolveAlert(active.id, "resolved"),
+      "Alert marked resolved.",
+      "Failed to resolve alert",
+    );
+  };
 
   return (
     <AdminShell active="elections">
@@ -136,29 +188,17 @@ export default function AnomalyFraudAlertsPage() {
             </select>
             <button
               type="button"
-              onClick={() => {
-                const id = `ALG-${Math.floor(Math.random() * 9000 + 1000)}`;
-                const injected: FraudAlert = {
-                  id,
-                  election: "Student Council 2026",
-                  rule: "UNUSUAL_BROWSER_PATTERN",
-                  severity: "medium",
-                  score: 61,
-                  status: "open",
-                  detectedAt: "just now",
-                  signal: "Automated fingerprint variance crossed threshold",
-                };
-                setAlerts((prev) => [injected, ...prev]);
-                setSelected(id);
-              }}
-              className="ml-auto rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm font-semibold"
+              onClick={simulateAlert}
+              disabled={action.busy}
+              className="ml-auto rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm font-semibold disabled:opacity-50"
             >
-              Simulate Alert
+              {action.busy ? "Working..." : "Simulate Alert"}
             </button>
           </div>
-          {/* TODO: alert resolve endpoint — Assign/Mark Resolved below mutate local state only;
-              the backend has no per-alert resolution endpoint yet. */}
         </section>
+
+        {action.error ? <p className="text-sm text-rose-300">{action.error}</p> : null}
+        {action.success ? <p className="text-sm text-emerald-300">{action.success}</p> : null}
 
         {loading ? (
           <div className="rounded-xl bg-[var(--surface-container)] p-8 text-center text-sm text-[var(--text-muted)]">
@@ -221,23 +261,17 @@ export default function AnomalyFraudAlertsPage() {
                   <div className="mt-6 grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => {
-                        setAlerts((prev) =>
-                          prev.map((item) => (item.id === active.id ? { ...item, status: "investigating" } : item)),
-                        );
-                      }}
-                      className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm"
+                      onClick={assignAnalyst}
+                      disabled={action.busy || active.status === "resolved"}
+                      className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm disabled:opacity-50"
                     >
                       Assign Analyst
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setAlerts((prev) =>
-                          prev.map((item) => (item.id === active.id ? { ...item, status: "resolved" } : item)),
-                        );
-                      }}
-                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                      onClick={markResolved}
+                      disabled={action.busy || active.status === "resolved"}
+                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       Mark Resolved
                     </button>

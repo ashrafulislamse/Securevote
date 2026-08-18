@@ -71,6 +71,25 @@ export default function ResultsDashboardPage() {
   const winner = results[0] ?? null;
   const leadMargin = winner && results.length > 1 ? winner.votes - results[1].votes : null;
 
+  const exportReport = () => {
+    if (!selectedElection) return;
+    const payload = {
+      electionId: selectedElection.id,
+      electionTitle: selectedElection.title,
+      status: selectedElection.status,
+      exportedAt: new Date().toISOString(),
+      totalVotes,
+      results,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `results-${selectedElection.id}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AdminShell active="elections">
       <section className="mx-auto max-w-6xl space-y-6">
@@ -84,7 +103,7 @@ export default function ResultsDashboardPage() {
             <Link href="/admin/results/publish" className="rounded-md bg-[var(--surface-container)] px-4 py-2 text-xs font-semibold">
               Publish Settings
             </Link>
-            <button className="brand-gradient rounded-md px-4 py-2 text-xs font-semibold text-white">Export Report</button>
+            <button onClick={exportReport} disabled={!selectedElection} className="brand-gradient rounded-md px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Export Report</button>
           </div>
         </div>
 

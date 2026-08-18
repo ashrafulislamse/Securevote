@@ -1,46 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { listElections, type Election } from "@/lib/api-client";
+import * as api from "@/lib/api-client";
 
-type Org = {
-  id: string;
-  name: string;
-  plan: "Enterprise" | "Professional" | "Starter";
-  members: number;
-  activeElections: number;
-  status: "active" | "paused";
-};
-
-function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-function deriveOrgs(elections: Election[]): Org[] {
-  const byName = new Map<string, Election[]>();
-  for (const election of elections) {
-    const name = election.organization?.trim();
-    if (!name) continue;
-    const list = byName.get(name) ?? [];
-    list.push(election);
-    byName.set(name, list);
-  }
-
-  return Array.from(byName.entries())
-    .map(([name, orgElections]) => ({
-      id: slugify(name) || `org-${name}`,
-      name,
-      plan: "Professional" as const,
-      members: 0,
-      activeElections: orgElections.filter((e) => e.status === "active").length,
-      status: orgElections.some((e) => e.status === "active") ? ("active" as const) : ("paused" as const),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
+type Org = api.Organization & { activeElections: number };
 
 export default function OrganizationManagementPage() {
   const [loading, setLoading] = useState(true);
@@ -48,32 +12,44 @@ export default function OrganizationManagementPage() {
   const [organizations, setOrganizations] = useState<Org[]>([]);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [action, setAction] = useState<{ busy: boolean; error: string | null; success: string | null }>({
+    busy: false,
+    error: null,
+    success: null,
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [orgs, elections] = await Promise.all([
+        api.listOrganizations(),
+        api.listElections({ status: "active" }),
+      ]);
+      // Count active elections per organization name.
+      const activeByName = new Map<string, number>();
+      for (const e of elections) {
+        const name = e.organization?.trim();
+        if (!name) continue;
+        activeByName.set(name, (activeByName.get(name) ?? 0) + 1);
+      }
+      const merged: Org[] = orgs.map((o) => ({
+        ...o,
+        activeElections: activeByName.get(o.name) ?? 0,
+      }));
+      setOrganizations(merged);
+      setSelectedId((prev) => (prev && merged.some((o) => o.id === prev) ? prev : merged[0]?.id ?? ""));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load organizations");
+      setOrganizations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const elections = await listElections();
-        if (!active) return;
-        const orgs = deriveOrgs(elections);
-        setOrganizations(orgs);
-        if (orgs.length > 0) setSelectedId(orgs[0].id);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load organizations");
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
     load();
-    return () => {
-      active = false;
-    };
-  }, []);
+  }, [load]);
 
   const filtered = useMemo(() => {
     return organizations.filter((item) => {
@@ -83,6 +59,44 @@ export default function OrganizationManagementPage() {
   }, [organizations, query]);
 
   const selected = filtered.find((item) => item.id === selectedId) ?? filtered[0] ?? null;
+
+  const runMutation = async (fn: () => Promise<unknown>, successMsg: string, errMsg: string) => {
+    setAction({ busy: true, error: null, success: null });
+    try {
+      await fn();
+      await load();
+      setAction({ busy: false, error: null, success: successMsg });
+    } catch (err) {
+      setAction({ busy: false, error: err instanceof Error ? err.message : errMsg, success: null });
+    }
+  };
+
+  const newOrganization = () => {
+    void runMutation(
+      () => api.createOrganization({ name: "New Organization", plan: "Starter", members: 1, status: "active" }),
+      "Organization created.",
+      "Failed to create organization",
+    );
+  };
+
+  const toggleStatus = () => {
+    if (!selected) return;
+    const next = selected.status === "active" ? "paused" : "active";
+    void runMutation(
+      () => api.updateOrganization(selected.id, { status: next }),
+      `${selected.name} is now ${next}.`,
+      "Failed to update status",
+    );
+  };
+
+  const addAdminSeat = () => {
+    if (!selected) return;
+    void runMutation(
+      () => api.updateOrganization(selected.id, { members: selected.members + 1 }),
+      "Admin seat added.",
+      "Failed to add admin seat",
+    );
+  };
 
   return (
     <AdminShell active="elections">
@@ -95,20 +109,9 @@ export default function OrganizationManagementPage() {
           </div>
           <button
             type="button"
-            onClick={() => {
-              const id = `ORG-${Math.floor(Math.random() * 900 + 100)}`;
-              const next: Org = {
-                id,
-                name: "New Organization",
-                plan: "Starter",
-                members: 1,
-                activeElections: 0,
-                status: "active",
-              };
-              setOrganizations((prev) => [next, ...prev]);
-              setSelectedId(id);
-            }}
-            className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+            onClick={newOrganization}
+            disabled={action.busy}
+            className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             New Organization
           </button>
@@ -122,6 +125,9 @@ export default function OrganizationManagementPage() {
             className="h-10 w-full rounded-lg bg-[var(--surface-container-low)] px-3 text-sm outline-none ring-1 ring-transparent focus:ring-[var(--primary)]"
           />
         </section>
+
+        {action.error ? <p className="text-sm text-rose-300">{action.error}</p> : null}
+        {action.success ? <p className="text-sm text-emerald-300">{action.success}</p> : null}
 
         {loading ? (
           <div className="rounded-xl bg-[var(--surface-container)] p-10 text-center text-sm text-[var(--text-muted)]">
@@ -189,36 +195,21 @@ export default function OrganizationManagementPage() {
                   <div className="mt-6 grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => {
-                        setOrganizations((prev) =>
-                          prev.map((item) =>
-                            item.id === selected.id
-                              ? { ...item, status: item.status === "active" ? "paused" : "active" }
-                              : item,
-                          ),
-                        );
-                      }}
-                      className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm"
+                      onClick={toggleStatus}
+                      disabled={action.busy}
+                      className="rounded-lg bg-[var(--surface-container-high)] px-4 py-2 text-sm disabled:opacity-50"
                     >
                       Toggle Status
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setOrganizations((prev) =>
-                          prev.map((item) =>
-                            item.id === selected.id ? { ...item, members: item.members + 1 } : item,
-                          ),
-                        );
-                      }}
-                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white"
+                      onClick={addAdminSeat}
+                      disabled={action.busy}
+                      className="brand-gradient rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                     >
                       Add Admin Seat
                     </button>
                   </div>
-
-                  {/* TODO: organizations module — backend endpoint not yet built.
-                      Status toggle / add-admin only update local state for the demo. */}
                 </>
               ) : (
                 <p className="text-sm text-[var(--text-muted)]">Select an organization to manage details.</p>
