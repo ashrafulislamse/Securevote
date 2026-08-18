@@ -1,3 +1,8 @@
+// Load the Hardhat Chai matchers (emit, reverted, revertedWithCustomError,
+// etc.) on the same chai instance the test uses. Under pnpm's strict
+// node_modules isolation the toolbox's auto-registration can wire a
+// different chai copy, so we require the matchers explicitly here.
+require("@nomicfoundation/hardhat-chai-matchers");
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
