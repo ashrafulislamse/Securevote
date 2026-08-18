@@ -58,6 +58,34 @@ kycRoutes.post(
       ip: c.req.header("cf-connecting-ip"),
     });
 
+    // In development, auto-approve KYC so the demo flow is seamless.
+    const isDev = c.env.ENV === "development" || c.env.ENV === "demo";
+    if (isDev) {
+      await c.env.DB.prepare(
+        "UPDATE kyc_documents SET status = 'approved', reviewed_by = ?, reviewed_at = ? WHERE id = ?",
+      ).bind(user.id, now(), docId).run();
+
+      await c.env.DB.prepare(
+        "UPDATE users SET kyc_status = 'approved', updated_at = ? WHERE id = ?",
+      ).bind(now(), user.id).run();
+
+      // Notify the user.
+      await c.env.DB.prepare(
+        `INSERT INTO notifications (id, user_id, title, body, type, read, created_at)
+         VALUES (?, ?, ?, ?, 'kyc', 0, ?)`,
+      ).bind(uuid(), user.id, "KYC approved", "Your identity verification was approved (dev auto-approve). You can now vote.", now()).run();
+
+      await audit(c.env, {
+        actorId: user.id,
+        action: "kyc.auto-approve-dev",
+        targetType: "kyc_document",
+        targetId: docId,
+        ip: c.req.header("cf-connecting-ip"),
+      });
+
+      return c.json({ ok: true, document: { id: docId, status: "approved" }, devAutoApproved: true }, 201);
+    }
+
     return c.json({ ok: true, document: { id: docId, status: "pending" } }, 201);
   },
 );

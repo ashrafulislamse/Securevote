@@ -25,6 +25,10 @@ bucket_name = "securevote-files"
 binding = "SESSIONS"
 id = "79069c0b141f4860bbaf5343e12027d2"
 
+# Workers AI binding (admin AI assistant)
+[ai]
+binding = "AI"
+
 # Cron: chain listener (Phase 6) — every 60s
 [triggers]
 crons = ["* * * * *"]

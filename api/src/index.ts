@@ -12,6 +12,7 @@ import { votingRoutes } from "./routes/voting";
 import { kycRoutes } from "./routes/kyc";
 import { publicRoutes } from "./routes/public";
 import { adminRoutes } from "./routes/admin";
+import { aiRoutes } from "./routes/ai";
 import { notificationsRoutes } from "./routes/notifications";
 import {
   isChainConfigured,
@@ -91,6 +92,7 @@ app.route("/api/voting", votingRoutes);
 app.route("/api/kyc", kycRoutes);
 app.route("/api/public", publicRoutes);
 app.route("/api/admin", adminRoutes);
+app.route("/api/admin", aiRoutes);
 app.route("/api/notifications", notificationsRoutes);
 
 // JSON 404 for unknown API routes.

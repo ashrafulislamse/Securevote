@@ -74,6 +74,20 @@ export const createCandidateSchema = z.object({
   ballotOrder: z.number().int().min(0).optional(),
 });
 
+export const updateCandidateSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    party: z.string().max(200).nullable().optional(),
+    bio: z.string().max(2000).nullable().optional(),
+    manifesto: z.string().max(4000).nullable().optional(),
+    ballotOrder: z.number().int().min(0).optional(),
+    visible: z.boolean().optional(),
+    verified: z.boolean().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "at least one field required",
+  });
+
 export const castVoteSchema = z.object({
   electionId: z.string().min(1),
   selections: z
@@ -98,9 +112,118 @@ export const kycReviewSchema = z.object({
 });
 
 export const importVotersSchema = z.object({
-  url: z.string().url(), // presigned R2 URL of the CSV
+  voters: z
+    .array(
+      z.object({
+        email: emailSchema,
+        fullName: z.string().min(1).max(200),
+        phone: z.string().max(50).optional(),
+      }),
+    )
+    .min(1, "at least one voter required")
+    .max(1000, "max 1000 voters per import"),
 });
+
+export const updateVoterSchema = z
+  .object({
+    fullName: z.string().min(1).max(200).optional(),
+    phone: z.string().max(50).nullable().optional(),
+    status: z.enum(["active", "suspended"]).optional(),
+    notes: z.string().max(2000).nullable().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "at least one field required",
+  });
 
 export const publishResultsSchema = z.object({
   channels: z.array(z.enum(["portal", "email", "apiWebhook"])).optional(),
+});
+
+// Election publish: visibility + distribution channels (set on status -> published)
+export const publishElectionSchema = z.object({
+  visibility: z.enum(["public", "participants", "internal"]).optional(),
+  channels: z.array(z.enum(["portal", "email", "apiWebhook"])).optional(),
+});
+
+// Ballot blocks CRUD
+export const createBallotBlockSchema = z.object({
+  title: z.string().min(1).max(200),
+  kind: z.enum(["position", "yesNo", "info"]).default("position"),
+  orderIndex: z.number().int().min(0).optional(),
+});
+
+export const updateBallotBlockSchema = z
+  .object({
+    title: z.string().min(1).max(200).optional(),
+    kind: z.enum(["position", "yesNo", "info"]).optional(),
+    orderIndex: z.number().int().min(0).optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "at least one field required",
+  });
+
+// Organizations CRUD
+export const createOrganizationSchema = z.object({
+  name: z.string().min(1).max(200),
+  plan: z.enum(["Starter", "Professional", "Enterprise"]).default("Professional"),
+  members: z.number().int().min(0).optional(),
+  status: z.enum(["active", "paused"]).default("active"),
+});
+
+export const updateOrganizationSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    plan: z.enum(["Starter", "Professional", "Enterprise"]).optional(),
+    members: z.number().int().min(0).optional(),
+    status: z.enum(["active", "paused"]).optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, {
+    message: "at least one field required",
+  });
+
+// Anomaly / fraud alerts
+export const createAlertSchema = z.object({
+  type: z.string().min(1).max(80),
+  severity: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+  target: z.string().max(200).optional(),
+  title: z.string().min(1).max(200),
+  body: z.string().max(2000).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export const resolveAlertSchema = z.object({
+  status: z.enum(["open", "investigating", "resolved"]),
+  assignedTo: z.string().max(200).optional(),
+});
+
+// Bulk voter status update
+export const bulkVoterStatusSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "at least one voter id required").max(500),
+  kycStatus: z.enum(["pending", "approved", "rejected"]),
+});
+
+// Notify selected voters (in-app notification)
+export const notifyVotersSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "at least one voter id required").max(500),
+  title: z.string().min(1).max(200),
+  body: z.string().max(2000).optional(),
+});
+
+// AI assistant
+export const askAssistantSchema = z.object({
+  prompt: z.string().min(1).max(2000),
+  model: z.string().max(100).optional(),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1).max(200),
+  newPassword: passwordSchema,
+});
+
+export const resendOtpSchema = z.object({
+  email: emailSchema,
 });

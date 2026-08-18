@@ -7,6 +7,8 @@ export interface Env {
   JWT_SECRET: string;
   API_VERSION: string;
   ENV: string;
+  // Workers AI binding (admin AI assistant)
+  AI?: Ai;
   // Phase 6 blockchain (Polygon Amoy)
   PRIVATE_KEY?: string;             // deployer EVM private key (hex, 0x-prefixed)
   AMOY_RPC_URL?: string;            // default "https://rpc-amoy.polygon.technology"

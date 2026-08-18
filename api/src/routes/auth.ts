@@ -10,6 +10,9 @@ import {
   refreshSchema,
   changePasswordSchema,
   updateProfileSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  resendOtpSchema,
 } from "../schemas";
 import { hashPassword, verifyPassword } from "../lib/password";
 import {
@@ -425,3 +428,158 @@ authRoutes.post(
     return c.json({ ok: true });
   },
 );
+
+// ---------------------------------------------------------------------------
+// POST /auth/forgot-password (public)
+// Always returns ok so the response does not leak which emails are registered.
+// Stores a short-lived reset token in KV and emails a link (or returns the
+// token in dev/demo so the flow is testable without an email provider).
+// ---------------------------------------------------------------------------
+authRoutes.post(
+  "/forgot-password",
+  zValidator("json", forgotPasswordSchema),
+  async (c) => {
+    const { email } = c.req.valid("json");
+    const normalized = email.toLowerCase();
+
+    const genericOk = {
+      ok: true,
+      message: "If the email exists, a reset link has been sent.",
+    };
+
+    const row = await c.env.DB.prepare("SELECT id FROM users WHERE email = ?")
+      .bind(normalized)
+      .first<Record<string, unknown>>();
+
+    if (!row) {
+      return c.json(genericOk);
+    }
+
+    const token = uuid();
+    await c.env.SESSIONS.put(
+      `reset:${token}`,
+      JSON.stringify({ userId: row.id as string, email: normalized }),
+      { expirationTtl: 600 },
+    );
+
+    if (!isDevOtp(c.env)) {
+      // APP_URL is an optional binding (read dynamically, like RESEND_API_KEY).
+      const appUrl =
+        (c.env as unknown as Record<string, string | undefined>)["APP_URL"] ??
+        "https://securevote.app";
+      const resetLink = `${appUrl}/reset-password?token=${token}`;
+      await sendEmail(c.env, {
+        to: normalized,
+        subject: "SecureVote password reset",
+        text: `Reset your SecureVote password by visiting:\n\n${resetLink}\n\nThis link expires in 10 minutes. If you did not request a reset, you can safely ignore this email.`,
+      });
+    }
+
+    await audit(c.env, {
+      actorId: null,
+      action: "auth.forgot-password",
+      targetType: "email",
+      targetId: normalized,
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json(
+      isDevOtp(c.env) ? { ...genericOk, devResetToken: token } : genericOk,
+    );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /auth/reset-password (public)
+// Consumes a reset token, sets the new password, and revokes all sessions.
+// ---------------------------------------------------------------------------
+authRoutes.post(
+  "/reset-password",
+  zValidator("json", resetPasswordSchema),
+  async (c) => {
+    const { token, newPassword } = c.req.valid("json");
+
+    const raw = await c.env.SESSIONS.get(`reset:${token}`);
+    if (!raw) {
+      return c.json({ error: "reset token expired or invalid" }, 400);
+    }
+
+    const payload = JSON.parse(raw) as { userId: string; email: string };
+    const userId = payload.userId;
+
+    const newHash = await hashPassword(newPassword);
+    await c.env.DB.prepare(
+      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+    )
+      .bind(newHash, now(), userId)
+      .run();
+
+    // One-shot token: delete it so it can't be reused.
+    await c.env.SESSIONS.delete(`reset:${token}`);
+
+    // Revoke every active session for this user (force re-login everywhere).
+    await c.env.DB.prepare(
+      "UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+    )
+      .bind(now(), userId)
+      .run();
+
+    await audit(c.env, {
+      actorId: userId,
+      action: "auth.password.reset",
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /auth/resend-otp (public)
+// Issues a fresh OTP for an in-flight registration (pending verification).
+// ---------------------------------------------------------------------------
+authRoutes.post("/resend-otp", zValidator("json", resendOtpSchema), async (c) => {
+  const { email } = c.req.valid("json");
+  const normalized = email.toLowerCase();
+
+  const pending = await c.env.DB.prepare(
+    "SELECT * FROM pending_verifications WHERE email = ?",
+  )
+    .bind(normalized)
+    .first<Record<string, unknown>>();
+
+  if (!pending) {
+    return c.json({ error: "no pending verification — register first" }, 400);
+  }
+
+  const otp = generateOtp(c.env);
+  const otpHash = await sha256hex(otp);
+  const expiresAt = now() + 10 * 60 * 1000;
+
+  await c.env.DB.prepare(
+    "UPDATE pending_verifications SET otp_hash = ?, attempts = 0, expires_at = ?, created_at = ? WHERE email = ?",
+  )
+    .bind(otpHash, expiresAt, now(), normalized)
+    .run();
+
+  await sendEmail(c.env, {
+    to: normalized,
+    subject: "SecureVote verification code",
+    text: `Your SecureVote verification code is ${otp}.\n\nIt expires in 10 minutes.`,
+  });
+
+  await audit(c.env, {
+    actorId: null,
+    action: "auth.resend-otp",
+    targetType: "email",
+    targetId: normalized,
+    ip: c.req.header("cf-connecting-ip"),
+  });
+
+  return c.json({
+    ok: true,
+    message: "OTP sent",
+    devOtp: isDevOtp(c.env) ? otp : undefined,
+    expiresInSeconds: 600,
+  });
+});

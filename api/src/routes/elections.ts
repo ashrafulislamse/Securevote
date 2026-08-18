@@ -9,6 +9,10 @@ import {
   createElectionSchema,
   updateElectionSchema,
   createCandidateSchema,
+  updateCandidateSchema,
+  createBallotBlockSchema,
+  updateBallotBlockSchema,
+  publishElectionSchema,
 } from "../schemas";
 import { uuid, now } from "../lib/utils";
 import { auth, requireRole, type AuthUser, type AppContext } from "../middleware/auth";
@@ -218,6 +222,8 @@ electionsRoutes.get("/:id", async (c) => {
       manifesto: r.manifesto,
       photoUrl: r.photo_url,
       ballotOrder: r.ballot_order,
+      visible: r.visible === null ? true : Boolean(r.visible),
+      verified: Boolean(r.verified),
     })),
   });
 });
@@ -477,8 +483,10 @@ electionsRoutes.get("/:id/results", async (c) => {
     .all<Record<string, unknown>>();
 
   const tally = await c.env.DB.prepare(
-    `SELECT v.selections FROM votes v`,
-  ).all();
+    `SELECT v.selections FROM votes v WHERE v.election_id = ?`,
+  )
+    .bind(id)
+    .all();
 
   // Build per-candidate counts by scanning selections JSON.
   const counts: Record<string, number> = {};
@@ -506,3 +514,339 @@ electionsRoutes.get("/:id/results", async (c) => {
 
   return c.json({ electionId: id, totalVotes, turnout: null, results });
 });
+
+// ---------------------------------------------------------------------------
+// PATCH /elections/:id/candidates/:cid — update candidate (admin only)
+// Updates name/party/bio/manifesto/ballotOrder and moderation flags
+// (visible/verified). Only fields present in the body are written.
+// ---------------------------------------------------------------------------
+electionsRoutes.patch(
+  "/:id/candidates/:cid",
+  auth(),
+  requireRole("admin"),
+  zValidator("json", updateCandidateSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    const cid = c.req.param("cid");
+    const data = c.req.valid("json");
+    const admin = c.get("user") as AuthUser;
+
+    const existing = await getElectionRow(c.env, id);
+    if (!existing) return c.json({ error: "election not found" }, 404);
+
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM candidates WHERE id = ? AND election_id = ?",
+    )
+      .bind(cid, id)
+      .first();
+    if (!row) return c.json({ error: "candidate not found" }, 404);
+
+    const fields: Record<string, unknown> = {
+      name: data.name,
+      party: data.party,
+      bio: data.bio,
+      manifesto: data.manifesto,
+      ballot_order: data.ballotOrder,
+      visible: data.visible === undefined ? undefined : data.visible ? 1 : 0,
+      verified: data.verified === undefined ? undefined : data.verified ? 1 : 0,
+    };
+
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    for (const [col, val] of Object.entries(fields)) {
+      if (val !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(val);
+      }
+    }
+    if (sets.length === 0) return c.json({ error: "no fields to update" }, 400);
+    params.push(cid);
+
+    await c.env.DB.prepare(
+      `UPDATE candidates SET ${sets.join(", ")} WHERE id = ?`,
+    )
+      .bind(...params)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "candidate.update",
+      targetType: "candidate",
+      targetId: cid,
+      metadata: { electionId: id, fields: Object.keys(data) },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// DELETE /elections/:id/candidates/:cid — remove candidate (admin only)
+// Guarded: refuses if the election has any votes, or if its status is already
+// active/closed/published (ballot is live or finalized).
+// ---------------------------------------------------------------------------
+electionsRoutes.delete(
+  "/:id/candidates/:cid",
+  auth(),
+  requireRole("admin"),
+  async (c) => {
+    const id = c.req.param("id");
+    const cid = c.req.param("cid");
+    const admin = c.get("user") as AuthUser;
+
+    const existing = await getElectionRow(c.env, id);
+    if (!existing) return c.json({ error: "election not found" }, 404);
+
+    const status = existing.status as string;
+    if (status === "active" || status === "closed" || status === "published") {
+      return c.json(
+        { error: "cannot delete a candidate once the election is active or finalized" },
+        400,
+      );
+    }
+
+    const voteCount = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM votes WHERE election_id = ?",
+    )
+      .bind(id)
+      .first<Record<string, number>>();
+    if ((voteCount?.n ?? 0) > 0) {
+      return c.json(
+        { error: "cannot delete a candidate after votes have been cast" },
+        400,
+      );
+    }
+
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM candidates WHERE id = ? AND election_id = ?",
+    )
+      .bind(cid, id)
+      .first();
+    if (!row) return c.json({ error: "candidate not found" }, 404);
+
+    await c.env.DB.prepare("DELETE FROM candidates WHERE id = ?")
+      .bind(cid)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "candidate.delete",
+      targetType: "candidate",
+      targetId: cid,
+      metadata: { electionId: id },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// GET /elections/:id/ballot-blocks — list ballot sections/questions (public)
+// ---------------------------------------------------------------------------
+electionsRoutes.get("/:id/ballot-blocks", async (c) => {
+  const id = c.req.param("id");
+  const existing = await getElectionRow(c.env, id);
+  if (!existing) return c.json({ error: "election not found" }, 404);
+
+  const { results } = await c.env.DB.prepare(
+    "SELECT id, election_id, title, kind, order_index FROM ballot_blocks WHERE election_id = ? ORDER BY order_index ASC",
+  )
+    .bind(id)
+    .all<Record<string, unknown>>();
+
+  return c.json({
+    ballotBlocks: results.map((r) => ({
+      id: r.id,
+      electionId: r.election_id,
+      title: r.title,
+      kind: r.kind,
+      orderIndex: r.order_index,
+    })),
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /elections/:id/ballot-blocks — create ballot block (admin only)
+// ---------------------------------------------------------------------------
+electionsRoutes.post(
+  "/:id/ballot-blocks",
+  auth(),
+  requireRole("admin"),
+  zValidator("json", createBallotBlockSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    const data = c.req.valid("json");
+    const admin = c.get("user") as AuthUser;
+
+    const existing = await getElectionRow(c.env, id);
+    if (!existing) return c.json({ error: "election not found" }, 404);
+
+    const blockId = uuid();
+    const orderIndex = data.orderIndex ?? 0;
+    await c.env.DB.prepare(
+      `INSERT INTO ballot_blocks (id, election_id, title, kind, order_index)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(blockId, id, data.title, data.kind, orderIndex)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "ballot_block.create",
+      targetType: "ballot_block",
+      targetId: blockId,
+      metadata: { electionId: id, kind: data.kind },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json(
+      { ok: true, ballotBlock: { id: blockId, title: data.title, kind: data.kind, orderIndex } },
+      201,
+    );
+  },
+);
+
+// ---------------------------------------------------------------------------
+// PATCH /elections/:id/ballot-blocks/:bid — update ballot block (admin only)
+// ---------------------------------------------------------------------------
+electionsRoutes.patch(
+  "/:id/ballot-blocks/:bid",
+  auth(),
+  requireRole("admin"),
+  zValidator("json", updateBallotBlockSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    const bid = c.req.param("bid");
+    const data = c.req.valid("json");
+    const admin = c.get("user") as AuthUser;
+
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM ballot_blocks WHERE id = ? AND election_id = ?",
+    )
+      .bind(bid, id)
+      .first();
+    if (!row) return c.json({ error: "ballot block not found" }, 404);
+
+    const fields: Record<string, unknown> = {
+      title: data.title,
+      kind: data.kind,
+      order_index: data.orderIndex,
+    };
+    const sets: string[] = [];
+    const params: unknown[] = [];
+    for (const [col, val] of Object.entries(fields)) {
+      if (val !== undefined) {
+        sets.push(`${col} = ?`);
+        params.push(val);
+      }
+    }
+    if (sets.length === 0) return c.json({ error: "no fields to update" }, 400);
+    params.push(bid);
+
+    await c.env.DB.prepare(
+      `UPDATE ballot_blocks SET ${sets.join(", ")} WHERE id = ?`,
+    )
+      .bind(...params)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "ballot_block.update",
+      targetType: "ballot_block",
+      targetId: bid,
+      metadata: { electionId: id, fields: Object.keys(data) },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// DELETE /elections/:id/ballot-blocks/:bid — remove ballot block (admin only)
+// ---------------------------------------------------------------------------
+electionsRoutes.delete(
+  "/:id/ballot-blocks/:bid",
+  auth(),
+  requireRole("admin"),
+  async (c) => {
+    const id = c.req.param("id");
+    const bid = c.req.param("bid");
+    const admin = c.get("user") as AuthUser;
+
+    const row = await c.env.DB.prepare(
+      "SELECT id FROM ballot_blocks WHERE id = ? AND election_id = ?",
+    )
+      .bind(bid, id)
+      .first();
+    if (!row) return c.json({ error: "ballot block not found" }, 404);
+
+    await c.env.DB.prepare("DELETE FROM ballot_blocks WHERE id = ?")
+      .bind(bid)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "ballot_block.delete",
+      targetType: "ballot_block",
+      targetId: bid,
+      metadata: { electionId: id },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /elections/:id/publish — transition to published + record distribution
+// (admin only). Sets status to 'published' and persists publish_visibility
+// and publish_channels on the election row. Requires the election to be
+// 'closed' (finalized) first — the status endpoint handles merkle/on-chain.
+// ---------------------------------------------------------------------------
+electionsRoutes.post(
+  "/:id/publish",
+  auth(),
+  requireRole("admin"),
+  zValidator("json", publishElectionSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    const data = c.req.valid("json");
+    const admin = c.get("user") as AuthUser;
+
+    const existing = await getElectionRow(c.env, id);
+    if (!existing) return c.json({ error: "election not found" }, 404);
+
+    const status = existing.status as string;
+    if (status !== "closed" && status !== "published") {
+      return c.json(
+        { error: "election must be closed (finalized) before publishing" },
+        400,
+      );
+    }
+
+    const visibility = data.visibility ?? "public";
+    const channels = JSON.stringify(data.channels ?? ["portal"]);
+
+    await c.env.DB.prepare(
+      `UPDATE elections
+       SET status = 'published', publish_visibility = ?, publish_channels = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+      .bind(visibility, channels, now(), id)
+      .run();
+
+    await audit(c.env, {
+      actorId: admin.id,
+      action: "election.publish",
+      targetType: "election",
+      targetId: id,
+      metadata: { visibility, channels: data.channels ?? ["portal"] },
+      ip: c.req.header("cf-connecting-ip"),
+    });
+
+    return c.json({ ok: true, status: "published", visibility, channels: data.channels ?? ["portal"] });
+  },
+);

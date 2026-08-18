@@ -1,0 +1,19 @@
+# SecureVote API — local secrets template.
+# Copy to `.dev.vars` (gitignored) and fill in for `wrangler dev`.
+# For production, set each via `wrangler secret put <NAME>` instead.
+
+# Required for JWT signing (HS256).
+JWT_SECRET=replace-with-a-long-random-string
+
+# Environment: development | production (controls dev OTP/dev reset token exposure).
+ENV=development
+
+# ---- Phase 6 blockchain (Polygon Amoy) — deploy-ready, not deployed by default ----
+# Leave blank to keep on-chain anchoring in graceful-degradation ("skipped") mode.
+# Fill in only after deploying the Voting contract (see docs/PHASE6_DEPLOYER_KEY_SETUP.md).
+# Deployer EVM private key (hex, 0x-prefixed). Fund it from the Amoy faucet first.
+PRIVATE_KEY=
+# Voting contract address, copied from `pnpm deploy:amoy` output.
+VOTING_CONTRACT_ADDRESS=
+# Optional: override the Amoy RPC URL (defaults to https://rpc-amoy.polygon.technology).
+AMOY_RPC_URL=
