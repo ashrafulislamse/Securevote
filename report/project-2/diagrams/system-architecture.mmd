@@ -1,0 +1,31 @@
+%%{init: {'theme': 'base'}}%%
+flowchart TB
+    subgraph Presentation["Presentation Tier"]
+        Flutter["Flutter Mobile App<br/>47 screens, Dart<br/>Provider, Dio, Secure Storage"]
+        NextJS["Next.js Web Portal<br/>17 admin pages, React 19<br/>Tailwind CSS, TypeScript"]
+        PubVer["Public Verifier<br/>No auth required"]
+    end
+
+    subgraph Application["Application Tier"]
+        Workers["Cloudflare Workers API<br/>Hono, TypeScript<br/>JWT Auth, RBAC, Zod"]
+        AuthMod["Auth Module<br/>PBKDF2, JWT, OTP"]
+        VoteServ["Vote Service<br/>Receipt, Merkle"]
+        KYCHand["KYC Handler<br/>R2 Upload, Review"]
+    end
+
+    subgraph Data["Data Tier"]
+        D1[("Cloudflare D1<br/>SQLite, 9 tables")]
+        R2[("Cloudflare R2<br/>KYC Documents")]
+        KV[("Cloudflare KV<br/>Sessions, Cache")]
+        Polygon["Polygon Amoy<br/>Smart Contract"]
+        Resend["Resend API<br/>Email OTP"]
+    end
+
+    Flutter -->|HTTPS / JWT| Workers
+    NextJS -->|HTTPS / JWT| Workers
+    PubVer -->|HTTPS| Workers
+
+    Workers -->|SQL| D1
+    Workers -->|S3 API| R2
+    Workers -->|KV API| KV
+    Workers -->|ethers v6| Polygon

@@ -1,0 +1,38 @@
+%%{init: {'theme': 'base'}}%%
+flowchart LR
+    Voter((Voter))
+    Admin((Admin))
+
+    P1["1.0<br/>Authentication"]
+    P2["2.0<br/>KYC Verification"]
+    P3["3.0<br/>Election<br/>Management"]
+    P4["4.0<br/>Vote Casting"]
+    P5["5.0<br/>Receipt<br/>Generation"]
+    P6["6.0<br/>Blockchain<br/>Anchoring"]
+
+    D1[("D1 Database<br/>users, elections,<br/>votes, KYC")]
+    R2[("R2 Storage<br/>KYC docs")]
+    Chain["Polygon<br/>Blockchain"]
+
+    Voter -->|Credentials| P1
+    P1 -->|OTP, JWT| Voter
+
+    Voter -->|ID Photos| P2
+    P2 -->|Status| Voter
+
+    Admin -->|Election Data| P3
+
+    Voter -->|Ballot| P4
+    P4 -->|Vote Data| P5
+    P5 -->|Receipt| Voter
+
+    P5 -->|Merkle Root| P6
+
+    P1 -->|Read/Write| D1
+    P2 -->|Read/Write| D1
+    P3 -->|Read/Write| D1
+    P4 -->|Store Vote| D1
+
+    P2 -->|Store| R2
+
+    P6 -->|Anchor| Chain

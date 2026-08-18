@@ -1,0 +1,24 @@
+%%{init: {'theme': 'base'}}%%
+flowchart LR
+    Voter((Voter))
+    Admin((Administrator))
+    Verifier((Public<br/>Verifier))
+
+    System["SecureVote System"]
+
+    D1[("Cloudflare D1<br/>Database")]
+    R2[("Cloudflare R2<br/>File Storage")]
+    Chain["Polygon<br/>Blockchain"]
+
+    Voter -->|Register, KYC, Vote, Receipt| System
+    System -->|OTP, JWT, Receipt| Voter
+
+    Admin -->|Manage Elections,<br/>Review KYC| System
+    System -->|Dashboard, Stats| Admin
+
+    System -->|Read / Write| D1
+    System -->|Store KYC Docs| R2
+    System -->|Anchor Merkle Root| Chain
+
+    Verifier -->|Verify Receipt| System
+    System -->|Receipt Metadata| Verifier

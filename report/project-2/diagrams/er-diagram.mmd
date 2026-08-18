@@ -1,0 +1,75 @@
+%%{init: {'theme': 'base'}}%%
+erDiagram
+    users ||--o{ sessions : has
+    users ||--o{ kyc_documents : submits
+    users ||--o{ votes : casts
+    users ||--o{ audit_log : performs
+    elections ||--o{ candidates : contains
+    elections ||--o{ votes : receives
+
+    users {
+        string id PK
+        string email
+        string password_hash
+        string full_name
+        string phone
+        string role
+        string kyc_status
+    }
+
+    sessions {
+        string jti PK
+        string user_id FK
+        string refresh_token
+        datetime expires_at
+        datetime revoked_at
+    }
+
+    elections {
+        string id PK
+        string title
+        string status
+        datetime starts_at
+        datetime ends_at
+        string type
+        string created_by FK
+    }
+
+    candidates {
+        string id PK
+        string election_id FK
+        string name
+        string party
+        string bio
+        string manifesto
+        string photo_url
+    }
+
+    votes {
+        string id PK
+        string election_id FK
+        string user_id FK
+        json selections
+        string receipt_id
+        string vote_hash
+        string tx_hash
+    }
+
+    kyc_documents {
+        string id PK
+        string user_id FK
+        string doc_type
+        string r2_key
+        string status
+        string reviewed_by FK
+    }
+
+    audit_log {
+        string id PK
+        string actor_id FK
+        string action
+        string target_type
+        string target_id
+        string prev_hash
+        string entry_hash
+    }

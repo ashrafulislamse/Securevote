@@ -1,0 +1,15 @@
+%%{init: {'theme': 'base'}}%%
+flowchart LR
+    A[Requirement<br/>Analysis] --> B[Design]
+    B --> C[Development]
+    C --> D[Quality<br/>Assurance]
+    D --> E[Deployment<br/>and Feedback]
+    E -.->|Feedback Loop| A
+
+    subgraph Sprint["Sprint (2 weeks)"]
+      A
+      B
+      C
+      D
+      E
+    end
