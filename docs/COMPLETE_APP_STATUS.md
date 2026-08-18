@@ -1,3 +1,5 @@
+> **⚠️ DEPRECATED — March 2026:** This document describes the **obsolete simulation build** (local-storage-only, no real backend). It is preserved for historical reference only. For the current production architecture (Cloudflare Workers API, real D1/R2/KV, Solidity on Polygon Amoy, Next.js 16 portal, audit hash chain), see **`TECHNICAL_DOC.md` v2.0.0+** at the repository root.
+
 # ✅ SecureVote App - Complete Status Report
 
 **Date:** March 23, 2026  

@@ -659,52 +659,73 @@ Response:
 
 ## Appendix G: Screenshots Gallery
 
+The following figures show key screens from the SecureVote mobile application and the admin web portal as captured on a real Android device and desktop browser.
+
 ### Mobile App Screenshots
 
-**Authentication Flow:**
-- Splash Screen
-- Onboarding Screens (3)
-- Welcome Screen
-- Login Screen
-- Register Screen
-- OTP Verification
+**Authentication Flow**
 
-**KYC Flow:**
-- KYC Step 1
-- Document Capture
-- Selfie Capture
-- Status Pending
-- KYC Success
+![Login screen](screenshots/mobile/screenshot-login.png)
 
-**Voting Flow:**
-- Home Screen
-- Election List
-- Election Details
-- Candidate Details
-- Ballot Screen
-- Review Vote
-- Vote Success
-- Vote Receipt
+**Figure G.1** Voter login screen.
 
-**Profile:**
-- Profile Hub
-- Profile View
-- Edit Profile
-- Settings Screens
+![OTP verification](screenshots/mobile/screenshot-otp.png)
 
-*Note: Actual screenshots available in `All Ui/` folder*
+**Figure G.2** OTP verification screen.
+
+**KYC Verification Flow**
+
+![KYC document upload](screenshots/mobile/screenshot-kyc-upload.png)
+
+**Figure G.3** KYC document upload screen.
+
+![KYC status pending](screenshots/mobile/screenshot-kyc-pending.png)
+
+**Figure G.4** KYC status pending screen with automatic polling.
+
+**Voting Flow**
+
+![Home screen](screenshots/mobile/screenshot-home.png)
+
+**Figure G.5** Mobile home screen showing active elections and quick statistics.
+
+![Ballot screen](screenshots/mobile/screenshot-ballot.png)
+
+**Figure G.6** Ballot casting screen with candidate cards and selection indicators.
+
+![Review vote](screenshots/mobile/screenshot-review.png)
+
+**Figure G.7** Vote review screen before final submission.
+
+![Vote success](screenshots/mobile/screenshot-vote-success.png)
+
+**Figure G.8** Vote success screen showing receipt ID and QR code.
 
 ### Web Portal Screenshots
 
-**Admin Screens:**
-- Login
-- Dashboard
-- Election Management
-- KYC Review
-- Live Monitoring
-- Audit Logs
+**Admin Portal**
 
-*Note: Actual screenshots available in `ALL WEB UI/` folder*
+![Admin login](screenshots/web/screenshot-admin-login.png)
+
+**Figure G.9** Admin login screen.
+
+![Admin dashboard](screenshots/web/screenshot-admin-dashboard.png)
+
+**Figure G.10** Admin dashboard with KPI cards and recent elections.
+
+![Admin KYC review](screenshots/web/screenshot-admin-kyc.png)
+
+**Figure G.11** Admin KYC review queue with document preview and approve/reject actions.
+
+![Admin audit log](screenshots/web/screenshot-admin-audit.png)
+
+**Figure G.12** Admin audit log page showing hash-chained entries.
+
+**Public Verification**
+
+![Public verifier](screenshots/web/screenshot-verifier.png)
+
+**Figure G.13** Public receipt verification page with election metadata and blockchain anchor.
 
 ---
 

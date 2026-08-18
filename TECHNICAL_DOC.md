@@ -224,17 +224,17 @@ For the FYP the document upload is simulated (empty payload). Production deploym
 
 ---
 
-## 11. Blockchain roadmap (Phase 6 / v2)
+## 11. Blockchain integration (Phase 6 — deploy-ready, not yet deployed)
 
-The backend returns a stable `vote_hash` for every ballot. To upgrade to an on-chain anchor:
+The backend returns a stable `vote_hash` for every ballot. The on-chain anchor integration is **deploy-ready** — the contract, deploy script, backend wiring, and graceful degradation are all in place. No on-chain transaction has been sent yet.
 
-1. **Smart contract** (Solidity, OpenZeppelin): `createElection`, `commitVote(voteHash)`, `finalize(merkleRoot)`. Events for off-chain listeners.
-2. **Deploy** to Polygon Amoy (free testnet) for the FYP demo. Polygon mainnet for production.
-3. **Worker** sends a `commitVote` transaction when `/api/voting/cast` succeeds. Stores `tx_hash` and `block_number` on the `votes` row.
-4. **Cron listener** (separate Worker, every 60 s) polls the contract for `VoteCommitted` events and syncs them as a backup.
-5. **Merkle root** is computed at election close and posted via `finalize(merkleRoot)`. The public verifier then returns the on-chain anchor and a Merkle proof for the receipt.
+1. **Smart contract** (Solidity 0.8.24, OpenZeppelin `Ownable`): `createElection`, `commitVote(voteHash)`, `finalize(merkleRoot)`. Events for off-chain listeners. 5/5 Hardhat tests pass.
+2. **Deploy** to Polygon Amoy (free testnet) — see `docs/PHASE6_DEPLOYER_KEY_SETUP.md` for the runbook. `contracts/.env.example` documents `DEPLOYER_PRIVATE_KEY`, `AMOY_RPC_URL`, and `VOTING_CONTRACT_ADDRESS`.
+3. **Worker** sends a `commitVote` transaction when `/api/voting/cast` succeeds. If `isChainConfigured(env)` is false (secrets not set), the vote is still recorded in D1 and the audit logs `vote.anchor.skipped` — **graceful degradation, no breakage**.
+4. **Merkle root** is computed at election close and posted via `finalize(merkleRoot)`. The public verifier returns the on-chain anchor and a Merkle proof for the receipt.
+5. **Wrangler secrets** (`VOTING_CONTRACT_ADDRESS`, `PRIVATE_KEY`, `AMOY_RPC_URL`) are documented in `api/.dev.vars.example` (values left blank — no secrets committed).
 
-The contract, deployment script, and listener scaffolding are queued for v2. The data model already includes the `tx_hash`, `block_number`, and `merkle_proof` columns.
+The data model includes the `tx_hash`, `block_number`, and `merkle_proof` columns. Polygon mainnet deployment remains future work.
 
 ---
 
@@ -281,13 +281,14 @@ Seeded admin account: `admin@securevote.io` / `SecureVote@2026`.
 
 | Layer | Coverage | Notes |
 |---|---|---|
-| Flutter `flutter analyze` | 0 errors, 0 warnings | 176 pre-existing `withOpacity` deprecation infos (cosmetic) |
+| Backend `vitest run` | 92 tests, 7 files | merkle, password, otp (pure libs); schemas (Zod validation); endpoint tests for candidate CRUD, ballot blocks, organizations, alerts, bulk-status, notify, publish, AI assistant (with mocked Workers AI binding + template fallback) |
+| Backend `tsc --noEmit` | 0 errors | |
 | Web `tsc --noEmit` | 0 errors | |
 | Web `next build` | 29/29 pages prerender | |
-| Backend `tsc --noEmit` | 0 errors | |
+| Contracts `hardhat test` | 5/5 tests pass | Voting.sol (createElection, commitVote, finalize, double-vote prevention, merkle root anchoring) |
+| Flutter `flutter analyze` | 0 errors, 0 warnings | 176 pre-existing `withOpacity` deprecation infos (cosmetic) |
 | End-to-end manual | register → verify OTP → KYC submit → admin approve → vote → public verify | verified locally via curl + `wrangler dev` |
-
-Automated test suite is queued for Phase 5 (target 60% coverage on the data + domain layers).
+| CI | `.github/workflows/ci.yml` | 4 parallel jobs: api (typecheck + vitest), web (typecheck + build), contracts (compile + test), flutter (analyze) |
 
 ---
 
@@ -313,12 +314,22 @@ Environment variables:
 
 ## 15. Known limitations / future work
 
-- **Automated tests** (Phase 5): unit + integration + Playwright E2E.
-- **CI/CD:** GitHub Actions workflow is documented; not yet enabled.
+**Completed in this release (v2.1):**
+- ~~Automated tests~~ → 92 vitest tests (libs, schemas, endpoints) + 5 Hardhat tests.
+- ~~CI/CD~~ → `.github/workflows/ci.yml` (4 jobs: api, web, contracts, flutter).
+- ~~Forgot-password / reset-password~~ → both endpoints implemented and wired to the admin portal UI.
+- ~~Candidate CRUD~~ → PATCH (visible/verified/manifesto) + DELETE (guarded against active/finalized elections).
+- ~~Ballot builder~~ → ballot-blocks CRUD (create, update, reorder, delete) + publish with visibility/channels.
+- ~~Organizations~~ → CRUD backend + admin page.
+- ~~Anomaly/fraud alerts~~ → persisted alerts table + create/resolve/assign, with synthesis fallback.
+- ~~AI assistant~~ → Workers AI endpoint with template fallback; admin chat UI wired.
+- ~~Voter bulk status + notify~~ → batch KYC-status update + in-app notification insertion.
+
+**Still future work:**
 - **Third-party KYC** integration (Persona, Onfido).
 - **Push notifications** (FCM/APNS).
-- **Polygon mainnet** deployment and Merkle-proof verification end-to-end.
-- **Forgot-password** and **reset-password** backend endpoints (the UI shows a clear "not yet available" notice).
+- **Polygon mainnet** deployment and Merkle-proof verification end-to-end. The contract is deploy-ready on Amoy testnet — see `docs/PHASE6_DEPLOYER_KEY_SETUP.md`. Config/docs are wired but no on-chain transaction has been sent.
+- **Playwright E2E** browser tests (beyond the current unit + endpoint coverage).
 - **i18n / accessibility audit** (WCAG AA).
 - **Web (Flutter)** build: migrate to a non-`dart:html` token store.
 

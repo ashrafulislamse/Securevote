@@ -60,8 +60,10 @@ After confirming you have test MATIC, run:
 
 ```bash
 cd /e/SecureVote/contracts
-npx hardhat run scripts/deploy-amoy.ts --network amoy
+pnpm deploy:amoy
 ```
+
+(That's an alias for `npx hardhat run scripts/deploy-amoy.ts --network amoy` — either works.)
 
 **Expected output** (example):
 
@@ -92,7 +94,7 @@ Once the deploy finishes, paste me these 3 things in chat:
 
 I'll then:
 
-- Set `VOTING_CONTRACT_ADDRESS` and `PRIVATE_KEY` as encrypted Wrangler secrets on the `securevote-api` worker
+- Set `VOTING_CONTRACT_ADDRESS`, `PRIVATE_KEY`, and `AMOY_RPC_URL` as encrypted Wrangler secrets on the `securevote-api` worker (`wrangler secret put VOTING_CONTRACT_ADDRESS`, `wrangler secret put PRIVATE_KEY`, `wrangler secret put AMOY_RPC_URL`). `AMOY_RPC_URL` is optional — the API defaults to `https://rpc-amoy.polygon.technology` if unset.
 - Re-deploy the backend with blockchain enabled
 - Run a full end-to-end test:
   - Register a user
