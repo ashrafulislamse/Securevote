@@ -54,6 +54,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
       String id = _electionId ?? '';
       if (id.isEmpty) {
         final elections = await electionsRepo.getElections();
+        if (!mounted) return;
         if (elections.isEmpty) {
           setState(() {
             _error = 'No elections are currently available.';
@@ -66,11 +67,13 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
       _electionId = id;
       final (election, candidates) = await electionsRepo
           .getElectionWithCandidates(id);
+      if (!mounted) return;
       setState(() {
         _election = election;
         _candidates = candidates;
       });
     } on Exception catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
