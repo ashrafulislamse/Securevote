@@ -40,6 +40,7 @@ class _MyVotesScreenState extends State<MyVotesScreen> {
     final bool verified = vote.txHash != null && vote.blockNumber != null;
     return <String, dynamic>{
       'title': vote.electionTitle ?? 'Unknown Election',
+      'organization': 'SecureVote Election',
       'date': _formatDate(vote.createdAt),
       'status': status,
       'statusColor': verified

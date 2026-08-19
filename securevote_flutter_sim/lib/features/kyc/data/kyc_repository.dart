@@ -30,11 +30,7 @@ class KycRepository {
       'file': MultipartFile.fromBytes(bytes, filename: fileName),
       'docType': docType,
     });
-    final response = await _api.dio.post<dynamic>(
-      '/api/kyc/submit',
-      data: form,
-    );
-    final data = response.data;
+    final data = await _api.postApi('/api/kyc/submit', data: form);
     if (data is Map<String, dynamic>) {
       final doc = data['document'];
       if (doc is Map<String, dynamic>) {

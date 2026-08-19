@@ -91,6 +91,14 @@ class ApiClient {
     }
   }
 
+  Future<void> deleteApi(String path) async {
+    try {
+      await _dio.delete<dynamic>(path);
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   /// Adds the `Authorization: Bearer <token>` header when a token is present.
   final InterceptorsWrapper _authInterceptor = InterceptorsWrapper(
     onRequest: (options, handler) async {

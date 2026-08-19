@@ -104,7 +104,7 @@ class VoteDetailModal extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    vote['organization'] as String,
+                    (vote['organization'] as String?) ?? 'SecureVote Election',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white.withValues(alpha: 0.6),

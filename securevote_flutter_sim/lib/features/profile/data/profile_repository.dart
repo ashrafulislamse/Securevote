@@ -61,9 +61,8 @@ class ProfileRepository implements ProfileRepositoryInterface {
 
   /// Deletes a single notification.
   ///
-  /// Backend: `DELETE /api/notifications/:id`. Uses the raw [Dio] instance
-  /// directly because [ApiClient] does not expose a delete helper.
+  /// Backend: `DELETE /api/notifications/:id`.
   Future<void> deleteNotification(String id) async {
-    await _api.dio.delete('/api/notifications/$id');
+    await _api.deleteApi('/api/notifications/$id');
   }
 }
