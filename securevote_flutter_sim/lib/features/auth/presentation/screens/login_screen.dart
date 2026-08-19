@@ -74,18 +74,18 @@ class _LoginScreenState extends State<LoginScreen> {
       await auth.login(email: email, password: password);
       if (!mounted) return;
 
-      // Route by KYC status
-      if (auth.user?.kycStatus != KycStatus.approved) {
-        navigator.pushNamedAndRemoveUntil(
-          AppRouter.kycStep1,
-          (Route<dynamic> route) => false,
-        );
-      } else {
-        navigator.pushNamedAndRemoveUntil(
-          AppRouter.homeScreen,
-          (Route<dynamic> route) => false,
-        );
-      }
+      // Route by specific KYC status so rejected/pending users see the
+      // right screen instead of a blank upload form.
+      final kyc = auth.user?.kycStatus ?? KycStatus.notSubmitted;
+      final String nextRoute = switch (kyc) {
+        KycStatus.approved => AppRouter.homeScreen,
+        KycStatus.notSubmitted => AppRouter.kycStep1,
+        KycStatus.pending || KycStatus.rejected => AppRouter.kycStatusPending,
+      };
+      navigator.pushNamedAndRemoveUntil(
+        nextRoute,
+        (Route<dynamic> route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(

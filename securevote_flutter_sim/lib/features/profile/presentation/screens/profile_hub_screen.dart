@@ -269,6 +269,63 @@ class _ProfileHubScreenState extends State<ProfileHubScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // IDENTITY VERIFICATION (only when not yet approved)
+                  if (kycStatus != KycStatus.approved) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Text(
+                        'IDENTITY VERIFICATION',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.4),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: const Color(0xFF1A1D28),
+                      ),
+                      child: _buildMenuItem(
+                        icon: kycStatus == KycStatus.rejected
+                            ? Icons.refresh_rounded
+                            : Icons.verified_user_outlined,
+                        title: kycStatus == KycStatus.rejected
+                            ? 'Re-verify Identity'
+                            : kycStatus == KycStatus.pending
+                            ? 'Verification Status'
+                            : 'Complete Identity Verification',
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: badge.color.withValues(alpha: 0.15),
+                          ),
+                          child: Text(
+                            badge.label,
+                            style: TextStyle(
+                              color: badge.color,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          kycStatus == KycStatus.notSubmitted
+                              ? AppRouter.kycStep1
+                              : AppRouter.kycStatusPending,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
                   // ACCOUNT SETTINGS
                   Padding(
                     padding: const EdgeInsets.only(left: 4, bottom: 8),

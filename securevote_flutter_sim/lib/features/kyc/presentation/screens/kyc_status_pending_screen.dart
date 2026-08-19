@@ -380,6 +380,18 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
                   );
                 },
               )
+            else if (_status == KycStatus.notSubmitted)
+              GradientButton(
+                label: 'Start Verification',
+                icon: Icons.upload_file_rounded,
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRouter.kycStep1,
+                    (Route<dynamic> route) => route.isFirst,
+                  );
+                },
+              )
             else
               GradientButton(
                 label: _loading ? 'Checking...' : 'Check Status',

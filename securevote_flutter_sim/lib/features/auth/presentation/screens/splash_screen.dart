@@ -73,10 +73,18 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    if (auth.user?.kycStatus != KycStatus.approved) {
-      _go(AppRouter.kycStep1);
-    } else {
-      _go(AppRouter.homeScreen);
+    final kyc = auth.user?.kycStatus ?? KycStatus.notSubmitted;
+    switch (kyc) {
+      case KycStatus.approved:
+        _go(AppRouter.homeScreen);
+      case KycStatus.notSubmitted:
+        // Never submitted documents — go straight to the upload form.
+        _go(AppRouter.kycStep1);
+      case KycStatus.pending:
+      case KycStatus.rejected:
+        // Submitted before — show the status/rejection screen with a
+        // re-verify path so the user sees why they were rejected.
+        _go(AppRouter.kycStatusPending);
     }
   }
 
