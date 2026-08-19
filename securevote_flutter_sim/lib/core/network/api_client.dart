@@ -31,9 +31,11 @@ class ApiClient {
   static final ApiClient instance = ApiClient._();
 
   /// Base URL injected at build time via `--dart-define=API_BASE_URL=...`.
+  /// Defaults to the production Cloudflare Worker so release builds work
+  /// on devices without needing to pass the define manually.
   static const String _baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:8787',
+    defaultValue: 'https://securevote-api.founder-fb4.workers.dev',
   );
 
   late final Dio _dio;
@@ -52,11 +54,15 @@ class ApiClient {
 
   /// Shortcut for calling out to the API and decoding a JSON body.
   Future<dynamic> getApi(String path, {Map<String, dynamic>? query}) async {
-    final Response<dynamic> res = await _dio.get<dynamic>(
-      path,
-      queryParameters: query,
-    );
-    return res.data;
+    try {
+      final Response<dynamic> res = await _dio.get<dynamic>(
+        path,
+        queryParameters: query,
+      );
+      return res.data;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
   }
 
   Future<dynamic> postApi(
@@ -64,17 +70,25 @@ class ApiClient {
     Object? data,
     Map<String, dynamic>? query,
   }) async {
-    final Response<dynamic> res = await _dio.post<dynamic>(
-      path,
-      data: data,
-      queryParameters: query,
-    );
-    return res.data;
+    try {
+      final Response<dynamic> res = await _dio.post<dynamic>(
+        path,
+        data: data,
+        queryParameters: query,
+      );
+      return res.data;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
   }
 
   Future<dynamic> patchApi(String path, {Object? data}) async {
-    final Response<dynamic> res = await _dio.patch<dynamic>(path, data: data);
-    return res.data;
+    try {
+      final Response<dynamic> res = await _dio.patch<dynamic>(path, data: data);
+      return res.data;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
   }
 
   /// Adds the `Authorization: Bearer <token>` header when a token is present.
@@ -216,7 +230,7 @@ class ApiClient {
     final data = response?.data;
     String? serverMessage;
     if (data is Map<String, dynamic>) {
-      final msg = data['message'];
+      final msg = data['message'] ?? data['error'];
       if (msg is String && msg.isNotEmpty) {
         serverMessage = msg;
       }

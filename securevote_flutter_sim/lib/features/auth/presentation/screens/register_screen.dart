@@ -21,7 +21,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -30,7 +29,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -107,12 +105,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     hint: 'Email address',
                     icon: Icons.mail_outline_rounded,
                     controller: _emailController,
-                  ),
-                  const SizedBox(height: 10),
-                  _AuthField(
-                    hint: 'Phone number',
-                    icon: Icons.call_outlined,
-                    controller: _phoneController,
                   ),
                   const SizedBox(height: 10),
                   _AuthField(
@@ -221,9 +213,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   final fullName = _fullNameController.text.trim();
                   final email = _emailController.text.trim();
                   final password = _passwordController.text;
-                  final phone = _phoneController.text.trim();
 
-                  // Validate fields (phone is optional)
+                  // Validate fields
                   if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Please fill all fields')),
@@ -277,7 +268,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       email: email,
                       password: password,
                       fullName: fullName,
-                      phone: phone.isEmpty ? null : phone,
                     );
                     if (!mounted) return;
 
