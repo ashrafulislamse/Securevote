@@ -284,13 +284,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       AppRouter.kycStep1,
                       (Route<dynamic> route) => false,
                     );
-                  } catch (_) {
+                  } catch (e) {
                     if (!mounted) return;
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
                           auth.error ??
-                              'Registration failed. Please try again.',
+                              'Registration failed: $e',
                         ),
                         backgroundColor: Colors.red,
                       ),

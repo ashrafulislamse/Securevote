@@ -19,7 +19,7 @@ abstract class User with _$User {
   const factory User({
     required String id,
     required String email,
-    required String fullName,
+    @Default('') String fullName,
     String? phone,
     @Default('voter') String role,
     @Default(KycStatus.notSubmitted) KycStatus kycStatus,

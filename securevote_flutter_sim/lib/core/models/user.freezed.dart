@@ -218,7 +218,7 @@ class _$UserImpl implements _User {
   const _$UserImpl({
     required this.id,
     required this.email,
-    required this.fullName,
+    this.fullName = '',
     this.phone,
     this.role = 'voter',
     this.kycStatus = KycStatus.notSubmitted,
@@ -238,6 +238,7 @@ class _$UserImpl implements _User {
   @override
   final String email;
   @override
+  @JsonKey()
   final String fullName;
   @override
   final String? phone;
@@ -312,7 +313,7 @@ abstract class _User implements User {
   const factory _User({
     required final String id,
     required final String email,
-    required final String fullName,
+    final String fullName,
     final String? phone,
     final String role,
     final KycStatus kycStatus,
