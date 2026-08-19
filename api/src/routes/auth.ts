@@ -53,40 +53,32 @@ authRoutes.post("/register", zValidator("json", registerSchema), async (c) => {
   }
 
   const passwordHash = await hashPassword(password);
-  const otp = generateOtp(c.env);
-  const otpHash = await sha256hex(otp);
-  const expiresAt = now() + 10 * 60 * 1000;
 
+  // Create the user directly (no OTP verification step): the account is
+  // registered immediately and a session is issued, so signup is one step.
+  const userId = uuid();
+  const ts = now();
   await c.env.DB.prepare(
-    `INSERT INTO pending_verifications (email, otp_hash, attempts, expires_at, created_at)
-     VALUES (?, ?, 0, ?, ?)
-     ON CONFLICT(email) DO UPDATE SET
-       otp_hash = excluded.otp_hash,
-       attempts = 0,
-       expires_at = excluded.expires_at,
-       created_at = excluded.created_at`,
+    `INSERT INTO users (id, email, password_hash, full_name, phone, role, kyc_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'voter', 'pending', ?, ?)`,
   )
-    .bind(normalized, otpHash, expiresAt, now())
+    .bind(userId, normalized, passwordHash, fullName, phone ?? null, ts, ts)
     .run();
 
-  // Retain the password hash across the pending step by writing demographic
-  // data ahead of the user row. We keep it simple: store the user row later,
-  // but stash the password hash in KV keyed by OTP so verification can create
-  // the user atomically. For FYP, store the pending payload in KV.
-  await c.env.SESSIONS.put(
-    `pending:${normalized}`,
-    JSON.stringify({ passwordHash, fullName, phone }),
-    { expirationTtl: 600 },
-  );
+  const user = { id: userId, email: normalized, role: "voter" as const };
+  const access = await signAccessToken(c.env, user);
+  const refresh = await signRefreshToken(c.env, user);
 
-  await sendEmail(c.env, {
-    to: normalized,
-    subject: "SecureVote verification code",
-    text: `Your SecureVote verification code is ${otp}.\n\nIt expires in 10 minutes.`,
-  });
+  // Persist the refresh-token session so the new account is signed in.
+  await c.env.DB.prepare(
+    `INSERT INTO sessions (jti, user_id, refresh_token, expires_at, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(refresh.jti, userId, refresh.token, refresh.expiresAt, ts)
+    .run();
 
   await audit(c.env, {
-    actorId: null,
+    actorId: userId,
     action: "auth.register",
     targetType: "email",
     targetId: normalized,
@@ -95,10 +87,10 @@ authRoutes.post("/register", zValidator("json", registerSchema), async (c) => {
 
   return c.json({
     ok: true,
-    message: "OTP sent",
-    // In dev/demo, return the OTP so the flow is testable without email.
-    devOtp: isDevOtp(c.env) ? otp : undefined,
-    expiresInSeconds: 600,
+    user: { id: userId, email: normalized, role: "voter", kycStatus: "pending" },
+    accessToken: access.token,
+    refreshToken: refresh.token,
+    expiresAt: access.expiresAt,
   });
 });
 

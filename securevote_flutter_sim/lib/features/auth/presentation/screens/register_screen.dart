@@ -89,7 +89,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Step 1 of 3: Personal info',
+              'Step 1 of 2: Personal info',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -207,7 +207,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               )
             else
               GradientButton(
-                label: 'Continue to Verify',
+                label: 'Create Account',
                 icon: Icons.arrow_forward_rounded,
                 onPressed: () async {
                   if (!_acceptTerms) {
@@ -282,23 +282,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     );
                     if (!mounted) return;
 
-                    // In dev the code is returned by the API; show it to the user.
-                    final devOtp = auth.lastRegister?.devOtp;
                     messenger.showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          devOtp != null && devOtp.isNotEmpty
-                              ? 'Your verification code: $devOtp'
-                              : 'Verification code sent. Check your email.',
-                        ),
-                        backgroundColor: const Color(0xFF2ADEC0),
-                        duration: const Duration(seconds: 5),
+                      const SnackBar(
+                        content: Text('Account created successfully'),
+                        backgroundColor: Color(0xFF2ADEC0),
                       ),
                     );
 
-                    navigator.pushNamed(
-                      AppRouter.verifyAccount,
-                      arguments: email,
+                    // OTP step removed — the account is already signed in.
+                    // Fresh accounts are pending KYC, so route to the KYC step.
+                    navigator.pushNamedAndRemoveUntil(
+                      AppRouter.kycStep1,
+                      (Route<dynamic> route) => false,
                     );
                   } catch (_) {
                     if (!mounted) return;
@@ -350,7 +345,7 @@ class _SignupProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> labels = <String>['Account', 'Verify', 'KYC'];
+    final List<String> labels = <String>['Account', 'KYC'];
     return Column(
       children: <Widget>[
         Row(
@@ -383,9 +378,9 @@ class _SignupProgress extends StatelessWidget {
             return Expanded(
               child: Text(
                 labels[index],
-                textAlign: index == 1
-                    ? TextAlign.center
-                    : (index == 2 ? TextAlign.right : TextAlign.left),
+                textAlign: index == (labels.length - 1)
+                    ? TextAlign.right
+                    : TextAlign.left,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: isActive ? AppColors.primary : AppColors.textMuted,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,

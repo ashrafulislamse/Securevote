@@ -75,7 +75,9 @@ class AuthRepository {
     _setUser(User.fromJson(userJson));
   }
 
-  /// Registers a new account. Does NOT establish a session.
+  /// Registers a new account. The API now creates the account and returns a
+  /// session immediately (OTP step removed), so this also establishes the
+  /// session before returning.
   Future<RegisterResult> register({
     required String email,
     required String password,
@@ -90,8 +92,9 @@ class AuthRepository {
         'fullName': fullName,
         if (phone != null) 'phone': phone,
       },
-    );
-    return RegisterResult.fromJson(data as Map<String, dynamic>);
+    ) as Map<String, dynamic>;
+    _establishSession(data);
+    return RegisterResult.fromJson(data);
   }
 
   /// Verifies the OTP and establishes a session.
