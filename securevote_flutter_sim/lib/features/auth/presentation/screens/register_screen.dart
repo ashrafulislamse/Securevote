@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/navigation/app_router.dart';
@@ -309,29 +308,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   }
                 },
               ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(54),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-                backgroundColor: Colors.white.withValues(alpha: 0.06),
-              ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Google sign-up coming soon')),
-                );
-              },
-              icon: const FaIcon(
-                FontAwesomeIcons.google,
-                size: 16,
-                color: Color(0xFFDB4437),
-              ),
-              label: Text(
-                'Sign up with Google',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-          ],
+            ],
         ),
       ),
     );

@@ -6,28 +6,6 @@ import '../../../core/models/user.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/secure_token_storage.dart';
 
-/// Result of a register/verify-otp call before a session is established.
-class RegisterResult {
-  const RegisterResult({
-    required this.ok,
-    required this.message,
-    this.devOtp,
-    this.expiresInSeconds,
-  });
-
-  final bool ok;
-  final String message;
-  final String? devOtp;
-  final int? expiresInSeconds;
-
-  factory RegisterResult.fromJson(Map<String, dynamic> json) => RegisterResult(
-    ok: json['ok'] as bool? ?? false,
-    message: json['message'] as String? ?? '',
-    devOtp: json['devOtp'] as String?,
-    expiresInSeconds: json['expiresInSeconds'] as int?,
-  );
-}
-
 /// Result of a forgot-password request (no session is established).
 class ForgotPasswordResult {
   final bool ok;
@@ -75,10 +53,10 @@ class AuthRepository {
     _setUser(User.fromJson(userJson));
   }
 
-  /// Registers a new account. The API now creates the account and returns a
+  /// Registers a new account. The API creates the account and returns a
   /// session immediately (OTP step removed), so this also establishes the
   /// session before returning.
-  Future<RegisterResult> register({
+  Future<AuthSession> register({
     required String email,
     required String password,
     required String fullName,
@@ -93,20 +71,7 @@ class AuthRepository {
         if (phone != null) 'phone': phone,
       },
     ) as Map<String, dynamic>;
-    _establishSession(data);
-    return RegisterResult.fromJson(data);
-  }
-
-  /// Verifies the OTP and establishes a session.
-  Future<AuthSession> verifyOtp({
-    required String email,
-    required String otp,
-  }) async {
-    final data = await _api.postApi(
-      '/api/auth/verify-otp',
-      data: {'email': email, 'otp': otp},
-    );
-    return _establishSession(data as Map<String, dynamic>);
+    return _establishSession(data);
   }
 
   /// Signs in an existing user and establishes a session.
@@ -226,26 +191,7 @@ class AuthRepository {
     return (data as Map<String, dynamic>)['ok'] as bool? ?? false;
   }
 
-  /// Resends the OTP to the given email (e.g. after registration).
-  ///
-  /// Backend: `POST /api/auth/resend-otp` with `{ email }` returns
-  /// `{ ok, devOtp?, expiresInSeconds }`.
-  Future<({bool ok, String? devOtp, int expiresInSeconds})> resendOtp(
-    String email,
-  ) async {
-    final dynamic data = await _api.postApi(
-      '/api/auth/resend-otp',
-      data: {'email': email},
-    );
-    final map = data as Map<String, dynamic>;
-    return (
-      ok: map['ok'] as bool? ?? false,
-      devOtp: map['devOtp'] as String?,
-      expiresInSeconds: map['expiresInSeconds'] as int? ?? 600,
-    );
-  }
-
-  /// Establishes a session from an auth response body (login / verify-otp).
+  /// Establishes a session from an auth response body (login / register).
   AuthSession _establishSession(Map<String, dynamic> json) {
     final session = AuthSession(
       user: User.fromJson(json['user'] as Map<String, dynamic>),

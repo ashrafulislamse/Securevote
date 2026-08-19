@@ -8,9 +8,6 @@ class StorageService {
   static const String _keyVotes = 'user_votes';
   static const String _keyNotifications = 'notifications';
 
-  // Demo OTP for simulation
-  static const String DEMO_OTP = '123456';
-
   static SharedPreferences? _prefs;
 
   static Future<void> init() async {
@@ -134,11 +131,6 @@ class StorageService {
     } catch (e) {
       return [];
     }
-  }
-
-  // Verify OTP (Demo)
-  static bool verifyOTP(String otp) {
-    return otp == DEMO_OTP;
   }
 
   // Get user display name

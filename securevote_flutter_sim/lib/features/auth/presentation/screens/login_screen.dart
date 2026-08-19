@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/models/kyc_status.dart';
@@ -296,28 +295,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: const Color(0xFF2ADEC0),
                 ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(54),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-                backgroundColor: Colors.white.withValues(alpha: 0.06),
-              ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Google sign-in coming soon')),
-                );
-              },
-              icon: const FaIcon(
-                FontAwesomeIcons.google,
-                size: 16,
-                color: Color(0xFFDB4437),
-              ),
-              label: Text(
-                'Continue with Google',
-                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
             const SizedBox(height: 10),

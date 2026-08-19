@@ -1,9 +1,9 @@
-/// JSON parsing helpers shared by Freezed/json_serializable models.
-///
-/// The SecureVote backend returns all timestamps as Unix millisecond integers
-/// (e.g. `1786341710733`), while json_serializable's default `DateTime`
-/// handling expects ISO-8601 strings. These helpers bridge that gap so models
-/// can deserialize epoch-ms values safely (and still accept ISO strings).
+// JSON parsing helpers shared by Freezed/json_serializable models.
+//
+// The SecureVote backend returns all timestamps as Unix millisecond integers
+// (e.g. `1786341710733`), while json_serializable's default `DateTime`
+// handling expects ISO-8601 strings. These helpers bridge that gap so models
+// can deserialize epoch-ms values safely (and still accept ISO strings).
 
 /// Parse a timestamp that may be an epoch-ms `num` or an ISO-8601 `String`.
 DateTime epochMsToDateTime(Object? value) {

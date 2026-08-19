@@ -22,7 +22,6 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _error;
-  RegisterResult? _lastRegister;
 
   /// The currently authenticated user, or null when signed out.
   User? get user => _user;
@@ -32,9 +31,6 @@ class AuthProvider extends ChangeNotifier {
 
   /// The last error message, or null when there is none.
   String? get error => _error;
-
-  /// The result of the most recent registration attempt (e.g. dev OTP).
-  RegisterResult? get lastRegister => _lastRegister;
 
   /// Whether a user is currently authenticated.
   bool get isAuthenticated => _user != null;
@@ -93,8 +89,8 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Creates a new account. Does not establish a session.
-  Future<RegisterResult> register({
+  /// Creates a new account and establishes a session immediately (no OTP step).
+  Future<AuthSession> register({
     required String email,
     required String password,
     required String fullName,
@@ -103,32 +99,12 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     _setError(null);
     try {
-      final result = await _repository.register(
+      return await _repository.register(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone,
       );
-      _lastRegister = result;
-      return result;
-    } on ApiException catch (e) {
-      _setError(e.message);
-      rethrow;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Verifies the OTP and completes the session.
-  Future<AuthSession> verifyOtp({
-    required String email,
-    required String otp,
-  }) async {
-    _setLoading(true);
-    _setError(null);
-    try {
-      final session = await _repository.verifyOtp(email: email, otp: otp);
-      return session;
     } on ApiException catch (e) {
       _setError(e.message);
       rethrow;
@@ -205,21 +181,4 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Resends the OTP to the given email.
-  ///
-  /// Returns a record with `ok` and the optional dev OTP; on failure `ok` is
-  /// false (the error is captured in [error]).
-  Future<({bool ok, String? devOtp})> resendOtp(String email) async {
-    _setLoading(true);
-    _setError(null);
-    try {
-      final result = await _repository.resendOtp(email);
-      return (ok: result.ok, devOtp: result.devOtp);
-    } on ApiException catch (e) {
-      _setError(e.message);
-      return (ok: false, devOtp: null);
-    } finally {
-      _setLoading(false);
-    }
   }
-}

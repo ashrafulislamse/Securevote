@@ -6,7 +6,6 @@ import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
-import '../../features/auth/presentation/screens/verify_account_screen.dart';
 import '../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../features/elections/presentation/screens/candidate_details_screen.dart';
 import '../../features/elections/presentation/screens/election_details_screen.dart';
@@ -57,7 +56,6 @@ class AppRouter {
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
   static const String register = '/register';
-  static const String verifyAccount = '/verify-account';
   static const String kycStep1 = '/kyc-step-1';
   static const String kycLiveness = '/kyc-liveness';
   static const String kycStatusPending = '/kyc-status-pending';
@@ -114,8 +112,6 @@ class AppRouter {
         return _page(const ResetPasswordScreen(), settings);
       case register:
         return _page(const RegisterScreen(), settings);
-      case verifyAccount:
-        return _page(const VerifyAccountScreen(), settings);
       case kycStep1:
         return _page(const KycStep1Screen(), settings);
       case kycLiveness:
