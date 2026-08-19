@@ -123,8 +123,8 @@ export default function AdminDashboardPage() {
   const kpis: Kpi[] = [
     { title: "Total Elections", value: stats ? String(stats.totalElections) : "–", note: "All elections", noteClass: "text-[var(--primary)] bg-[var(--primary)]/10" },
     { title: "Total Voters", value: stats ? stats.totalVoters.toLocaleString() : "–", note: "Registered", noteClass: "text-emerald-400 bg-emerald-500/10" },
-    { title: "Approved Voters", value: stats ? stats.approvedVoters.toLocaleString() : "–", note: "Verified", noteClass: "text-[var(--text-muted)] bg-white/5" },
-    { title: "Total Votes", value: stats ? stats.totalVotes.toLocaleString() : "–", note: "Cast", noteClass: "text-[var(--text-muted)] bg-white/5" },
+    { title: "Approved Voters", value: stats ? stats.approvedVoters.toLocaleString() : "–", note: "Verified", noteClass: "text-[var(--text-muted)] bg-[var(--surface-container-high)]" },
+    { title: "Total Votes", value: stats ? stats.totalVotes.toLocaleString() : "–", note: "Cast", noteClass: "text-[var(--text-muted)] bg-[var(--surface-container-high)]" },
     { title: "Unread Notifications", value: unreadNotifications.toLocaleString(), note: unreadNotifications > 0 ? "Inbox" : "All clear", noteClass: unreadNotifications > 0 ? "text-rose-300 bg-rose-500/10" : "text-emerald-400 bg-emerald-500/10" },
   ];
 
@@ -264,17 +264,17 @@ export default function AdminDashboardPage() {
                           row.status === "active"
                             ? "text-emerald-400 bg-emerald-500/10"
                             : row.status === "closed"
-                              ? "text-white/65 bg-white/8"
+                              ? "text-[var(--text-muted)] bg-[var(--surface-container-high)]"
                               : "text-[var(--primary)] bg-[var(--primary)]/10";
                         return (
-                          <tr key={row.id} className="border-t border-white/5 text-sm hover:bg-[var(--surface-container-high)]/40">
-                            <td className="px-6 py-4 font-mono text-xs text-white/55">#{row.id}</td>
+                          <tr key={row.id} className="border-t border-[var(--border-subtle)] text-sm hover:bg-[var(--surface-container-high)]/40">
+                            <td className="px-6 py-4 font-mono text-xs text-[var(--text-muted)]">#{row.id}</td>
                             <td className="px-6 py-4 font-semibold">{row.title}</td>
                             <td className="px-6 py-4">
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${statusClass}`}>{statusLabel}</span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="rounded-full bg-white/8 px-2 py-0.5 text-xs font-bold">{row.candidateCount ?? 0}</span>
+                              <span className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-xs font-bold">{row.candidateCount ?? 0}</span>
                             </td>
                             <td className="px-6 py-4">
                               <Link href={`/admin/elections/overview?id=${row.id}`} className="text-xs font-semibold text-[var(--primary)] hover:underline">
@@ -285,7 +285,7 @@ export default function AdminDashboardPage() {
                         );
                       })}
                       {recentElections.length === 0 ? (
-                        <tr className="border-t border-white/5">
+                        <tr className="border-t border-[var(--border-subtle)]">
                           <td colSpan={5} className="px-6 py-8 text-center text-sm text-[var(--text-muted)]">
                             No elections found.
                           </td>
@@ -379,17 +379,17 @@ function ChainBadge({ chain, error }: { chain: ChainStatus | null; error: string
     return (
       <span
         title={error}
-        className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-[var(--text-muted)]"
+        className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-container-high)] px-3 py-1.5 text-xs text-[var(--text-muted)]"
       >
-        <i className="h-2 w-2 rounded-full bg-white/30" />
+        <i className="h-2 w-2 rounded-full bg-[var(--surface-container-highest)]" />
         Audit chain: unknown
       </span>
     );
   }
   if (!chain) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-[var(--text-muted)]">
-        <i className="h-2 w-2 animate-pulse rounded-full bg-white/40" />
+      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-container-high)] px-3 py-1.5 text-xs text-[var(--text-muted)]">
+        <i className="h-2 w-2 animate-pulse rounded-full bg-[var(--text-tertiary)]" />
         Audit chain: checking...
       </span>
     );

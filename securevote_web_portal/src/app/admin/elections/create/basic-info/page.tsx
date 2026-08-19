@@ -42,7 +42,7 @@ export default function CreateElectionBasicInfoPage() {
       <section className="mx-auto max-w-5xl space-y-7 pb-24">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">New Election Setup</h1>
-          <p className="mt-1 font-mono text-xs text-white/45 uppercase tracking-[0.12em]">New Election (Draft)</p>
+          <p className="mt-1 font-mono text-xs text-[var(--text-muted)] uppercase tracking-[0.12em]">New Election (Draft)</p>
         </div>
 
         <Stepper step={1} />
@@ -91,7 +91,7 @@ export default function CreateElectionBasicInfoPage() {
                       className={`rounded-lg p-3 text-center ${
                         draft.type === option.value
                           ? "border border-[var(--primary)]/45 bg-[var(--primary)]/8"
-                          : "border border-white/8 bg-[var(--surface-container-low)]"
+                          : "border border-[var(--border-subtle)] bg-[var(--surface-container-low)]"
                       }`}
                     >
                       <p className="text-xs font-bold">{option.title}</p>
@@ -110,7 +110,7 @@ export default function CreateElectionBasicInfoPage() {
                     <span className="rounded bg-[var(--primary)]/15 px-2 py-0.5 text-[10px] font-bold text-[var(--primary)] uppercase">
                       {draft.type.toUpperCase()} CHOICE
                     </span>
-                    <span className="rounded bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/70">DRAFT</span>
+                    <span className="rounded bg-[var(--surface-container-high)] px-2 py-0.5 text-[10px] font-bold text-[var(--text-secondary)]">DRAFT</span>
                   </div>
                   <h4 className="text-sm font-bold">{draft.title || "Untitled Election"}</h4>
                   <p className="mt-1 text-xs text-[var(--text-muted)]">{draft.organization || "—"}</p>
@@ -127,8 +127,8 @@ export default function CreateElectionBasicInfoPage() {
           <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
         ) : null}
 
-        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
-          <button onClick={saveAndToast} className="rounded-lg border border-white/10 px-5 py-2.5 text-sm text-[var(--text-muted)]">Save Draft</button>
+        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-8 backdrop-blur-lg">
+          <button onClick={saveAndToast} className="rounded-lg border border-[var(--border-default)] px-5 py-2.5 text-sm text-[var(--text-muted)]">Save Draft</button>
           <div className="flex items-center gap-3">
             <button onClick={cancel} className="text-sm text-[var(--text-muted)]">Cancel</button>
             <Link href="/admin/elections/create/schedule" className="brand-gradient rounded-lg px-6 py-2.5 text-sm font-semibold text-white">
@@ -152,11 +152,11 @@ function Stepper({ step }: { step: 1 | 2 | 3 | 4 }) {
           const done = step > n;
           return (
             <div key={label} className="flex flex-1 items-center gap-3">
-              <div className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-white/15 text-white/45"}`}>
+              <div className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-[var(--border-default)] text-[var(--text-muted)]"}`}>
                 {done ? "✓" : n}
               </div>
-              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-white/45"}`}>{label}</span>
-              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-white/15" /> : null}
+              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{label}</span>
+              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-[var(--surface-container-highest)]" /> : null}
             </div>
           );
         })}

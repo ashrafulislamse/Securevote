@@ -19,7 +19,7 @@ export function useTheme() {
       return "dark";
     }
     const stored = window.localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return stored ?? getSystemTheme();
+    return stored ?? "dark";
   });
 
   useEffect(() => {

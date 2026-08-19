@@ -146,7 +146,7 @@ export default function CreateElectionReviewPage() {
                 onClick={publish}
                 disabled={!publishReady || publishing}
                 className={`mt-4 flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold ${
-                  publishReady ? "brand-gradient text-white disabled:opacity-50" : "bg-white/10 text-white/45"
+                  publishReady ? "brand-gradient text-white disabled:opacity-50" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"
                 }`}
               >
                 {publishing ? "Publishing..." : publishReady ? "Publish Election" : "Complete checklist to publish"}
@@ -155,7 +155,7 @@ export default function CreateElectionReviewPage() {
           </aside>
         </div>
 
-        <footer className="fixed bottom-0 left-60 right-0 flex h-[76px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
+        <footer className="fixed bottom-0 left-60 right-0 flex h-[76px] items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/eligibility" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
             <button onClick={publish} disabled={publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Publish Election</button>
@@ -177,11 +177,11 @@ function Stepper({ step }: { step: number }) {
           const done = step > n;
           return (
             <div key={label} className="flex flex-1 items-center gap-2">
-              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-white/15 text-white/45"}`}>
+              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-[var(--border-default)] text-[var(--text-muted)]"}`}>
                 {done ? "✓" : n}
               </span>
-              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-white/45"}`}>{label}</span>
-              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-white/15" /> : null}
+              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{label}</span>
+              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-[var(--surface-container-highest)]" /> : null}
             </div>
           );
         })}

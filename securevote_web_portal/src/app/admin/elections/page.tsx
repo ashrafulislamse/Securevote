@@ -113,12 +113,12 @@ export default function ElectionListPage() {
           <Stat title="Total" value={String(stats.total)} />
           <Stat title="Active" value={String(stats.active)} tone="text-[var(--primary)]" />
           <Stat title="Upcoming" value={String(stats.scheduled)} tone="text-[var(--secondary)]" />
-          <Stat title="Closed" value={String(stats.closed)} tone="text-white/65" />
+          <Stat title="Closed" value={String(stats.closed)} tone="text-[var(--text-muted)]" />
           <Stat title="Draft" value={String(stats.draft)} tone="text-amber-400" />
         </div>
 
         <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
-          <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
+          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
             <p className="text-sm text-[var(--text-muted)]">{filtered.length} elections found</p>
           </div>
 
@@ -147,16 +147,16 @@ export default function ElectionListPage() {
                 </thead>
                 <tbody>
                   {filtered.map((row) => (
-                    <tr key={row.id} className="border-t border-white/6 text-sm hover:bg-[var(--surface-container-high)]/30">
+                    <tr key={row.id} className="border-t border-[var(--border-subtle)] text-sm hover:bg-[var(--surface-container-high)]/30">
                       <td className="px-4 py-4">
                         <p className="font-semibold">{row.title}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-white/45">ID: {row.id}</p>
+                        <p className="mt-0.5 font-mono text-[11px] text-[var(--text-muted)]">ID: {row.id}</p>
                       </td>
                       <td className="px-4 py-4">{row.organization ?? "—"}</td>
                       <td className="px-4 py-4"><span className="rounded-md bg-[var(--surface-container-high)] px-2 py-0.5 text-xs capitalize">{row.type}</span></td>
                       <td className="px-4 py-4">{formatSchedule(row.startsAt, row.endsAt)}</td>
                       <td className="px-4 py-4">
-                        <span className="rounded-full bg-white/8 px-2 py-0.5 text-xs font-bold">{row.candidateCount ?? 0}</span>
+                        <span className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-xs font-bold">{row.candidateCount ?? 0}</span>
                       </td>
                       <td className="px-4 py-4">
                         <Status status={row.status} />
@@ -185,7 +185,7 @@ function formatSchedule(startsAt: number, endsAt: number): string {
   return `${fmt(start)} - ${fmt(end)}`;
 }
 
-function Stat({ title, value, tone = "text-white" }: { title: string; value: string; tone?: string }) {
+function Stat({ title, value, tone = "text-[var(--text-primary)]" }: { title: string; value: string; tone?: string }) {
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">{title}</p>
@@ -198,7 +198,7 @@ function Status({ status }: { status: api.ElectionStatus }) {
   const map: Record<api.ElectionStatus, string> = {
     active: "bg-emerald-500/12 text-emerald-400",
     scheduled: "bg-[var(--primary)]/12 text-[var(--primary)]",
-    closed: "bg-white/10 text-white/65",
+    closed: "bg-[var(--surface-container-high)] text-[var(--text-muted)]",
     draft: "bg-amber-500/12 text-amber-400",
     published: "bg-[var(--secondary)]/12 text-[var(--secondary)]",
   };

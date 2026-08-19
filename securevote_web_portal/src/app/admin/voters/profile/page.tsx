@@ -34,7 +34,7 @@ function kycTone(status: string) {
   if (status === "approved") return "bg-emerald-500/15 text-emerald-300";
   if (status === "rejected") return "bg-rose-500/15 text-rose-300";
   if (status === "pending") return "bg-amber-500/15 text-amber-300";
-  return "bg-white/10 text-white/75";
+  return "bg-[var(--surface-container-high)] text-[var(--text-secondary)]";
 }
 
 function VoterProfileContent() {
@@ -279,14 +279,14 @@ function VoterProfileContent() {
                 <Stat title="Account Status" value={isSuspended ? "Suspended" : "Active"} />
               </div>
 
-              <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+              <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-4">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Risk Score</p>
                 <p className={`mt-2 text-2xl font-bold ${riskScore > 40 ? "text-amber-300" : "text-emerald-300"}`}>{riskScore} — {riskLabel}</p>
                 <p className="mt-1 text-xs text-[var(--text-muted)]">Computed from account status, KYC outcome, and vote-timing signals.</p>
               </div>
 
               {voter.notes ? (
-                <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-4">
                   <p className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">Admin Notes</p>
                   <p className="mt-1 text-sm text-[var(--text-muted)]">{voter.notes}</p>
                 </div>
@@ -318,7 +318,7 @@ function VoterProfileContent() {
                 timeline.length > 0 ? (
                   <div className="space-y-3">
                     {timeline.map((event) => (
-                      <div key={event.id} className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3">
+                      <div key={event.id} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-3">
                         <div className="flex items-center justify-between gap-3">
                           <p className="text-sm font-semibold">{event.title}</p>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${toneClass(event.tone)}`}>{event.tone}</span>
@@ -354,13 +354,13 @@ function VoterProfileContent() {
                     </span>
                   </div>
                   {documents.length === 0 ? (
-                    <p className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
+                    <p className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
                       No KYC documents are currently in the review queue for this voter. Approved or rejected documents may be available from the KYC verification page.
                     </p>
                   ) : (
                     <div className="space-y-2">
                       {documents.map((doc) => (
-                        <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3">
+                        <div key={doc.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-3">
                           <div>
                             <p className="text-sm font-semibold">{doc.doc_type}</p>
                             <p className="mt-1 text-[11px] text-[var(--text-muted)]">Submitted {formatDate(doc.created_at)}</p>
@@ -398,7 +398,7 @@ function VoterProfileContent() {
           <div className="relative max-h-[90vh] w-full max-w-md overflow-auto rounded-xl bg-[var(--surface-container)] p-6" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold">Edit Voter Profile</p>
-              <button type="button" onClick={() => setEditing(false)} className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold">Cancel</button>
+              <button type="button" onClick={() => setEditing(false)} className="rounded-md bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold">Cancel</button>
             </div>
             <div className="space-y-4">
               <div>
@@ -453,7 +453,7 @@ function VoterProfileContent() {
               <button
                 type="button"
                 onClick={closeDocumentPreview}
-                className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold"
+                className="rounded-md bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold"
               >
                 Close
               </button>
@@ -515,7 +515,7 @@ function Tab({ label, selected, onClick }: { label: string; selected: boolean; o
 
 function InfoCard({ title, text, toneClass }: { title: string; text: string; toneClass?: string }) {
   return (
-    <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-3">
       <p className="text-sm font-semibold">{title}</p>
       {toneClass ? (
         <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${toneClass}`}>{text}</span>
@@ -529,5 +529,5 @@ function InfoCard({ title, text, toneClass }: { title: string; text: string; ton
 function toneClass(tone: "good" | "warn" | "neutral") {
   if (tone === "good") return "bg-emerald-500/20 text-emerald-300";
   if (tone === "warn") return "bg-amber-500/20 text-amber-300";
-  return "bg-white/10 text-white/75";
+  return "bg-[var(--surface-container-high)] text-[var(--text-secondary)]";
 }

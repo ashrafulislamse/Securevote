@@ -149,7 +149,7 @@ export default function LiveMonitoringPage() {
             <button
               type="button"
               onClick={() => setAutoRefresh((value) => !value)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${autoRefresh ? "bg-emerald-500/15 text-emerald-300" : "bg-white/10 text-[var(--text-muted)]"}`}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${autoRefresh ? "bg-emerald-500/15 text-emerald-300" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"}`}
             >
               Auto refresh: {autoRefresh ? "On" : "Off"}
             </button>
@@ -221,7 +221,7 @@ export default function LiveMonitoringPage() {
 
               <div className="mt-6 rounded-lg border border-[var(--primary)]/20 bg-[var(--primary)]/7 p-4">
                 <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">System Note</p>
-                <p className="mt-2 text-sm text-white/85">Monitoring polls the backend audit log every 5 seconds. Auto-refresh can be paused.</p>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">Monitoring polls the backend audit log every 5 seconds. Auto-refresh can be paused.</p>
               </div>
             </article>
           </section>
@@ -242,7 +242,7 @@ function MetricCard({ title, value, hint, danger = false }: { title: string; val
 }
 
 function MiniStat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "neutral" | "warn" | "ok" }) {
-  const toneClass = tone === "warn" ? "text-rose-300" : tone === "ok" ? "text-emerald-300" : "text-white";
+  const toneClass = tone === "warn" ? "text-rose-300" : tone === "ok" ? "text-emerald-300" : "text-[var(--text-primary)]";
   return (
     <div className="rounded-md bg-[var(--surface-container-high)] px-3 py-2">
       <p className="text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">{label}</p>

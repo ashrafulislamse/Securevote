@@ -223,7 +223,7 @@ function NavContent({
               title={item.label}
               className={cn(
                 "mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition",
-                isActive ? "bg-[var(--primary)]/20 text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-white/6 hover:text-white",
+                isActive ? "bg-[var(--primary)]/20 text-[var(--primary)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-container-high)] hover:text-[var(--text-primary)]",
               )}
             >
               <Icon className="h-4.5 w-4.5" />
@@ -252,7 +252,7 @@ function NavContent({
                     "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition",
                     isActive
                       ? "bg-[var(--primary)]/18 text-[var(--primary)]"
-                      : "text-[var(--text-muted)] hover:bg-white/6 hover:text-white",
+                      : "text-[var(--text-muted)] hover:bg-[var(--surface-container-high)] hover:text-[var(--text-primary)]",
                   )}
                 >
                   <Icon className="h-4.5 w-4.5" />
@@ -340,18 +340,18 @@ export function AdminShellClient({
     <div className="min-h-screen bg-background text-foreground">
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden border-r border-white/10 bg-[var(--surface-container-low)] lg:flex lg:flex-col",
+          "fixed inset-y-0 left-0 z-30 hidden border-r border-[var(--border-default)] bg-[var(--surface-container-low)] lg:flex lg:flex-col",
           collapsed ? "w-16 px-2 py-3" : "w-60 px-3 py-4",
         )}
       >
         <div className={cn("mb-3 flex items-center", collapsed ? "justify-center" : "justify-between px-1")}>
           {collapsed ? (
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white/8">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--surface-container-high)]">
               <ShieldCheck className="h-4.5 w-4.5 text-[var(--tertiary)]" />
             </div>
           ) : (
             <div>
-              <p className="text-xl font-bold tracking-tight text-white">SecureVote</p>
+              <p className="text-xl font-bold tracking-tight text-[var(--text-primary)]">SecureVote</p>
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Admin Console</p>
             </div>
           )}
@@ -402,7 +402,7 @@ export function AdminShellClient({
       </aside>
 
       <main className={cn("min-h-screen transition-all duration-300", collapsed ? "lg:ml-16" : "lg:ml-60")}>
-        <header className="sticky top-0 z-20 border-b border-white/10 bg-[var(--surface-glass)] px-4 py-2 backdrop-blur-xl md:px-6 lg:px-8">
+        <header className="sticky top-0 z-20 border-b border-[var(--border-default)] bg-[var(--surface-glass)] px-4 py-2 backdrop-blur-xl md:px-6 lg:px-8">
           <div className="flex min-h-[3.75rem] items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2.5">
               <Sheet>
@@ -413,7 +413,7 @@ export function AdminShellClient({
                 </SheetTrigger>
                 <SheetContent>
                   <div className="mb-3">
-                    <p className="text-lg font-bold text-white">SecureVote</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">SecureVote</p>
                     <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Admin Console</p>
                   </div>
                   <Separator className="mb-2" />
@@ -438,7 +438,7 @@ export function AdminShellClient({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-left transition hover:bg-white/10"
+                    className="flex items-center gap-2 rounded-md border border-[var(--border-default)] bg-[var(--surface-container-high)] px-2 py-1.5 text-left transition hover:bg-[var(--surface-container-highest)]"
                     aria-label="Open profile menu"
                   >
                     <Avatar className="h-7 w-7">
@@ -471,17 +471,17 @@ export function AdminShellClient({
 
         <div className="p-4 md:p-6 lg:p-8">{children}</div>
 
-        <footer className="border-t border-white/10 bg-[var(--surface-glass)] px-4 py-4 md:px-6 lg:px-8">
+        <footer className="border-t border-[var(--border-default)] bg-[var(--surface-glass)] px-4 py-4 md:px-6 lg:px-8">
           <div className="flex flex-col gap-2 text-xs text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between">
             <p>SecureVote Admin Platform © {currentYear}</p>
             <div className="flex items-center gap-4">
-              <Link href="/admin/audit-log" className="transition hover:text-white">
+              <Link href="/admin/audit-log" className="transition hover:text-[var(--text-primary)]">
                 Audit Trail
               </Link>
-              <Link href="/verifier" className="transition hover:text-white">
+              <Link href="/verifier" className="transition hover:text-[var(--text-primary)]">
                 Public Verification
               </Link>
-              <Link href="/" className="transition hover:text-white">
+              <Link href="/" className="transition hover:text-[var(--text-primary)]">
                 Main Site
               </Link>
             </div>

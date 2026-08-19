@@ -283,7 +283,7 @@ export default function CandidateManagementPage() {
                   className={`cursor-pointer rounded-xl border p-4 transition ${
                     selected?.id === candidate.id
                       ? "border-[var(--primary)]/50 bg-[var(--primary)]/8"
-                      : "border-white/8 bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
+                      : "border-[var(--border-subtle)] bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -297,7 +297,7 @@ export default function CandidateManagementPage() {
                   </div>
                   <p className="mt-3 text-xs text-[var(--text-muted)]">{candidate.manifesto ?? candidate.bio ?? "No manifesto provided."}</p>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">Candidate</span>
+                    <span className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">Candidate</span>
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${candidate.verified ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>
                         {candidate.verified ? "Verified" : "Pending"}
@@ -309,7 +309,7 @@ export default function CandidateManagementPage() {
                           toggleVisibility(candidate.id);
                         }}
                         className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ${
-                          candidate.visible ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "bg-white/10 text-white/65"
+                          candidate.visible ? "bg-[var(--primary)]/15 text-[var(--primary)]" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"
                         }`}
                       >
                         {candidate.visible ? "Visible" : "Hidden"}

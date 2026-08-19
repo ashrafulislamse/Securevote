@@ -194,7 +194,7 @@ export default function ImportVotersPage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-xl border border-dashed border-white/15 bg-[var(--surface-container-low)] p-10 text-center transition hover:border-[var(--primary)]/50"
+                className="w-full rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--surface-container-low)] p-10 text-center transition hover:border-[var(--primary)]/50"
               >
                 <span className="material-symbols-outlined text-3xl text-[var(--text-muted)]">upload_file</span>
                 <p className="mt-2 text-lg font-semibold">Click to select a CSV file</p>
@@ -207,7 +207,7 @@ export default function ImportVotersPage() {
                   type="button"
                   disabled={!canReview}
                   onClick={() => setStep(2)}
-                  className={`rounded-md px-4 py-2 text-xs font-semibold ${canReview ? "brand-gradient text-white" : "bg-white/10 text-white/40"}`}
+                  className={`rounded-md px-4 py-2 text-xs font-semibold ${canReview ? "brand-gradient text-white" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"}`}
                 >
                   Continue
                 </button>
@@ -239,7 +239,7 @@ export default function ImportVotersPage() {
               </div>
 
               {mappedRows.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border border-white/8">
+                <div className="overflow-x-auto rounded-lg border border-[var(--border-subtle)]">
                   <table className="w-full min-w-[480px] text-left text-sm">
                     <thead className="bg-[var(--surface-container-low)] text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">
                       <tr>
@@ -251,7 +251,7 @@ export default function ImportVotersPage() {
                     </thead>
                     <tbody>
                       {mappedRows.slice(0, 20).map((row, idx) => (
-                        <tr key={idx} className="border-t border-white/8">
+                        <tr key={idx} className="border-t border-[var(--border-subtle)]">
                           <td className="px-3 py-2">{row.fullName || "—"}</td>
                           <td className="px-3 py-2">{row.email || "—"}</td>
                           <td className="px-3 py-2">{row.phone || "—"}</td>
@@ -267,22 +267,22 @@ export default function ImportVotersPage() {
                     </tbody>
                   </table>
                   {mappedRows.length > 20 ? (
-                    <p className="border-t border-white/8 px-3 py-2 text-xs text-[var(--text-muted)]">Showing first 20 of {mappedRows.length} rows. {validRows.length} valid rows will be imported.</p>
+                    <p className="border-t border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]">Showing first 20 of {mappedRows.length} rows. {validRows.length} valid rows will be imported.</p>
                   ) : (
-                    <p className="border-t border-white/8 px-3 py-2 text-xs text-[var(--text-muted)]">{validRows.length} of {mappedRows.length} rows are valid and will be imported.</p>
+                    <p className="border-t border-[var(--border-subtle)] px-3 py-2 text-xs text-[var(--text-muted)]">{validRows.length} of {mappedRows.length} rows are valid and will be imported.</p>
                   )}
                 </div>
               ) : null}
 
               <div className="flex justify-between">
-                <button type="button" onClick={() => setStep(1)} className="rounded-md bg-white/10 px-4 py-2 text-xs font-semibold">
+                <button type="button" onClick={() => setStep(1)} className="rounded-md bg-[var(--surface-container-high)] px-4 py-2 text-xs font-semibold">
                   Back
                 </button>
                 <button
                   type="button"
                   disabled={!mappingReady}
                   onClick={() => setStep(3)}
-                  className={`rounded-md px-4 py-2 text-xs font-semibold ${mappingReady ? "brand-gradient text-white" : "bg-white/10 text-white/40"}`}
+                  className={`rounded-md px-4 py-2 text-xs font-semibold ${mappingReady ? "brand-gradient text-white" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"}`}
                 >
                   Proceed to Import
                 </button>
@@ -306,13 +306,13 @@ export default function ImportVotersPage() {
                       <p className="mt-1 text-sm text-[var(--text-muted)]">{result.skipped.length} email(s) already existed and were skipped: {result.skipped.slice(0, 5).join(", ")}{result.skipped.length > 5 ? "..." : ""}</p>
                     ) : null}
                   </div>
-                  <button type="button" onClick={reset} className="rounded-md bg-white/10 px-4 py-2 text-xs font-semibold">
+                  <button type="button" onClick={reset} className="rounded-md bg-[var(--surface-container-high)] px-4 py-2 text-xs font-semibold">
                     Import Another File
                   </button>
                 </div>
               ) : (
                 <div className="flex justify-between">
-                  <button type="button" onClick={() => setStep(2)} className="rounded-md bg-white/10 px-4 py-2 text-xs font-semibold">
+                  <button type="button" onClick={() => setStep(2)} className="rounded-md bg-[var(--surface-container-high)] px-4 py-2 text-xs font-semibold">
                     Back
                   </button>
                   <button
@@ -335,7 +335,7 @@ export default function ImportVotersPage() {
 
 function StepCard({ title, active, done }: { title: string; active: boolean; done: boolean }) {
   return (
-    <div className={`rounded-xl border px-4 py-3 ${active ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container)]"}`}>
+    <div className={`rounded-xl border px-4 py-3 ${active ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-[var(--border-subtle)] bg-[var(--surface-container)]"}`}>
       <p className="text-sm font-semibold">{title}</p>
       <p className={`mt-1 text-xs ${done ? "text-emerald-300" : "text-[var(--text-muted)]"}`}>{done ? "Completed" : active ? "In Progress" : "Waiting"}</p>
     </div>

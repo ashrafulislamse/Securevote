@@ -69,7 +69,7 @@ export default function ForgotPasswordPage() {
       />
 
       <section className="relative flex items-center justify-center px-6 py-12 pt-28 md:px-12">
-        <Link href="/admin/login" className="absolute left-8 top-24 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-white">
+        <Link href="/admin/login" className="absolute left-8 top-24 inline-flex items-center gap-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text-primary)]">
           <span className="material-symbols-outlined">arrow_left_alt</span>
           Back to Sign In
         </Link>
@@ -86,7 +86,7 @@ export default function ForgotPasswordPage() {
                 Reset your <span className="text-gradient">password</span>
               </h1>
               <p className="mt-2 text-[var(--text-muted)]">Enter your admin email to receive reset instructions.</p>
-              <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-white/55">
+              <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-[var(--text-muted)]">
                 Recovery requests are logged and signed in the audit stream to preserve administrative accountability.
               </p>
             </div>
@@ -139,7 +139,7 @@ export default function ForgotPasswordPage() {
             </div>
           </div>
 
-          <p className="mt-6 text-center text-xs leading-relaxed text-white/50 reveal-up reveal-fast reveal-delay-2">
+          <p className="mt-6 text-center text-xs leading-relaxed text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-2">
             If you still have trouble, contact the Department of Digital Integrity support desk.
           </p>
         </div>

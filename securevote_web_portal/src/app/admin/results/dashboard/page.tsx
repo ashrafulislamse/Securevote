@@ -139,7 +139,7 @@ export default function ResultsDashboardPage() {
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-4">
-              <Metric title="Total Votes" value={totalVotes.toLocaleString()} tone="text-white" />
+              <Metric title="Total Votes" value={totalVotes.toLocaleString()} tone="text-[var(--text-primary)]" />
               <Metric title="Turnout" value="—" tone="text-emerald-300" />
               <Metric title="Precincts Synced" value="—" tone="text-[var(--primary)]" />
               <Metric title="Audit Consistency" value="100%" tone="text-cyan-300" />

@@ -68,7 +68,7 @@ export default function CreateElectionSchedulePage() {
                 type="datetime-local"
                 value={startValue}
                 onChange={(e) => setStart(e.target.value)}
-                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-white"
+                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-[var(--text-primary)]"
               />
             </label>
             <label className="block">
@@ -77,7 +77,7 @@ export default function CreateElectionSchedulePage() {
                 type="datetime-local"
                 value={endValue}
                 onChange={(e) => setEnd(e.target.value)}
-                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-white"
+                className="w-full rounded-lg bg-[var(--surface-container-low)] px-4 py-3 text-sm text-[var(--text-primary)]"
               />
             </label>
           </div>
@@ -107,7 +107,7 @@ export default function CreateElectionSchedulePage() {
           <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
         ) : null}
 
-        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
+        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/basic-info" className="text-sm text-[var(--text-muted)]">Back to Basic Info</Link>
           <div className="flex items-center gap-3">
             <button onClick={saveAndToast} className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
@@ -130,11 +130,11 @@ function Stepper({ step }: { step: number }) {
           const done = step > n;
           return (
             <div key={label} className="flex flex-1 items-center gap-2">
-              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-white/15 text-white/45"}`}>
+              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-[var(--border-default)] text-[var(--text-muted)]"}`}>
                 {done ? "✓" : n}
               </span>
-              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-white/45"}`}>{label}</span>
-              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-white/15" /> : null}
+              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{label}</span>
+              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-[var(--surface-container-highest)]" /> : null}
             </div>
           );
         })}

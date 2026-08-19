@@ -276,7 +276,7 @@ export default function BallotBuilderPage() {
                 <article
                   key={block.id}
                   onClick={() => setSelectedId(block.id)}
-                  className={`rounded-lg border p-4 ${selectedId === block.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
+                  className={`rounded-lg border p-4 ${selectedId === block.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-[var(--border-subtle)] bg-[var(--surface-container-low)]"}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -289,7 +289,7 @@ export default function BallotBuilderPage() {
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-white/8 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{block.type}</span>
+                    <span className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{block.type}</span>
                     <span className="rounded-full bg-[var(--primary)]/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--primary)]">{block.selection}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
@@ -386,8 +386,8 @@ function Toggle({ label, on, setOn }: { label: string; on: boolean; setOn: (valu
       className="flex w-full items-center justify-between rounded-lg bg-[var(--surface-container-low)] px-3 py-2 text-left"
     >
       <span className="text-sm">{label}</span>
-      <span className={`relative h-5 w-10 rounded-full ${on ? "bg-[var(--primary)]/30" : "bg-white/12"}`}>
-        <span className={`absolute top-1 h-3 w-3 rounded-full ${on ? "right-1 bg-[var(--primary)]" : "left-1 bg-white/50"}`} />
+      <span className={`relative h-5 w-10 rounded-full ${on ? "bg-[var(--primary)]/30" : "bg-[var(--surface-container-highest)]"}`}>
+        <span className={`absolute top-1 h-3 w-3 rounded-full ${on ? "right-1 bg-[var(--primary)]" : "left-1 bg-[var(--surface-container-high)]0"}`} />
       </span>
     </button>
   );

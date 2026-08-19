@@ -228,7 +228,7 @@ function ElectionOverviewContent() {
         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           <Card title="Status" value={STATUS_LABELS[election.status]} tone="text-[var(--primary)]" />
           <Card title="Type" value={typeName} tone="text-[var(--secondary)]" />
-          <Card title="Candidates" value={String(candidateCount)} tone="text-white" />
+          <Card title="Candidates" value={String(candidateCount)} tone="text-[var(--text-primary)]" />
           <Card title="Eligible Voters" value={approvedVoters.toLocaleString()} tone="text-[var(--text-muted)]" />
           <Card title="Anomalies" value={String(anomalyCount)} tone={anomalyCount > 0 ? "text-rose-300" : "text-emerald-300"} />
           <Card title="Time Left" value={formatTimeLeft(election.endsAt)} tone="text-amber-300" />

@@ -139,7 +139,7 @@ export default function KycVerificationPage() {
           <aside className="rounded-xl bg-[var(--surface-container)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Review Queue</p>
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{queue.length} pending</span>
+              <span className="rounded-full bg-[var(--surface-container-high)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]">{queue.length} pending</span>
             </div>
 
             {loading ? (
@@ -154,7 +154,7 @@ export default function KycVerificationPage() {
                   <button
                     key={item.id}
                     onClick={() => setSelectedId(item.id)}
-                    className={`w-full rounded-lg border px-3 py-3 text-left ${selectedId === item.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)]"}`}
+                    className={`w-full rounded-lg border px-3 py-3 text-left ${selectedId === item.id ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-[var(--border-subtle)] bg-[var(--surface-container-low)]"}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold">{item.full_name}</p>
@@ -185,7 +185,7 @@ export default function KycVerificationPage() {
                   <DocCard title="Submitted" subtitle={formatDate(selected.created_at)} status="On file" />
                 </div>
 
-                <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold">Submitted document</p>
@@ -204,7 +204,7 @@ export default function KycVerificationPage() {
                         href={`/api/kyc/document/${selected.id}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="rounded-md bg-white/8 px-3 py-2 text-xs font-semibold"
+                        className="rounded-md bg-[var(--surface-container-high)] px-3 py-2 text-xs font-semibold"
                       >
                         Open in new tab
                       </a>
@@ -285,7 +285,7 @@ export default function KycVerificationPage() {
               <button
                 type="button"
                 onClick={closePreview}
-                className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold"
+                className="rounded-md bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold"
               >
                 Close
               </button>

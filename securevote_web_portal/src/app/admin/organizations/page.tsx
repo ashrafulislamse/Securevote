@@ -155,7 +155,7 @@ export default function OrganizationManagementPage() {
                     <tr
                       key={org.id}
                       onClick={() => setSelectedId(org.id)}
-                      className={`cursor-pointer border-t border-white/6 text-sm ${selected?.id === org.id ? "bg-[var(--primary)]/8" : ""}`}
+                      className={`cursor-pointer border-t border-[var(--border-subtle)] text-sm ${selected?.id === org.id ? "bg-[var(--primary)]/8" : ""}`}
                     >
                       <td className="px-4 py-3">
                         <p className="font-semibold">{org.name}</p>

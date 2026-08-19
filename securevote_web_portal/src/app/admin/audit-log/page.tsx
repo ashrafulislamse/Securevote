@@ -206,7 +206,7 @@ export default function AuditLogPage() {
                 </thead>
                 <tbody>
                   {filtered.map((row) => (
-                    <tr key={row.id} className="border-t border-white/6 text-sm">
+                    <tr key={row.id} className="border-t border-[var(--border-subtle)] text-sm">
                       <td className="px-4 py-3 font-mono text-xs text-[var(--text-muted)]">{row.id}</td>
                       <td className="px-4 py-3">{row.actor}</td>
                       <td className="px-4 py-3 font-semibold">{row.action}</td>
@@ -240,7 +240,7 @@ export default function AuditLogPage() {
         )}
 
         <section className="rounded-xl bg-[var(--surface-container)] p-4 text-xs text-[var(--text-muted)]">
-          <p className="font-semibold text-white/80">How the chain works</p>
+          <p className="font-semibold text-[var(--text-secondary)]">How the chain works</p>
           <p className="mt-2">
             <code className="font-mono">entry_hash = sha256(prev_hash || action || actor_id || target_type || target_id || metadata || ip_address || created_at)</code>
           </p>
@@ -258,8 +258,8 @@ export default function AuditLogPage() {
 function ChainStatusBanner({ verify }: { verify: VerifyState }) {
   if (verify.kind === "idle") {
     return (
-      <div className="rounded-xl border border-white/10 bg-[var(--surface-container)] p-4 text-sm text-[var(--text-muted)]">
-        Click <span className="font-semibold text-white/85">Verify Chain</span> to walk every entry and
+      <div className="rounded-xl border border-[var(--border-default)] bg-[var(--surface-container)] p-4 text-sm text-[var(--text-muted)]">
+        Click <span className="font-semibold text-[var(--text-secondary)]">Verify Chain</span> to walk every entry and
         confirm the hash links are intact.
       </div>
     );

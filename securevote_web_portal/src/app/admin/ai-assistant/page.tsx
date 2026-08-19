@@ -111,7 +111,7 @@ export default function AiAssistantPage() {
                 </button>
               ))}
             </div>
-            <div className="rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
+            <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-3 text-xs text-[var(--text-muted)]">
               Responses are grounded in live dashboard data via Workers AI.
             </div>
           </aside>

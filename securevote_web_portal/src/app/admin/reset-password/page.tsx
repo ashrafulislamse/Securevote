@@ -108,7 +108,7 @@ function ResetPasswordContent() {
           <div className="panel-elevated top-accent card-glow relative rounded-3xl p-7 reveal-up reveal-fast reveal-delay-1 sm:p-9">
             <div className="text-center">
               <div className="brand-gradient mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl shadow-[0_0_30px_rgba(79,110,247,0.4)]">
-                <span className="material-symbols-outlined text-3xl text-white" style={{ fontVariationSettings: '"FILL" 1' }}>
+                <span className="material-symbols-outlined text-3xl text-[var(--text-primary)]" style={{ fontVariationSettings: '"FILL" 1' }}>
                   lock_reset
                 </span>
               </div>
@@ -116,7 +116,7 @@ function ResetPasswordContent() {
                 Create new <span className="text-gradient">password</span>
               </h1>
               <p className="mt-2 text-[var(--text-muted)]">Your new password must be different from previously used passwords.</p>
-              <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-white/55">
+              <p className="mx-auto mt-3 max-w-sm text-xs leading-relaxed text-[var(--text-muted)]">
                 Password changes are recorded and tied to session risk telemetry for post-event investigation.
               </p>
             </div>
@@ -147,7 +147,7 @@ function ResetPasswordContent() {
                   {Array.from({ length: 4 }).map((_, idx) => (
                     <span
                       key={idx}
-                      className={`rounded-full transition-all duration-300 ${idx < strength ? STRENGTH_COLORS[strength] : "bg-white/15"}`}
+                      className={`rounded-full transition-all duration-300 ${idx < strength ? STRENGTH_COLORS[strength] : "bg-[var(--surface-container-highest)]"}`}
                     />
                   ))}
                 </div>
@@ -266,7 +266,7 @@ function ReqItem({ ok = false, text }: { ok?: boolean; text: string }) {
   return (
     <li className="flex items-center gap-2 text-[var(--text-muted)]">
       <span
-        className={`material-symbols-outlined text-sm transition-colors ${ok ? "text-emerald-400" : "text-white/35"}`}
+        className={`material-symbols-outlined text-sm transition-colors ${ok ? "text-emerald-400" : "text-[var(--text-disabled)]"}`}
         style={{ fontVariationSettings: ok ? '"FILL" 1' : undefined }}
       >
         {ok ? "check_circle" : "circle"}

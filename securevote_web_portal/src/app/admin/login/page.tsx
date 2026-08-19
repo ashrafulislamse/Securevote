@@ -86,7 +86,7 @@ export default function AdminLoginPage() {
                 Welcome <span className="text-gradient">back</span>
               </h2>
               <p className="mt-2 text-sm text-[var(--text-muted)]">Sign in to your admin account to manage operations.</p>
-              <p className="mt-3 max-w-md text-xs leading-relaxed text-white/55">
+              <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-muted)]">
                 Operator sign-in activity is continuously monitored and tied to immutable audit trails.
               </p>
             </div>
@@ -137,7 +137,7 @@ export default function AdminLoginPage() {
               <button type="submit" disabled={loading} className="brand-gradient glow-brand w-full rounded-xl py-4 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? (
                   <span className="inline-flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border-strong)] border-t-white" />
                     Signing In...
                   </span>
                 ) : (
@@ -182,7 +182,7 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <p className="mt-8 text-center text-[10px] leading-relaxed text-white/45 reveal-up reveal-fast reveal-delay-2">
+          <p className="mt-8 text-center text-[10px] leading-relaxed text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-2">
             Protected by enterprise-grade security. By continuing, you agree to SecureVote system terms and data integrity protocols.
           </p>
           <p className="mt-3 text-center text-[11px] text-[var(--text-muted)] reveal-up reveal-fast reveal-delay-3">

@@ -88,7 +88,7 @@ export default function CreateElectionEligibilityPage() {
               Manage KYC Queue
             </Link>
           </div>
-          <div className="mt-4 overflow-x-auto rounded-lg border border-white/8">
+          <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--border-subtle)]">
             <table className="w-full min-w-[400px] text-left text-sm">
               <thead className="bg-[var(--surface-container-low)] text-[10px] uppercase tracking-[0.1em] text-[var(--text-muted)]">
                 <tr>
@@ -108,7 +108,7 @@ export default function CreateElectionEligibilityPage() {
                   </tr>
                 ) : (
                   approvedVoters.slice(0, 10).map((voter) => (
-                    <tr key={voter.id} className="border-t border-white/8">
+                    <tr key={voter.id} className="border-t border-[var(--border-subtle)]">
                       <td className="px-4 py-3 font-semibold">{voter.fullName}</td>
                       <td className="px-4 py-3 text-[var(--text-muted)]">{voter.email}</td>
                       <td className="px-4 py-3">
@@ -131,7 +131,7 @@ export default function CreateElectionEligibilityPage() {
           <div className="rounded-lg bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">{toast}</div>
         ) : null}
 
-        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-white/6 bg-black/55 px-8 backdrop-blur-lg">
+        <footer className="fixed bottom-0 left-60 right-0 flex h-[72px] items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/schedule" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
             <button onClick={saveAndToast} className="rounded-lg bg-[var(--surface-container-high)] px-5 py-2.5 text-sm">Save Draft</button>
@@ -154,11 +154,11 @@ function Stepper({ step }: { step: number }) {
           const done = step > n;
           return (
             <div key={label} className="flex flex-1 items-center gap-2">
-              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-white/15 text-white/45"}`}>
+              <span className={`grid h-8 w-8 place-items-center rounded-full border text-xs font-bold ${active ? "border-[var(--primary)] text-[var(--primary)]" : done ? "brand-gradient border-transparent text-white" : "border-[var(--border-default)] text-[var(--text-muted)]"}`}>
                 {done ? "✓" : n}
               </span>
-              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-white/45"}`}>{label}</span>
-              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-white/15" /> : null}
+              <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${active ? "text-[var(--primary)]" : "text-[var(--text-muted)]"}`}>{label}</span>
+              {idx < labels.length - 1 ? <span className="h-px flex-1 bg-[var(--surface-container-highest)]" /> : null}
             </div>
           );
         })}

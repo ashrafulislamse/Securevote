@@ -213,7 +213,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/verifier"
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/6 px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] text-white transition hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-2xl border border-[var(--border-default)] bg-[var(--surface-container-high)] px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-primary)] transition hover:bg-[var(--surface-container-highest)]"
               >
                 <span className="material-symbols-outlined text-[18px]">check_circle</span>
                 Verify a Receipt
@@ -246,7 +246,7 @@ export default function HomePage() {
           <div className="relative mx-auto h-[440px] w-full max-w-[460px] reveal-up reveal-slow reveal-delay-2">
             <div className="absolute inset-0 rounded-full border border-[var(--primary)]/30 animate-[spin_28s_linear_infinite]" />
             <div className="absolute inset-9 rounded-full border border-[var(--secondary)]/20 animate-[spin_24s_linear_infinite_reverse]" />
-            <div className="absolute inset-20 rounded-full border border-white/10" />
+            <div className="absolute inset-20 rounded-full border border-[var(--border-default)]" />
             <div className="absolute inset-0 blur-2xl opacity-40">
               <div className="absolute inset-16 rounded-full brand-gradient" />
             </div>
@@ -447,7 +447,7 @@ export default function HomePage() {
               </Link>
               <a
                 href="#architecture"
-                className="rounded-[1.2rem] border border-white/15 bg-white/5 px-10 py-5 text-lg font-bold text-white transition hover:bg-white/10"
+                className="rounded-[1.2rem] border border-[var(--border-default)] bg-[var(--surface-container-high)] px-10 py-5 text-lg font-bold text-[var(--text-primary)] transition hover:bg-[var(--surface-container-highest)]"
               >
                 Review Architecture
               </a>

@@ -160,7 +160,7 @@ export default function SecurityPage() {
           <div className="relative mx-auto grid h-[360px] w-full max-w-[420px] place-items-center reveal-up reveal-slow reveal-delay-2">
             <div className="absolute inset-0 rounded-full border border-[var(--primary)]/25 animate-[spin_30s_linear_infinite]" />
             <div className="absolute inset-10 rounded-full border border-[var(--teal)]/20 animate-[spin_24s_linear_infinite_reverse]" />
-            <div className="absolute inset-20 rounded-full border border-white/10" />
+            <div className="absolute inset-20 rounded-full border border-[var(--border-default)]" />
             <div className="absolute inset-8 rounded-full blur-2xl opacity-30 brand-gradient" />
 
             <div className="glass-panel border-gradient relative grid h-44 w-44 place-items-center rounded-[2rem] animate-float">

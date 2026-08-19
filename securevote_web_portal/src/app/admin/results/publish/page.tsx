@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
-import { listElections, publishElection } from "@/lib/api-client";
+import { listElections, publishElection, setElectionStatus } from "@/lib/api-client";
 import type { Election } from "@/lib/api-client";
 
 type Visibility = "public" | "participants" | "internal";
@@ -18,6 +18,7 @@ export default function PublishResultsPage() {
   const [channels, setChannels] = useState({ email: true, portal: true, apiWebhook: false });
   const [confirmed, setConfirmed] = useState(false);
   const [published, setPublished] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const channelCount = useMemo(() => Object.values(channels).filter(Boolean).length, [channels]);
   const canPublish = confirmed && channelCount > 0 && !loading && !publishing;
@@ -67,6 +68,21 @@ export default function PublishResultsPage() {
     }
   };
 
+  const handleClose = async () => {
+    if (!election) return;
+    setClosing(true);
+    setError(null);
+    try {
+      await setElectionStatus(election.id, "closed");
+      const items = await listElections();
+      setElection(items.find((e) => e.id === election.id) ?? election);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to close election");
+    } finally {
+      setClosing(false);
+    }
+  };
+
   return (
     <AdminShell active="elections">
       <section className="mx-auto max-w-6xl space-y-6">
@@ -100,6 +116,24 @@ export default function PublishResultsPage() {
           </div>
         ) : (
           <div className="grid gap-6 xl:grid-cols-[1.15fr,0.85fr]">
+            {election.status !== "closed" && election.status !== "published" ? (
+              <div className="xl:col-span-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-300">Election must be closed before publishing</p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">Closing finalizes the merkle root and on-chain anchor. Once closed, you can publish the results.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={closing}
+                    onClick={handleClose}
+                    className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/25 disabled:opacity-50"
+                  >
+                    {closing ? "Closing..." : "Close & Finalize Election"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <article className="space-y-5 rounded-xl bg-[var(--surface-container)] p-5">
               <section>
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)]">Who can view these results?</p>
@@ -168,20 +202,20 @@ export default function PublishResultsPage() {
                     onChange={(event) => setConfirmed(event.target.checked)}
                     className="h-4 w-4"
                   />
-                  <span className="text-xs text-white/85">I confirm this publish action is final and cannot be undone.</span>
+                  <span className="text-xs text-[var(--text-secondary)]">I confirm this publish action is final and cannot be undone.</span>
                 </label>
 
                 <button
                   type="button"
                   disabled={!canPublish}
                   onClick={handlePublish}
-                  className={`mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold ${canPublish ? "brand-gradient text-white" : "bg-white/10 text-white/45"}`}
+                  className={`mt-4 w-full rounded-lg px-4 py-2.5 text-sm font-semibold ${canPublish ? "brand-gradient text-white" : "bg-[var(--surface-container-high)] text-[var(--text-muted)]"}`}
                 >
                   {publishing ? "Publishing..." : "Publish and Notify"}
                 </button>
               </section>
 
-              <section className="rounded-xl border border-white/8 bg-[var(--surface-container)] p-5">
+              <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-container)] p-5">
                 {published ? (
                   <>
                     <p className="text-sm font-semibold text-emerald-300">Results published successfully.</p>
@@ -207,7 +241,7 @@ function VisibilityCard({ title, description, selected, onClick }: { title: stri
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg border p-4 text-left transition ${selected ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-white/8 bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)]/40"}`}
+      className={`rounded-lg border p-4 text-left transition ${selected ? "border-[var(--primary)]/45 bg-[var(--primary)]/8" : "border-[var(--border-subtle)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)]/40"}`}
     >
       <p className="text-sm font-semibold">{title}</p>
       <p className="mt-1 text-xs text-[var(--text-muted)]">{description}</p>

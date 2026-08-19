@@ -153,7 +153,7 @@ export default function PublicVerifierPage() {
             >
               {loading ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--text-tertiary)] border-t-white" />
                   Verifying
                 </>
               ) : (
@@ -303,7 +303,7 @@ export default function PublicVerifierPage() {
 
 function Row({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-white/8 py-3.5 last:border-b-0">
+    <div className="flex items-center justify-between gap-4 border-b border-[var(--border-subtle)] py-3.5 last:border-b-0">
       <p className="shrink-0 text-[11px] uppercase tracking-[0.08em] text-[var(--text-muted)]">{label}</p>
       <p className={`text-right text-sm font-semibold ${mono ? "break-all font-mono text-xs text-[var(--primary)]" : "text-[var(--text-primary)]"}`}>
         {value}

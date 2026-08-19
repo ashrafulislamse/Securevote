@@ -214,7 +214,7 @@ export default function AnomalyFraudAlertsPage() {
                   className={`cursor-pointer rounded-xl border p-4 transition ${
                     active?.id === alert.id
                       ? "border-[var(--primary)]/50 bg-[var(--primary)]/8"
-                      : "border-white/8 bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
+                      : "border-[var(--border-subtle)] bg-[var(--surface-container)] hover:bg-[var(--surface-container-high)]/40"
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -227,7 +227,7 @@ export default function AnomalyFraudAlertsPage() {
                       <StatusPill status={alert.status} />
                     </div>
                   </div>
-                  <p className="mt-3 text-sm text-white/85">{alert.signal}</p>
+                  <p className="mt-3 text-sm text-[var(--text-secondary)]">{alert.signal}</p>
                   <div className="mt-3 flex items-center justify-between text-xs text-[var(--text-muted)]">
                     <span>Risk score: {alert.score}</span>
                     <span>{alert.detectedAt}</span>
@@ -253,9 +253,9 @@ export default function AnomalyFraudAlertsPage() {
                     <Detail label="Detected" value={active.detectedAt} />
                   </div>
 
-                  <div className="mt-5 rounded-lg border border-white/8 bg-[var(--surface-container-low)] p-4">
+                  <div className="mt-5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-container-low)] p-4">
                     <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--text-muted)]">Signal Trace</p>
-                    <p className="mt-2 text-sm text-white/85">{active.signal}</p>
+                    <p className="mt-2 text-sm text-[var(--text-secondary)]">{active.signal}</p>
                   </div>
 
                   <div className="mt-6 grid grid-cols-2 gap-3">

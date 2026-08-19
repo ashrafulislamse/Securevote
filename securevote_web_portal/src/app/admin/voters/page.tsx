@@ -109,7 +109,7 @@ export default function VoterListPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
-          <StatCard title="Total" value={String(counts.total)} tone="text-white" />
+          <StatCard title="Total" value={String(counts.total)} tone="text-[var(--text-primary)]" />
           <StatCard title="Verified" value={String(counts.verified)} tone="text-emerald-300" />
           <StatCard title="Pending" value={String(counts.pending)} tone="text-amber-300" />
           <StatCard title="Rejected" value={String(counts.rejected)} tone="text-rose-300" />
@@ -135,14 +135,14 @@ export default function VoterListPage() {
 
         <section className="overflow-hidden rounded-xl bg-[var(--surface-container)]">
           {selected.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/8 bg-[var(--primary)]/8 px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--primary)]/8 px-5 py-3">
               <p className="text-sm">{selected.length} selected</p>
               <div className="flex flex-wrap items-center gap-2">
                 {action.error ? <span className="text-xs text-rose-300">{action.error}</span> : null}
                 {action.success ? <span className="text-xs text-emerald-300">{action.success}</span> : null}
                 <button onClick={() => applyBulk("approved")} disabled={action.busy} className="rounded-md bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300 disabled:opacity-50">Approve</button>
                 <button onClick={() => applyBulk("rejected")} disabled={action.busy} className="rounded-md bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300 disabled:opacity-50">Reject</button>
-                <button onClick={notifySelected} disabled={action.busy} className="rounded-md bg-white/10 px-3 py-1 text-xs font-semibold disabled:opacity-50">Notify</button>
+                <button onClick={notifySelected} disabled={action.busy} className="rounded-md bg-[var(--surface-container-high)] px-3 py-1 text-xs font-semibold disabled:opacity-50">Notify</button>
               </div>
             </div>
           ) : null}
@@ -183,7 +183,7 @@ export default function VoterListPage() {
                   {voters.map((voter) => {
                     const checked = selected.includes(voter.id);
                     return (
-                      <tr key={voter.id} className={`border-t border-white/8 text-sm ${checked ? "bg-[var(--primary)]/7" : "hover:bg-[var(--surface-container-high)]/25"}`}>
+                      <tr key={voter.id} className={`border-t border-[var(--border-subtle)] text-sm ${checked ? "bg-[var(--primary)]/7" : "hover:bg-[var(--surface-container-high)]/25"}`}>
                         <td className="px-4 py-4">
                           <input
                             type="checkbox"

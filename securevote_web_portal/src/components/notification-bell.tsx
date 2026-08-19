@@ -50,7 +50,7 @@ const TONE_FOR_TYPE: Record<NotificationType, string> = {
   kyc_rejected: "text-rose-400",
   vote_recorded: "text-[var(--tertiary)]",
   election_opened: "text-[var(--primary)]",
-  election_closed: "text-white/70",
+  election_closed: "text-[var(--text-secondary)]",
   election_published: "text-[var(--tertiary)]",
   info: "text-emerald-400",
 };
@@ -164,7 +164,7 @@ export function NotificationBell() {
             <button
               type="button"
               onClick={() => void handleMarkAll()}
-              className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--primary)] transition hover:text-white"
+              className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--primary)] transition hover:text-[var(--text-primary)]"
             >
               Mark all read
             </button>
@@ -199,7 +199,7 @@ export function NotificationBell() {
                   <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", tone)} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="truncate text-sm font-semibold text-white">
+                      <p className="truncate text-sm font-semibold text-[var(--text-primary)]">
                         {n.title}
                       </p>
                       {!n.read ? (
@@ -231,7 +231,7 @@ export function NotificationBell() {
               <button
                 type="button"
                 onClick={() => void refresh()}
-                className="inline-flex items-center gap-1 font-semibold text-[var(--primary)] transition hover:text-white"
+                className="inline-flex items-center gap-1 font-semibold text-[var(--primary)] transition hover:text-[var(--text-primary)]"
               >
                 <X className="h-3 w-3" /> Refresh
               </button>
