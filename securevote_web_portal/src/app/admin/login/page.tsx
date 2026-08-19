@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
 
 const DEFAULT_ADMIN_EMAIL = "admin@securevote.io";
+const DEMO_ADMIN_PASSWORD = "SecureVote@2026";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,6 +32,12 @@ export default function AdminLoginPage() {
       setError(err instanceof Error ? err.message : "Sign in failed.");
       setLoading(false);
     }
+  }
+
+  function fillDemoAdmin() {
+    setEmail(DEFAULT_ADMIN_EMAIL);
+    setPassword(DEMO_ADMIN_PASSWORD);
+    setError(null);
   }
 
   return (
@@ -138,6 +145,26 @@ export default function AdminLoginPage() {
                 )}
               </button>
             </form>
+
+            <div className="mt-5 rounded-xl border border-[var(--border-brand)] bg-[var(--brand)]/8 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--brand)]">
+                    Demo Admin Access
+                  </p>
+                  <p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                    {DEFAULT_ADMIN_EMAIL} &middot; {DEMO_ADMIN_PASSWORD}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fillDemoAdmin}
+                  className="shrink-0 rounded-lg border border-[var(--border-brand)] bg-[var(--brand)]/15 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--brand)] transition hover:bg-[var(--brand)]/25"
+                >
+                  Fill &amp; Sign In
+                </button>
+              </div>
+            </div>
 
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-[var(--border-subtle)] pt-5 text-[10px] font-medium uppercase tracking-[0.1em] text-[var(--text-muted)]">
               <span className="inline-flex items-center gap-1.5">
