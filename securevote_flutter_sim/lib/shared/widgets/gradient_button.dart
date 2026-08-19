@@ -11,24 +11,37 @@ class GradientButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
+    final bool enabled = onPressed != null;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          colors: <Color>[AppColors.primary, AppColors.secondary],
-        ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.28),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        gradient: enabled
+            ? const LinearGradient(
+                colors: <Color>[AppColors.primary, AppColors.secondary],
+              )
+            : LinearGradient(
+                colors: <Color>[
+                  Colors.white.withValues(alpha: 0.08),
+                  Colors.white.withValues(alpha: 0.05),
+                ],
+              ),
+        boxShadow: enabled
+            ? <BoxShadow>[
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.28),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
+        border: enabled
+            ? null
+            : Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -41,13 +54,20 @@ class GradientButton extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 if (icon != null) ...<Widget>[
-                  Icon(icon, color: const Color(0xFF0D0E13)),
+                  Icon(
+                    icon,
+                    color: enabled
+                        ? const Color(0xFF0D0E13)
+                        : Colors.white.withValues(alpha: 0.4),
+                  ),
                   const SizedBox(width: 10),
                 ],
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Color(0xFF0D0E13),
+                  style: TextStyle(
+                    color: enabled
+                        ? const Color(0xFF0D0E13)
+                        : Colors.white.withValues(alpha: 0.4),
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                   ),

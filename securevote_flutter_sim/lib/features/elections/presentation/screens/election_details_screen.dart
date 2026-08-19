@@ -312,35 +312,119 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
           ],
         ),
       ),
-      // Fixed Bottom Button
+      // Fixed Bottom Button — context-aware:
+      //   • already voted   → "View Receipt"
+      //   • KYC not approved → disabled "KYC Required"
+      //   • election closed → disabled "Voting Closed"
+      //   • otherwise       → "Vote Now"
       bottomNavigationBar: _election == null
           ? const SizedBox.shrink()
-          : Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF08090E).withValues(alpha: 0.8),
-                border: Border(
-                  top: BorderSide(
-                    color: const Color(0xFF444654).withValues(alpha: 0.15),
-                  ),
-                ),
-              ),
-              child: SafeArea(
-                child: GradientButton(
-                  label: 'Vote Now',
-                  icon: Icons.how_to_vote_rounded,
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    AppRouter.ballotCasting,
-                    arguments: <String, dynamic>{
-                      'electionId': _election!.id,
-                      'election': _election,
-                      'candidates': _candidates,
-                    },
-                  ),
-                ),
-              ),
+          : _buildBottomButton(),
+    );
+  }
+
+  Widget _buildBottomButton() {
+    final Election election = _election!;
+
+    // Already voted — offer to view the receipt instead.
+    if (_hasVoted) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF08090E).withValues(alpha: 0.8),
+          border: Border(
+            top: BorderSide(
+              color: const Color(0xFF444654).withValues(alpha: 0.15),
             ),
+          ),
+        ),
+        child: SafeArea(
+          child: GradientButton(
+            label: 'View Your Receipt',
+            icon: Icons.receipt_long_rounded,
+            onPressed: () => Navigator.pushNamed(
+              context,
+              AppRouter.myVotes,
+            ),
+          ),
+        ),
+      );
+    }
+
+    // KYC not approved — disabled.
+    if (_eligibilityChecked && !_kycApproved) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF08090E).withValues(alpha: 0.8),
+          border: Border(
+            top: BorderSide(
+              color: const Color(0xFF444654).withValues(alpha: 0.15),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: GradientButton(
+            label: 'KYC Required to Vote',
+            icon: Icons.gpp_bad_outlined,
+            onPressed: null,
+          ),
+        ),
+      );
+    }
+
+    // Election not active — disabled.
+    if (election.status != 'active') {
+      final String label = election.status == 'closed' ||
+          election.status == 'published'
+          ? 'Voting Closed'
+          : 'Voting Not Open Yet';
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF08090E).withValues(alpha: 0.8),
+          border: Border(
+            top: BorderSide(
+              color: const Color(0xFF444654).withValues(alpha: 0.15),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: GradientButton(
+            label: label,
+            icon: Icons.lock_clock,
+            onPressed: null,
+          ),
+        ),
+      );
+    }
+
+    // Eligible and election is active — vote.
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF08090E).withValues(alpha: 0.8),
+        border: Border(
+          top: BorderSide(
+            color: const Color(0xFF444654).withValues(alpha: 0.15),
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: GradientButton(
+          label: 'Vote Now',
+          icon: Icons.how_to_vote_rounded,
+          onPressed: () => Navigator.pushNamed(
+            context,
+            AppRouter.ballotCasting,
+            arguments: <String, dynamic>{
+              'electionId': election.id,
+              'election': election,
+              'candidates': _candidates,
+            },
+          ),
+        ),
+      ),
     );
   }
 

@@ -27,6 +27,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
   List<Candidate> _candidates = <Candidate>[];
   int? _selectedIndex = 0;
   bool _loading = true;
+  bool _alreadyVoted = false;
   String? _error;
 
   @override
@@ -85,6 +86,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
     try {
       final voted = await VotingRepository().hasVoted(_electionId!);
       if (voted && mounted) {
+        setState(() => _alreadyVoted = true);
         _showAlreadyVotedDialog();
       }
     } on Exception {
@@ -292,7 +294,7 @@ class _BallotCastingScreenState extends State<BallotCastingScreen> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: (_loading || _error != null)
+                    onTap: (_loading || _error != null || _alreadyVoted)
                         ? null
                         : _continueToReview,
                     borderRadius: BorderRadius.circular(16),
