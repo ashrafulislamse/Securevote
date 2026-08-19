@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/models/election.dart';
@@ -47,6 +48,30 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
   bool _started = false;
+
+  /// Tracks the last back-press so the user must press twice to exit.
+  DateTime? _lastBackPress;
+
+  /// Intercepts the system back button on the home (root) screen.
+  ///
+  /// The first back press shows a hint; a second press within 2s exits. This
+  /// prevents the app from closing immediately on a single accidental back.
+  void _handleBackToExit(BuildContext context) {
+    final DateTime now = DateTime.now();
+    final DateTime? last = _lastBackPress;
+    if (last != null && now.difference(last) < const Duration(seconds: 2)) {
+      SystemNavigator.pop();
+    } else {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Press back again to exit'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -155,8 +180,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Election> visibleElections = _forTab(allElections, activeTab);
     final Election? activeElection = _firstActive(allElections);
 
-    return ObsidianScaffold(
-      bottomNavigationBar: Builder(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _handleBackToExit(context);
+      },
+      child: ObsidianScaffold(
+        bottomNavigationBar: Builder(
         builder: (context) {
           final count = context.watch<NotificationsProvider>().unreadCount;
           return PremiumBottomNav(currentIndex: 0, alertsUnreadCount: count);
@@ -292,6 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
+        ),
         ),
       ),
     );
