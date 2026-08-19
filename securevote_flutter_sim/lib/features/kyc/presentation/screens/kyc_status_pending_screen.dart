@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/models/kyc_document.dart';
 import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/kyc_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
@@ -53,6 +55,12 @@ class _KycStatusPendingScreenState extends State<KycStatusPendingScreen>
       if (!mounted) return;
       if (snapshot.status == KycStatus.approved) {
         _pollTimer?.cancel();
+        // Refresh the in-memory user so auth.user.kycStatus is up-to-date
+        // before any downstream screen (e.g. election eligibility) reads it.
+        if (mounted) {
+          await context.read<AuthProvider>().refreshUser();
+        }
+        if (!mounted) return;
         setState(() => _loading = false);
         Navigator.pushReplacementNamed(context, AppRouter.kycSuccess);
         return;

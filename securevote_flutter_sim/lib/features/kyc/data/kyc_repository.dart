@@ -80,8 +80,12 @@ class KycRepository {
   /// Returns the raw bytes of the picked image, or `null` if the user
   /// cancelled. Throws if neither camera nor gallery returned a usable file.
   Future<PickedKycImage?> pickImage({required String docType}) async {
+    // Use the front camera for selfies/liveness, back camera for ID documents.
+    final CameraDevice preferred =
+        docType == 'selfie' ? CameraDevice.front : CameraDevice.rear;
     XFile? file = await _picker.pickImage(
       source: ImageSource.camera,
+      preferredCameraDevice: preferred,
       imageQuality: 85,
       maxWidth: 2000,
     );

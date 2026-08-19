@@ -7,6 +7,7 @@ import '../../../../core/models/kyc_status.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/providers/auth_provider.dart';
 import '../../../../features/elections/data/elections_repository.dart';
+import '../../../../features/kyc/data/kyc_repository.dart';
 import '../../../../features/voting/data/voting_repository.dart';
 import '../../../../shared/widgets/gradient_button.dart';
 
@@ -125,8 +126,18 @@ class _ElectionDetailsScreenState extends State<ElectionDetailsScreen> {
   }
 
   Future<void> _checkEligibility(String electionId) async {
+    // Fetch fresh KYC status from the API rather than relying on the
+    // in-memory auth.user, which may be stale if KYC was approved after
+    // login (e.g. dev auto-approve or admin approval while the app was open).
     final AuthProvider auth = context.read<AuthProvider>();
-    final bool kycApproved = auth.user?.kycStatus == KycStatus.approved;
+    bool kycApproved = false;
+    try {
+      final snapshot = await KycRepository().getStatus();
+      kycApproved = snapshot.status == KycStatus.approved;
+    } on Exception {
+      // Fall back to the in-memory user if the API call fails.
+      kycApproved = auth.user?.kycStatus == KycStatus.approved;
+    }
     bool voted = false;
     try {
       voted = await VotingRepository().hasVoted(electionId);

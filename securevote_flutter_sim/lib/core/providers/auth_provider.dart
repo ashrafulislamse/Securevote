@@ -71,6 +71,16 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Re-fetches the current user from the server so that fields like
+  /// `kycStatus` are up-to-date after an admin action (e.g. KYC approval).
+  Future<void> refreshUser() async {
+    try {
+      await _repository.me();
+    } catch (_) {
+      // Silently ignore — the stale user is better than no user.
+    }
+  }
+
   /// Signs the user in with email + password.
   Future<AuthSession> login({
     required String email,
