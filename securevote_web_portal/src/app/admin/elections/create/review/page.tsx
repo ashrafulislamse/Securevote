@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin-shell";
-import { createElection } from "@/lib/api-client";
+import { createElection, setElectionStatus } from "@/lib/api-client";
 import { clearDraft, loadDraft } from "../draft";
 
 const checklistItems = [
@@ -42,7 +42,7 @@ export default function CreateElectionReviewPage() {
     setPublishing(true);
     setError(null);
     try {
-      await createElection({
+      const result = await createElection({
         title: draft.title.trim(),
         description: draft.description.trim() || undefined,
         organization: draft.organization.trim() || undefined,
@@ -50,6 +50,16 @@ export default function CreateElectionReviewPage() {
         startsAt: draft.startsAt,
         endsAt: draft.endsAt,
       });
+      // Transition the new election from draft → scheduled so it's
+      // actually live and visible to voters (not stuck as a hidden draft).
+      const nowMs = Date.now();
+      const targetStatus = draft.startsAt <= nowMs ? "active" : "scheduled";
+      try {
+        await setElectionStatus(result.election.id, targetStatus);
+      } catch {
+        // The election was created; a status transition failure is
+        // non-fatal — the admin can change status from the overview page.
+      }
       clearDraft();
       router.push("/admin/elections");
     } catch (err) {
@@ -158,7 +168,7 @@ export default function CreateElectionReviewPage() {
         <footer className="fixed bottom-0 left-60 right-0 flex h-[76px] items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-overlay)] px-8 backdrop-blur-lg">
           <Link href="/admin/elections/create/eligibility" className="text-sm text-[var(--text-muted)]">Back</Link>
           <div className="flex items-center gap-3">
-            <button onClick={publish} disabled={publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Publish Election</button>
+            <button onClick={publish} disabled={!publishReady || publishing} className="brand-gradient rounded-lg px-8 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Publish Election</button>
           </div>
         </footer>
       </section>
