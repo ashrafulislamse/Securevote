@@ -23,7 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
 export default function CreateElectionReviewPage() {
   const router = useRouter();
   const draft = useMemo(() => loadDraft(), []);
-  const [done, setDone] = useState<string[]>(checklistItems.slice(0, 3));
+  const [done, setDone] = useState<string[]>(checklistItems);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
